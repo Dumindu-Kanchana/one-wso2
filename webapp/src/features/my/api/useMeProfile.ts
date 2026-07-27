@@ -14,11 +14,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
-import { authedGet, HttpError } from "@api/http";
+import { authedGet, HttpError, defaultQueryRetry } from "@api/http";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
+import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import type { Employee, EmployeePersonalInfo, UserInfo } from "./types";
 
 // Re-export HttpError for existing feature-scoped consumers that still
@@ -29,65 +29,6 @@ export interface MeProfile {
   userInfo: UserInfo;
   employee: Employee;
   personalInfo: EmployeePersonalInfo;
-}
-
-// Resolves the current Asgardeo user's `sub` claim. Used as an identity
-// discriminator in downstream query keys so a sign-out→different-user
-// sign-in in the same tab can't briefly serve the previous user's cached
-// data. We can't use useAsgardeo().user for this — that field is only
-// populated when preferences.user.fetchUserProfile is true (we disable it)
-// or on the AsgardeoV2 platform (our tenant isn't). Decoding the id_token
-// via the SDK is the one path that always works.
-//
-// Returns a three-state value so the caller can distinguish loading
-// ({status: "loading"}), success ({status: "ready", sub}), and terminal
-// failure ({status: "error", message}). Callers surface the error state
-// in the UI instead of leaving the downstream query silently disabled.
-type SubState =
-  | { status: "loading" }
-  | { status: "ready"; sub: string }
-  | { status: "error"; message: string };
-
-// A tick counter drives the identity-resolution effect: bumping it re-runs
-// getDecodedIdToken() so a user-visible "Retry" can recover from a decode
-// error without having to sign out and back in.
-function useAsgardeoSub(): { state: SubState; retry: () => void } {
-  const { isSignedIn, getDecodedIdToken } = useAsgardeo();
-  const [state, setState] = useState<SubState>({ status: "loading" });
-  const [retryTick, setRetryTick] = useState(0);
-  const retry = useCallback(() => setRetryTick((n) => n + 1), []);
-
-  useEffect(() => {
-    if (!isSignedIn) {
-      setState({ status: "loading" });
-      return;
-    }
-    let cancelled = false;
-    setState({ status: "loading" });
-    getDecodedIdToken()
-      .then((token) => {
-        if (cancelled) return;
-        const s = (token as { sub?: string } | null | undefined)?.sub;
-        if (typeof s === "string" && s.length > 0) {
-          setState({ status: "ready", sub: s });
-        } else {
-          setState({
-            status: "error",
-            message: "Signed in, but the identity token has no `sub` claim.",
-          });
-        }
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        const msg = e instanceof Error ? e.message : String(e);
-        setState({ status: "error", message: `Couldn't decode identity token: ${msg}` });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isSignedIn, getDecodedIdToken, retryTick]);
-
-  return { state, retry };
 }
 
 // Two-step fetch that mirrors people-app's own me flow:
@@ -134,10 +75,7 @@ export function useMeProfile() {
     // Profile changes rarely — fetch once per session, don't retry on
     // 4xx (usually a token / role problem, not a transient failure).
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
-      return failureCount < 1;
-    },
+    retry: defaultQueryRetry,
   });
 
   // Fold identity resolution failures into the query result so the page

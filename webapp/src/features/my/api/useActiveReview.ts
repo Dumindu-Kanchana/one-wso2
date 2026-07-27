@@ -16,7 +16,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
-import { authedGet, HttpError } from "@api/http";
+import { authedGet, HttpError, defaultQueryRetry } from "@api/http";
 import { parBackendUrl, parServiceUrls } from "@config/apiConfig";
 import type { ParCycle, ParRating } from "./types";
 import { digiopsHeaders } from "../util/digiopsHeaders";
@@ -39,10 +39,7 @@ export function useActiveParCycle(workEmail: string | undefined) {
       );
     },
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
-      return failureCount < 1;
-    },
+    retry: defaultQueryRetry,
   });
 }
 
@@ -73,10 +70,7 @@ export function useParRating(parCycleId: number | undefined, workEmail: string |
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
-      return failureCount < 1;
-    },
+    retry: defaultQueryRetry,
   });
 }
 
