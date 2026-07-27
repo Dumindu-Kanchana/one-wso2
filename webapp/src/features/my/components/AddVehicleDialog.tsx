@@ -29,7 +29,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
-import { HttpError } from "@api/http";
+import { humanizeHttpError } from "@api/http";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { useAddVehicle } from "../api/useVehicles";
 import type { VehicleType } from "../api/types";
@@ -170,24 +170,13 @@ export default function AddVehicleDialog({
   );
 }
 
-// Read the friendliest message we can out of a mutation error. When the
-// backend rejects with the generic "Payload binding failed!" (which
-// Ballerina raises before the friendly @constraint message is available),
-// we translate it into something actionable.
-function readBackendError(err: Error): string {
-  const raw = (() => {
-    if (err instanceof HttpError && err.responseBody) {
-      try {
-        const parsed = JSON.parse(err.responseBody) as { message?: string };
-        return parsed.message ?? err.responseBody;
-      } catch {
-        return err.responseBody;
-      }
-    }
-    return err.message ?? "Failed to add vehicle";
-  })();
-  if (/payload binding failed/i.test(raw)) {
-    return "The registration number didn't match the expected format. Try e.g. CAA 1111, 12 3456, or 1 SRI 1234.";
-  }
-  return raw;
+// Domain-specific override on top of the shared humanizeHttpError:
+// when Ballerina rejects with its generic "Payload binding failed!"
+// message (raised before the friendly @constraint message is
+// available), translate it into an actionable plate-format hint.
+function readBackendError(err: unknown): string {
+  const msg = humanizeHttpError(err);
+  return /payload binding failed/i.test(msg)
+    ? "The registration number didn't match the expected format. Try e.g. CAA 1111, 12 3456, or 1 SRI 1234."
+    : msg;
 }

@@ -26,9 +26,13 @@ export const peopleBackendUrl: string =
 // own webapp so the two apps hit the same endpoints the same way.
 export const peopleServiceUrls = {
   userInfo: `${peopleBackendUrl}/user-info`,
-  employee: (employeeId: string) => `${peopleBackendUrl}/employees/${employeeId}`,
+  // encodeURIComponent on the id for parity with every sibling builder
+  // below — no current employeeId contains a reserved character, but a
+  // future one could (and useUpdatePersonalInfo PATCHes through here).
+  employee: (employeeId: string) =>
+    `${peopleBackendUrl}/employees/${encodeURIComponent(employeeId)}`,
   employeePersonalInfo: (employeeId: string) =>
-    `${peopleBackendUrl}/employees/${employeeId}/personal-info`,
+    `${peopleBackendUrl}/employees/${encodeURIComponent(employeeId)}/personal-info`,
   // Vehicles endpoints — keyed on the caller's email (backend enforces
   // employeeEmail === userInfo.email in the JWT). encodeURIComponent so
   // the `@` in the email survives the URL.

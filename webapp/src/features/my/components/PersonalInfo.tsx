@@ -25,7 +25,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
-import { HttpError } from "@api/http";
+import { humanizeHttpError } from "@api/http";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import type { EmployeePersonalInfo, UpdatePersonalInfoPayload } from "../api/types";
 import { ageFromDob, display, formatDate } from "../api/derive";
@@ -117,7 +117,7 @@ export default function PersonalInfo({
         showSuccess("Personal information updated");
       },
       onError: (err) => {
-        const msg = readableError(err);
+        const msg = humanizeHttpError(err);
         setError(msg);
         showError(msg);
       },
@@ -257,17 +257,6 @@ function validate(f: FormState): ValidationErrors {
   return errors;
 }
 
-function readableError(err: Error): string {
-  if (err instanceof HttpError && err.responseBody) {
-    try {
-      const parsed = JSON.parse(err.responseBody) as { message?: string };
-      return parsed.message ?? err.responseBody;
-    } catch {
-      return err.responseBody;
-    }
-  }
-  return err.message ?? "Failed to save changes";
-}
 
 // ---- subcomponents ---------------------------------------------------------
 

@@ -26,7 +26,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
-import { HttpError } from "@api/http";
+import { humanizeHttpError } from "@api/http";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import type { EmergencyContact } from "../api/types";
 import { display } from "../api/derive";
@@ -132,7 +132,7 @@ export default function EmergencyContacts({
           showSuccess("Emergency contacts updated");
         },
         onError: (err) => {
-          const msg = readableError(err);
+          const msg = humanizeHttpError(err);
           setError(msg);
           showError(msg);
         },
@@ -287,17 +287,6 @@ function rowIsIncomplete(c: EmergencyContact): boolean {
   return !c.name.trim() || !c.relationship.trim() || !c.mobile.trim();
 }
 
-function readableError(err: Error): string {
-  if (err instanceof HttpError && err.responseBody) {
-    try {
-      const parsed = JSON.parse(err.responseBody) as { message?: string };
-      return parsed.message ?? err.responseBody;
-    } catch {
-      return err.responseBody;
-    }
-  }
-  return err.message ?? "Failed to save changes";
-}
 
 // ---- subcomponents ---------------------------------------------------------
 

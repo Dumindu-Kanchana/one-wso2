@@ -24,7 +24,7 @@ import {
   DialogTitle,
   Typography,
 } from "@wso2/oxygen-ui";
-import { HttpError } from "@api/http";
+import { humanizeHttpError } from "@api/http";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import type { Vehicle } from "../api/types";
 import { useDeleteVehicle } from "../api/useVehicles";
@@ -65,7 +65,7 @@ export default function DeleteVehicleDialog({
         showSuccess(`Vehicle ${plate} removed`);
       },
       onError: (err) => {
-        const msg = readBackendError(err);
+        const msg = humanizeHttpError(err);
         setError(msg);
         showError(msg);
       },
@@ -110,17 +110,3 @@ export default function DeleteVehicleDialog({
   );
 }
 
-// Reads the friendliest message we can from a mutation error — parses
-// the backend's { message: "..." } body when present, falls back to the
-// raw text or the JS error message.
-function readBackendError(err: Error): string {
-  if (err instanceof HttpError && err.responseBody) {
-    try {
-      const parsed = JSON.parse(err.responseBody) as { message?: string };
-      return parsed.message ?? err.responseBody;
-    } catch {
-      return err.responseBody;
-    }
-  }
-  return err.message ?? "Failed to delete vehicle";
-}

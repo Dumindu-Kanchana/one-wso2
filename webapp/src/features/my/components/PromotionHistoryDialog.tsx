@@ -28,7 +28,7 @@ import {
   Stack,
   Typography,
 } from "@wso2/oxygen-ui";
-import { HttpError } from "@api/http";
+import { humanizeHttpError } from "@api/http";
 import type { PromotionHistoryEntry, PromotionType } from "../api/types";
 import { formatDate } from "../api/derive";
 import { usePromotionHistory } from "../api/usePromotionHistory";
@@ -84,7 +84,7 @@ export default function PromotionHistoryDialog({
             <Typography sx={{ fontSize: 13, fontWeight: 600, mb: 0.25 }}>
               Couldn't load promotion history
             </Typography>
-            <Typography sx={{ fontSize: 12.5 }}>{readableError(query.error)}</Typography>
+            <Typography sx={{ fontSize: 12.5 }}>{humanizeHttpError(query.error)}</Typography>
           </Alert>
         ) : entries.length === 0 ? (
           <Box sx={{ py: 3, textAlign: "center" }}>
@@ -194,15 +194,3 @@ function TypeChip({ type }: { type: PromotionType }) {
   );
 }
 
-function readableError(err: unknown): string {
-  if (err instanceof HttpError && err.responseBody) {
-    try {
-      const parsed = JSON.parse(err.responseBody) as { message?: string };
-      return parsed.message ?? err.responseBody;
-    } catch {
-      return err.responseBody;
-    }
-  }
-  if (err instanceof Error) return err.message;
-  return "Failed to load promotion history";
-}

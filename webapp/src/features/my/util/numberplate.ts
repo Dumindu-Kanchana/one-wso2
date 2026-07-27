@@ -80,13 +80,17 @@ export function formatPlate(input: string): string {
     normalized.match(/^(\d{1,3})[- ]?SRI[- ]?(\d{4})$/i);
   if (sriMatch) return `${sriMatch[1]} SRI ${sriMatch[2]}`;
 
-  if (/^[A-Z]{2,3}\d{4}$/.test(normalized))
+  // Match the shapes validatePlate accepts (via FULL_TWO_LETTER,
+  // FULL_THREE_LETTER, and FULL_E_FORMAT) — `E` on its own OR any 2–3
+  // letter prefix. Without the E branch, "E1234" was submitted unchanged
+  // and the backend @constraint (which requires the space) 400'd a plate
+  // the UI showed no error for. Kept explicit rather than widened to
+  // `[A-Z]{1,3}` so we don't silently format plates like "A1234" that
+  // the validator rejects — the two must agree.
+  if (/^(?:E|[A-Z]{2,3})\d{4}$/.test(normalized))
     return `${normalized.slice(0, -4)} ${normalized.slice(-4)}`;
 
   if (/^\d{2} \d{4}$/.test(normalized)) return normalized;
-
-  const alphaNumMatch = normalized.match(/^([A-Z]{2,3})(\d{4})$/);
-  if (alphaNumMatch) return `${alphaNumMatch[1]} ${alphaNumMatch[2]}`;
 
   if (
     parts.length === 2 &&
