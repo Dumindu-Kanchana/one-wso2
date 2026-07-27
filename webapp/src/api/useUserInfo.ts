@@ -14,11 +14,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
-import { authedGet, HttpError } from "@api/http";
+import { authedGet, defaultQueryRetry } from "@api/http";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
+import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
 
 // Minimal shape returned by the people-app /user-info endpoint. Matches
 // the fields we consume in the shell — the full type lives in
@@ -42,28 +42,12 @@ export interface UserInfoLite {
 // key via queryClient.fetchQuery, so the two hooks share cache — the
 // endpoint hits the network only once per (sub, staleTime) window.
 export function useUserInfo() {
-  const { getIdToken, isSignedIn, getDecodedIdToken } = useAsgardeo();
-  const [userSub, setUserSub] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!isSignedIn) {
-      setUserSub(undefined);
-      return;
-    }
-    let cancelled = false;
-    getDecodedIdToken()
-      .then((token) => {
-        if (cancelled) return;
-        const s = (token as { sub?: string } | null | undefined)?.sub;
-        setUserSub(typeof s === "string" && s.length > 0 ? s : undefined);
-      })
-      .catch(() => {
-        if (!cancelled) setUserSub(undefined);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isSignedIn, getDecodedIdToken]);
+  const { getIdToken, isSignedIn } = useAsgardeo();
+  // Shared sub resolver — the same one useMeProfile consumes. Guarantees
+  // both hooks are byte-identical on the ["user-info", sub] cache key, so
+  // the cache-share promise made in the comment above actually holds.
+  const { state: subState } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
 
   return useQuery<UserInfoLite>({
     queryKey: ["user-info", userSub],
@@ -74,9 +58,6 @@ export function useUserInfo() {
       return authedGet<UserInfoLite>(peopleServiceUrls.userInfo, idToken);
     },
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
-      return failureCount < 1;
-    },
+    retry: defaultQueryRetry,
   });
 }

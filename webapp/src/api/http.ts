@@ -59,10 +59,18 @@ function buildHeaders(
   };
 }
 
-// Parse a 2xx response body as JSON. Empty body (Content-Length 0, HTTP
-// 204, or a zero-byte text payload from a Ballerina resource returning
-// `()`) → throw HttpError instead of letting res.json() surface as a
-// generic SyntaxError. Callers already handle HttpError uniformly.
+// Parse a 2xx response body as JSON. Both the empty-body case (204,
+// Content-Length 0, or a Ballerina resource returning `()`) AND a
+// non-empty NON-JSON body (a gateway HTML page, a plain-text error page,
+// or anything else that isn't well-formed JSON) throw HttpError — so
+// callers see the same HttpError.status-keyed retry/handling path they
+// see for real 4xx/5xx responses, rather than a bare SyntaxError.
+//
+// Not currently reachable via any of our documented endpoints (every
+// backend response we consume is a typed Ballerina record with a
+// non-empty JSON body on success), but the guard exists so an
+// intermediate proxy or gateway that decides to answer with an HTML
+// error page can't crash a query hook.
 async function readJsonOrThrow<T>(res: Response, url: string): Promise<T> {
   if (res.status === 204 || res.headers.get("content-length") === "0") {
     throw new HttpError(url, res.status, "");
@@ -71,15 +79,25 @@ async function readJsonOrThrow<T>(res: Response, url: string): Promise<T> {
   if (!text) {
     throw new HttpError(url, res.status, "");
   }
-  return JSON.parse(text) as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new HttpError(url, res.status, text);
+  }
 }
 
 // Same behavior for POST/PATCH where an empty response is a legitimate
-// "success but no body" — return null.
-async function readJsonOrNull<T>(res: Response): Promise<T | null> {
+// "success but no body" — return null. Non-empty non-JSON bodies still
+// throw HttpError for the same reason as readJsonOrThrow above.
+async function readJsonOrNull<T>(res: Response, url: string): Promise<T | null> {
   if (res.status === 204 || res.headers.get("content-length") === "0") return null;
   const text = await res.text();
-  return text ? (JSON.parse(text) as T) : null;
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new HttpError(url, res.status, text);
+  }
 }
 
 async function throwFromError(url: string, res: Response, method: string): Promise<never> {
@@ -124,7 +142,7 @@ export async function authedPost<T>(
     body: JSON.stringify(body),
   });
   if (!res.ok) await throwFromError(url, res, "authedPost");
-  return readJsonOrNull<T>(res);
+  return readJsonOrNull<T>(res, url);
 }
 
 // Authed PATCH with a JSON body. Returns parsed JSON when the response has
@@ -141,7 +159,26 @@ export async function authedPatch<T>(
     body: JSON.stringify(body),
   });
   if (!res.ok) await throwFromError(url, res, "authedPatch");
-  return readJsonOrNull<T>(res);
+  return readJsonOrNull<T>(res, url);
+}
+
+// Shared React Query retry predicate. Skip retries on 4xx (they don't
+// improve with a retry — the caller sent a bad request, or the user
+// isn't authorized) and retry once on anything else. Kept next to the
+// HTTP primitives so every hook's retry story stays consistent with the
+// error typing here — before this existed, ~8 hooks each had their own
+// copy of this predicate and drifted from the global QueryClient
+// policy in AppWithConfig.
+//
+// Note the global QueryClient policy uses a stricter rule (retry only
+// 502/503, up to twice). Per-query retry overrides the global policy,
+// so any hook that opts into this predicate deliberately supersedes
+// the global — that's the intended contract for the my-page queries,
+// which cover a heterogeneous set of backends where transient upstream
+// errors can be any 5xx.
+export function defaultQueryRetry(failureCount: number, error: unknown): boolean {
+  if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
+  return failureCount < 1;
 }
 
 // Authed DELETE. Returns nothing; throws HttpError on non-2xx.

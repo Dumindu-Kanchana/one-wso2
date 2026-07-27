@@ -16,7 +16,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
-import { authedDelete, authedGet, authedPost, HttpError } from "@api/http";
+import { authedDelete, authedGet, authedPost, defaultQueryRetry } from "@api/http";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
 import type { NewVehiclePayload, VehiclesResponse } from "./types";
 
@@ -44,10 +44,7 @@ export function useVehicles(email: string | undefined) {
       return authedGet<VehiclesResponse>(url, idToken);
     },
     staleTime: 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
-      return failureCount < 1;
-    },
+    retry: defaultQueryRetry,
   });
 }
 

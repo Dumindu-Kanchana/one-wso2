@@ -16,7 +16,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
-import { authedGet, HttpError } from "@api/http";
+import { authedGet, defaultQueryRetry } from "@api/http";
 import { promotionBackendUrl, promotionServiceUrls } from "@config/apiConfig";
 import type { PromotionHistoryResponse } from "./types";
 import { digiopsHeaders } from "../util/digiopsHeaders";
@@ -43,9 +43,6 @@ export function usePromotionHistory(workEmail: string | undefined, enabled: bool
       );
     },
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
-      return failureCount < 1;
-    },
+    retry: defaultQueryRetry,
   });
 }
