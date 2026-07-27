@@ -23,6 +23,7 @@ import { authConfig } from "@config/authConfig";
 import { themeConfig } from "@config/themeConfig";
 import { ThemeModeProvider } from "@context/theme-mode/ThemeModeContext";
 import { PerspectiveProvider } from "@context/perspective/PerspectiveContext";
+import { NotificationsProvider } from "@context/notifications/NotificationsContext";
 import { HttpError } from "@api/http";
 import App from "./App";
 
@@ -63,7 +64,9 @@ export default function AppWithConfig() {
           <ThemeModeProvider>
             <BrowserRouter>
               <PerspectiveProvider>
-                <App />
+                <NotificationsProvider>
+                  <App />
+                </NotificationsProvider>
               </PerspectiveProvider>
             </BrowserRouter>
           </ThemeModeProvider>

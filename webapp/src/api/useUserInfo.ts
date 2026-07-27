@@ -38,8 +38,9 @@ export interface UserInfoLite {
 // Fire /user-info by itself — cheaper than the full useMeProfile chain
 // (which also pulls /employees/{id} + /employees/{id}/personal-info) and
 // safe to mount in the shell (TopBar) where we only need the display
-// name. React Query dedupes with any other consumer using the same key,
-// so an active useMeProfile on the /my page doesn't double-fetch.
+// name. useMeProfile explicitly reads /user-info through this same query
+// key via queryClient.fetchQuery, so the two hooks share cache — the
+// endpoint hits the network only once per (sub, staleTime) window.
 export function useUserInfo() {
   const { getIdToken, isSignedIn, getDecodedIdToken } = useAsgardeo();
   const [userSub, setUserSub] = useState<string | undefined>(undefined);

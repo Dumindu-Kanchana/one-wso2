@@ -14,15 +14,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Avatar, Box, IconButton, Skeleton, Stack, Typography } from "@wso2/oxygen-ui";
+import { useState } from "react";
+import { Avatar, Box, IconButton, Skeleton, Tooltip, Typography } from "@wso2/oxygen-ui";
 import type { Employee, UserInfo } from "../api/types";
 import { display, fullName, initialsOf } from "../api/derive";
+import EmployeeQrDialog from "./EmployeeQrDialog";
 
-// Orange-gradient hero header matching people-app's profile page. Left =
-// large avatar + name; middle = pill row (ID, designation, email, BU);
-// right = QR + Edit icon actions. Data comes from the /user-info +
-// /employees/{id} responses; when either is absent (loading, error, or
-// backend-not-configured) we render skeleton pills instead.
+// Orange-gradient hero header. Left = large avatar; right of avatar = name
+// + designation. QR icon top-right opens the employee QR dialog (same
+// endpoint people-app uses: GET /employees/{id}/qr-code). ID, work email,
+// business unit etc. live in the General Info card below.
 export default function ProfileHero({
   userInfo,
   employee,
@@ -35,6 +36,11 @@ export default function ProfileHero({
   const name = employee ? fullName(employee) : userInfo ? fullName(userInfo) : "";
   const initials = employee ? initialsOf(employee) : userInfo ? initialsOf(userInfo) : "";
   const thumbnail = employee?.employeeThumbnail ?? userInfo?.employeeThumbnail ?? null;
+  const designation = employee?.designation ?? userInfo?.designation ?? null;
+  const employeeId = employee?.employeeId ?? userInfo?.employeeId;
+  const workEmail = employee?.workEmail ?? userInfo?.workEmail;
+
+  const [qrOpen, setQrOpen] = useState(false);
 
   return (
     <Box
@@ -50,11 +56,18 @@ export default function ProfileHero({
         alignItems: "center",
         gap: 2.25,
         overflow: "hidden",
+        // Use the palette CSS var directly, not t.palette.primary.light —
+        // under CssVarsProvider the callback resolves that to the light
+        // scheme's pastel pink (#FDEDE8) at theme construction, so in
+        // dark mode the gradient painted a washed-out sunset over dark
+        // paper. Referencing the CSS var lets the gradient adapt to the
+        // active color scheme (light-mode = pastel pink, dark-mode =
+        // 18%-opacity orange over #141417).
         "&::before": {
           content: '""',
           position: "absolute",
           inset: 0,
-          background: (t) => `linear-gradient(120deg, ${t.palette.primary.light} 0%, transparent 55%)`,
+          background: "linear-gradient(120deg, var(--oxygen-palette-primary-light) 0%, transparent 55%)",
           pointerEvents: "none",
         },
       }}
@@ -79,76 +92,59 @@ export default function ProfileHero({
 
       <Box sx={{ position: "relative", flex: 1, minWidth: 0 }}>
         {isLoading && !name ? (
-          <Skeleton variant="text" width={220} height={32} sx={{ mb: 0.875 }} />
+          <Skeleton variant="text" width={220} height={32} sx={{ mb: 0.5 }} />
         ) : (
-          <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.875 }}>
+          <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.375 }}>
             {name || display(null)}
           </Typography>
         )}
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-          <HeroChip label="ID" value={display(employee?.employeeId ?? userInfo?.employeeId)} loading={isLoading} />
-          <HeroChip
-            label="Designation"
-            value={display(employee?.designation ?? userInfo?.designation ?? null)}
-            loading={isLoading}
-          />
-          <HeroChip label="Work email" value={display(employee?.workEmail ?? userInfo?.workEmail)} loading={isLoading} />
-          <HeroChip label="Business unit" value={display(employee?.businessUnit)} loading={isLoading} />
-        </Stack>
+        {isLoading && !designation ? (
+          <Skeleton variant="text" width={180} height={18} />
+        ) : designation ? (
+          <Typography sx={{ fontSize: 13.5, color: "text.secondary", fontWeight: 500 }}>
+            {designation}
+          </Typography>
+        ) : null}
       </Box>
 
-      {/* QR + Edit are placeholders — disabled until the corresponding
-          people-app endpoints (QR reveal, profile edit) are wired up. */}
-      <Stack direction="row" spacing={0.75} sx={{ position: "relative", flexShrink: 0 }}>
-        <IconButton
-          title="QR (coming soon)"
-          aria-label="Show QR code (coming soon)"
-          size="small"
-          disabled
-          sx={{ border: 1, borderColor: "divider", borderRadius: 1.125 }}
-        >
-          <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
-            <rect x={3} y={3} width={7} height={7} rx={1} />
-            <rect x={14} y={3} width={7} height={7} rx={1} />
-            <rect x={3} y={14} width={7} height={7} rx={1} />
-            <path d="M14 14h3v3h-3zM20 14h1v1h-1zM14 20h1v1h-1zM17 17h4v4" />
-          </svg>
-        </IconButton>
-        <IconButton
-          title="Edit profile (coming soon)"
-          aria-label="Edit profile (coming soon)"
-          size="small"
-          disabled
-          sx={{ border: 1, borderColor: "divider", borderRadius: 1.125 }}
-        >
-          <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
-            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
-          </svg>
-        </IconButton>
-      </Stack>
+      <Tooltip title="View QR code" placement="left">
+        <span style={{ position: "relative" }}>
+          <IconButton
+            aria-label="View QR code"
+            onClick={() => setQrOpen(true)}
+            disabled={!employeeId}
+            size="small"
+            sx={{
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1.125,
+              backgroundColor: "background.paper",
+              width: 36,
+              height: 36,
+            }}
+          >
+            <QrIcon />
+          </IconButton>
+        </span>
+      </Tooltip>
+
+      <EmployeeQrDialog
+        open={qrOpen}
+        employeeId={employeeId}
+        email={workEmail}
+        onClose={() => setQrOpen(false)}
+      />
     </Box>
   );
 }
 
-function HeroChip({ label, value, loading }: { label: string; value: string; loading?: boolean }) {
+function QrIcon() {
   return (
-    <Box
-      sx={{
-        fontSize: 11.5,
-        fontWeight: 500,
-        px: 1.25,
-        py: 0.5,
-        borderRadius: 5,
-        bgcolor: "background.paper",
-        border: 1,
-        borderColor: "divider",
-        color: "text.secondary",
-        display: "inline-flex",
-        alignItems: "center",
-      }}
-    >
-      <b style={{ color: "inherit", fontWeight: 600, marginRight: 4 }}>{label}</b>
-      {loading ? <Skeleton variant="text" width={90} sx={{ display: "inline-block" }} /> : value}
-    </Box>
+    <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
+      <rect x={3} y={3} width={7} height={7} rx={1} />
+      <rect x={14} y={3} width={7} height={7} rx={1} />
+      <rect x={3} y={14} width={7} height={7} rx={1} />
+      <path d="M14 14h3v3h-3zM20 14h1v1h-1zM14 20h1v1h-1zM17 17h4v4" />
+    </svg>
   );
 }

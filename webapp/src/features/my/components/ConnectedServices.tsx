@@ -14,83 +14,131 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Button, Card, Chip, Stack, Typography } from "@wso2/oxygen-ui";
-import DetailRow from "@components/detail-row/DetailRow";
+import { useState } from "react";
+import { Box, Button, Card, Skeleton, Stack, Tooltip, Typography } from "@wso2/oxygen-ui";
+import { useUserInfo } from "@api/useUserInfo";
+import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
+import VehiclesCard from "./VehiclesCard";
+import {
+  isPromotionBackendConfigured,
+  usePromotionEmployeeInfo,
+} from "../api/usePromotionEmployeeInfo";
+import { formatDate } from "../api/derive";
+import PromotionHistoryDialog from "./PromotionHistoryDialog";
+import ActiveReviewRow from "./ActiveReviewRow";
+import BankAccountsCard from "./BankAccountsCard";
 
 // Three cards surfacing adjacent people-ops-suite services inside the
-// profile: Vehicles, Time off, Performance & growth.
-//
-// The values shown are illustrative sample data, NOT the signed-in user's
-// records — the vehicles, leave balance, and review status here are
-// placeholders until the per-service backends (people-app vehicles,
-// leave-app, performance) are wired up. The "Sample data" chip on the
-// section intro makes this explicit to the user.
+// profile: Vehicles, Time off, Performance & growth. Vehicles is live
+// against people-app's GET/POST/DELETE /employees/{email}/vehicles;
+// Time off + Performance are still sample data until those backends land.
 export default function ConnectedServices() {
+  const userInfo = useUserInfo();
+  const asgardeoUser = useAsgardeoUser();
+  // Vehicle + promotion endpoints key on the caller's email. Prefer
+  // /user-info's workEmail (canonical), fall back to the id_token email
+  // claim.
+  const ownerEmail = userInfo.data?.workEmail ?? asgardeoUser.email;
+  const promotionInfo = usePromotionEmployeeInfo(ownerEmail);
+  const promotionConfigured = isPromotionBackendConfigured();
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   return (
     <>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
-        <Typography sx={{ fontSize: 12.5, color: "text.secondary", lineHeight: 1.5, flex: 1 }}>
-          Adjacent services surfaced inside your profile — <b>people-app</b>{" "}
-          (vehicles), <b>leave-app</b>, and your performance cycle. No separate
-          portals.
-        </Typography>
-        <Chip
-          label="Sample data"
-          size="small"
-          color="warning"
-          variant="outlined"
-          sx={{ height: 22, fontSize: 10.5, fontWeight: 600, letterSpacing: "0.04em" }}
-        />
-      </Stack>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 1.75 }}>
-        {/* Vehicles */}
-        <Card variant="outlined" sx={{ p: 2 }}>
-          <Typography sx={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary", fontWeight: 600, mb: 1.5 }}>
-            Vehicles
-          </Typography>
-          <DetailRow icon="🚗" title="CAB-4287" meta="Toyota Aqua" trailing={<Button variant="outlined" size="small">Manage</Button>} />
-          <DetailRow icon="🏍" title="BAJ-1122" meta="Bajaj Pulsar" trailing={<Button variant="outlined" size="small">Manage</Button>} last />
-        </Card>
+        <VehiclesCard ownerEmail={ownerEmail} />
 
-        {/* Time off */}
-        <Card variant="outlined" sx={{ p: 2 }}>
-          <Typography sx={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary", fontWeight: 600, mb: 1.5 }}>
-            Time off
-          </Typography>
-          <DetailRow icon="🌴" title="Leave balance" meta="12 days annual · 4 casual · 7 sick" trailing={<Button variant="contained" size="small">Request</Button>} />
-          <DetailRow icon="📅" title="Upcoming" meta="Aug 12–14 · approved" last />
-        </Card>
+        <BankAccountsCard ownerEmail={ownerEmail} />
 
         {/* Performance */}
         <Card variant="outlined" sx={{ p: 2 }}>
           <Typography sx={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary", fontWeight: 600, mb: 1.5 }}>
             Performance &amp; growth
           </Typography>
-          <Stack direction="row" spacing={1.25} sx={{ py: 1.125, borderBottom: 1, borderColor: "divider" }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontWeight: 500, fontSize: 13 }}>
-                2026 H1 Review{" "}
-                <Chip label="Submitted" color="success" size="small" sx={{ ml: 0.75, height: 20, fontSize: 11, fontWeight: 600 }} />
-              </Typography>
-              <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-                Lead's PAR submission deadline approaching in 6 days
-              </Typography>
-            </Box>
-            <Button variant="outlined" size="small">View</Button>
-          </Stack>
-          <Stack direction="row" spacing={1.25} sx={{ py: 1.125, alignItems: "center" }}>
-            <Box sx={{ flex: 1 }}>
+          <Stack direction="row" spacing={1.25} sx={{ py: 1.125, alignItems: "center", borderBottom: 1, borderColor: "divider" }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography sx={{ fontWeight: 500, fontSize: 13 }}>Last promoted date</Typography>
-              <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-                Senior Forward Deployed Engineer II
-              </Typography>
+              <PromotedDateValue
+                configured={promotionConfigured}
+                isLoading={promotionInfo.isLoading}
+                isError={promotionInfo.isError}
+                date={promotionInfo.data?.employeeInfo?.lastPromotedDate ?? null}
+              />
             </Box>
-            <b style={{ fontVariantNumeric: "tabular-nums" }}>2024-07-01</b>
+            <Tooltip
+              title={promotionConfigured ? "" : "Set ONE_WSO2_PROMOTION_BACKEND_URL to enable this."}
+              placement="top"
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled={!promotionConfigured || !ownerEmail}
+                  onClick={() => setHistoryOpen(true)}
+                >
+                  View promotion history
+                </Button>
+              </span>
+            </Tooltip>
           </Stack>
+          <ActiveReviewRow workEmail={ownerEmail} />
         </Card>
       </Box>
+
+      <PromotionHistoryDialog
+        open={historyOpen}
+        workEmail={ownerEmail}
+        onClose={() => setHistoryOpen(false)}
+      />
     </>
+  );
+}
+
+// Sub-line under the "Last promoted date" label. Renders one of:
+//   - not configured hint (promotion backend URL absent)
+//   - skeleton (loading)
+//   - error dash (fetch failed; hover for reason)
+//   - "Never promoted" (no date on record — new joiner / no promotion yet)
+//   - formatted date (happy path)
+function PromotedDateValue({
+  configured,
+  isLoading,
+  isError,
+  date,
+}: {
+  configured: boolean;
+  isLoading: boolean;
+  isError: boolean;
+  date: string | null;
+}) {
+  const base = { fontSize: 12, color: "text.secondary" as const };
+  if (!configured) {
+    return (
+      <Tooltip title="Set ONE_WSO2_PROMOTION_BACKEND_URL to enable this." placement="top">
+        <Typography sx={{ ...base, color: "text.disabled", fontStyle: "italic" }}>
+          Not configured
+        </Typography>
+      </Tooltip>
+    );
+  }
+  if (isLoading) {
+    return <Skeleton variant="text" width={90} sx={{ fontSize: 12 }} />;
+  }
+  if (isError) {
+    return (
+      <Tooltip title="Couldn't reach the promotion backend." placement="top">
+        <Typography sx={{ ...base, color: "error.main" }}>Couldn't load</Typography>
+      </Tooltip>
+    );
+  }
+  if (!date || date.trim() === "") {
+    return <Typography sx={{ ...base, color: "text.disabled" }}>Never promoted</Typography>;
+  }
+  return (
+    <Typography sx={{ ...base, fontVariantNumeric: "tabular-nums" }}>
+      {formatDate(date)}
+    </Typography>
   );
 }
 

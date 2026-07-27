@@ -29,4 +29,66 @@ export const peopleServiceUrls = {
   employee: (employeeId: string) => `${peopleBackendUrl}/employees/${employeeId}`,
   employeePersonalInfo: (employeeId: string) =>
     `${peopleBackendUrl}/employees/${employeeId}/personal-info`,
+  // Vehicles endpoints — keyed on the caller's email (backend enforces
+  // employeeEmail === userInfo.email in the JWT). encodeURIComponent so
+  // the `@` in the email survives the URL.
+  employeeVehicles: (employeeEmail: string) =>
+    `${peopleBackendUrl}/employees/${encodeURIComponent(employeeEmail)}/vehicles`,
+  employeeVehicle: (employeeEmail: string, vehicleId: number) =>
+    `${peopleBackendUrl}/employees/${encodeURIComponent(employeeEmail)}/vehicles/${vehicleId}`,
+  // Returns the employee's building-access QR as a PNG binary. Non-admin
+  // callers can only fetch their own (backend enforces isSelf check).
+  employeeQrCode: (employeeId: string) =>
+    `${peopleBackendUrl}/employees/${encodeURIComponent(employeeId)}/qr-code`,
+};
+
+// Promotion app backend (digiops-hr/apps/promotion). Separate service from
+// people-app, so its own base URL. Same Choreo Bearer-token → x-jwt-assertion
+// gateway rewrite pattern applies.
+export const promotionBackendUrl: string =
+  window.config?.ONE_WSO2_PROMOTION_BACKEND_URL ?? "";
+
+// Banking app backend. Same Choreo Bearer-token → x-jwt-assertion gateway
+// rewrite; does NOT require x-user-timezone-offset (only par-app +
+// promotion-app do).
+export const bankingBackendUrl: string =
+  window.config?.ONE_WSO2_BANKING_BACKEND_URL ?? "";
+
+export const bankingServiceUrls = {
+  // GET /employee/accounts?employeeWorkEmail=<email> — the caller's bank
+  // accounts. Backend allows self-lookup for non-admin callers.
+  employeeAccounts: (workEmail: string) =>
+    `${bankingBackendUrl}/employee/accounts?employeeWorkEmail=${encodeURIComponent(workEmail)}`,
+};
+
+// PAR (Performance Appraisal Review) app backend. Same Choreo gateway
+// rewrite pattern as promotion-app. Also uses x-user-timezone-offset via
+// digiopsHeaders().
+export const parBackendUrl: string =
+  window.config?.ONE_WSO2_PAR_BACKEND_URL ?? "";
+
+export const parServiceUrls = {
+  // GET /par-cycles?email=<workEmail>&status=OPEN — returns ParCycle[] for
+  // the caller's own active review cycles. Non-lead/non-admin callers can
+  // only query their own email.
+  parCycles: (workEmail: string, status: "OPEN" | "CLOSED" | "PENDING" = "OPEN") =>
+    `${parBackendUrl}/par-cycles?email=${encodeURIComponent(workEmail)}&status=${status}`,
+  // GET /par-cycles/{cycleId}/employees/{workEmail}/par-ratings — returns
+  // the caller's ParRating record for that cycle (contains
+  // parEmployeeStatus / parLeadStatus we use for the chip + copy).
+  parRating: (parCycleId: number, workEmail: string) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/par-ratings`,
+};
+
+export const promotionServiceUrls = {
+  // GET /employee-info?employeeWorkEmail=<email> — returns the caller's
+  // EmployeeInfoWithLead (startDate, jobBand, lastPromotedDate, reportingLead,
+  // etc.). Non-lead callers can only query their own email.
+  employeeInfo: (workEmail: string) =>
+    `${promotionBackendUrl}/employee-info?employeeWorkEmail=${encodeURIComponent(workEmail)}`,
+  // GET /promotion/requests?statusArray=APPROVED&employeeEmail=<email> —
+  // approved promotion history for the given employee. Backend authorization
+  // allows self-lookup for non-admins.
+  promotionHistory: (workEmail: string) =>
+    `${promotionBackendUrl}/promotion/requests?statusArray=APPROVED&employeeEmail=${encodeURIComponent(workEmail)}`,
 };

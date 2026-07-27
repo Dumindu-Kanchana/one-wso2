@@ -20,4 +20,21 @@ window.config = {
   // REACT_APP_BACKEND_BASE_URL — usually a Choreo API gateway URL. Powers
   // the live My profile page (employee + personal info fetch).
   ONE_WSO2_PEOPLE_BACKEND_URL: "<your-people-app-backend-url>",
+
+  // digiops-hr promotion-app backend base URL. Optional — when absent, the
+  // Performance & growth card's "Last promoted date" row shows a
+  // "not configured" state. Same Choreo API gateway URL pattern as
+  // people-app.
+  // ONE_WSO2_PROMOTION_BACKEND_URL: "<your-promotion-app-backend-url>",
+
+  // digiops-hr par-app backend base URL. Optional — when absent, the
+  // Performance & growth card's active-review row shows a
+  // "not configured" state. Same Choreo API gateway URL pattern.
+  // ONE_WSO2_PAR_BACKEND_URL: "<your-par-app-backend-url>",
+
+  // digiops-hr banking-app backend base URL. Optional — when absent, the
+  // Bank accounts card shows a "not configured" state. Same Choreo API
+  // gateway URL pattern; unlike par/promotion apps, this one does NOT
+  // require the x-user-timezone-offset header.
+  // ONE_WSO2_BANKING_BACKEND_URL: "<your-banking-app-backend-url>",
 };

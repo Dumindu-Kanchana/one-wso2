@@ -51,6 +51,9 @@ export default function UserProfileMenu() {
     user.displayName ??
     (user.email ? user.email.split("@")[0] : "");
   const email = userInfo.data?.workEmail ?? user.email ?? "";
+  // Same source ProfileHero uses — people-app /user-info's employeeThumbnail.
+  // UserMenu.Trigger + Header fall back to initials when this is null.
+  const avatarUrl = userInfo.data?.employeeThumbnail ?? null;
 
   // Prefer initials from the backend name (Suhan Dharmasuriya → SD) so
   // the avatar matches whatever's shown in the header row.
@@ -73,8 +76,8 @@ export default function UserProfileMenu() {
 
   return (
     <UserMenu>
-      <UserMenu.Trigger name={initials} />
-      <UserMenu.Header name={name || "—"} email={email || " "} />
+      <UserMenu.Trigger name={initials} avatar={avatarUrl} />
+      <UserMenu.Header name={name || "—"} email={email || " "} avatar={avatarUrl} />
       <UserMenu.Divider />
       <UserMenu.Item icon={<UserIcon />} label="Profile" onClick={handleProfile} />
       <UserMenu.Logout icon={<LogOutIcon />} label="Log out" onClick={handleLogout} />

@@ -15,7 +15,7 @@
 // under the License.
 
 import { useCallback, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, HttpError } from "@api/http";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
@@ -98,6 +98,7 @@ function useAsgardeoSub(): { state: SubState; retry: () => void } {
 export function useMeProfile() {
   const { getIdToken, isSignedIn } = useAsgardeo();
   const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const qc = useQueryClient();
   const userSub = subState.status === "ready" ? subState.sub : undefined;
   const backendConfigured = Boolean(peopleBackendUrl);
   const identityError = subState.status === "error" ? subState.message : null;
@@ -111,10 +112,16 @@ export function useMeProfile() {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");
 
-      const userInfo = await authedGet<UserInfo>(
-        peopleServiceUrls.userInfo,
-        idToken,
-      );
+      // Share the ["user-info", sub] cache slot with useUserInfo (the
+      // TopBar's avatar reader). Without this, both hooks would issue an
+      // independent GET /user-info on the same page load — React Query
+      // only dedupes within a query key, not across separate authedGet
+      // calls. fetchQuery populates + returns the cached value.
+      const userInfo = await qc.fetchQuery<UserInfo>({
+        queryKey: ["user-info", userSub],
+        queryFn: () => authedGet<UserInfo>(peopleServiceUrls.userInfo, idToken),
+        staleTime: 5 * 60 * 1000,
+      });
       const [employee, personalInfo] = await Promise.all([
         authedGet<Employee>(peopleServiceUrls.employee(userInfo.employeeId), idToken),
         authedGet<EmployeePersonalInfo>(

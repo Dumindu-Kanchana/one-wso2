@@ -36,12 +36,15 @@ export default function InsightCard({
         p: "16px 18px",
         mb: 2,
         overflow: "hidden",
+        // CSS var, not t.palette.primary.light — same reason as
+        // ProfileHero: under CssVarsProvider a callback resolves the
+        // palette accessor to the light scheme's frozen literal and
+        // washes the card out in dark mode. See themeConfig.ts.
         "&::before": {
           content: '""',
           position: "absolute",
           inset: 0,
-          background: (t) =>
-            `radial-gradient(560px 110px at 0 0, ${t.palette.primary.light}, transparent 60%)`,
+          background: "radial-gradient(560px 110px at 0 0, var(--oxygen-palette-primary-light), transparent 60%)",
           pointerEvents: "none",
         },
       }}

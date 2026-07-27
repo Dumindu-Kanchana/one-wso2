@@ -80,15 +80,6 @@ export default function PeopleOpsPage() {
 
       <SectionHeader id="sec-ops">Operational services</SectionHeader>
       <OperationalServices />
-
-      <Typography
-        sx={{ fontSize: 12, color: "text.disabled", mt: 3, textAlign: "center", lineHeight: 1.6 }}
-      >
-        Same One shell · bar &amp; Ask Novera stay put · this canvas is the{" "}
-        <b>People Ops perspective</b>.<br />
-        Hiring, candidate history, profiles, performance, and people-ops-suite
-        operational services — one coherent surface.
-      </Typography>
     </Box>
   );
 }

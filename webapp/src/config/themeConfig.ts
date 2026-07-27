@@ -31,7 +31,7 @@
 // primary.main / primary.light / divider / background.paper keeps working.
 
 import { AcrylicOrangeTheme, ClassicTheme, HighContrastTheme } from "@wso2/oxygen-ui";
-import { extendTheme, type Theme } from "@mui/material/styles";
+import { extendTheme } from "@mui/material/styles";
 
 const ORANGE_MAIN = "#F14E23";
 const ORANGE_LIGHT_LIGHT_MODE = "#FDEDE8";
@@ -102,31 +102,39 @@ const OneWso2Theme = extendTheme(AcrylicOrangeTheme, {
     // AcrylicBase gives every Paper a translucent acrylic fill and a light
     // backdrop-filter blur. That's what makes cards look washed out on our
     // flat neutral canvas. Force solid paper + no blur here.
+    //
+    // NOTE — the palette value here MUST be a CSS variable, not
+    // theme.palette.background.paper. Under CssVarsProvider / extendTheme
+    // the plain palette accessor returns the LIGHT scheme's literal hex
+    // (frozen at theme-construction time), so cards would render white
+    // even under `data-color-scheme='dark'`. Referencing the CSS var
+    // directly (or via theme.vars.palette.*) makes the styleOverride
+    // reactive to the color-scheme switch on <html>.
     MuiPaper: {
       styleOverrides: {
-        root: ({ theme }: { theme: Theme }) => ({
-          backgroundColor: theme.palette.background.paper,
+        root: {
+          backgroundColor: "var(--oxygen-palette-background-paper)",
           backdropFilter: "none",
           WebkitBackdropFilter: "none",
-        }),
+        },
       },
     },
     MuiCard: {
       styleOverrides: {
-        root: ({ theme }: { theme: Theme }) => ({
-          backgroundColor: theme.palette.background.paper,
+        root: {
+          backgroundColor: "var(--oxygen-palette-background-paper)",
           backdropFilter: "none",
           WebkitBackdropFilter: "none",
-        }),
+        },
       },
     },
     // Same reason — text fields shouldn't pick up the acrylic tint on top
     // of a solid card.
     MuiOutlinedInput: {
       styleOverrides: {
-        root: ({ theme }: { theme: Theme }) => ({
-          backgroundColor: theme.palette.background.paper,
-        }),
+        root: {
+          backgroundColor: "var(--oxygen-palette-background-paper)",
+        },
       },
     },
   },

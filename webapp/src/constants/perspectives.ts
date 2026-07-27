@@ -70,16 +70,20 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
       { id: "my-general", label: "General" },
       { id: "my-personal", label: "Personal" },
       { id: "my-emergency", label: "Emergency contacts" },
-      { id: "my-connected", label: "Connected" },
+      { id: "my-connected", label: "Connected apps" },
     ],
   },
+  // Locked until the Service Requests surface has real content — the page
+  // was a static prototype and the persona was showing up as "clickable"
+  // in the waffle even though it led nowhere useful. Flip access back to
+  // true (and re-add the /service-requests route in App.tsx) when there's
+  // something real to land on.
   {
     key: "requests",
     label: "Service Requests",
     emoji: "⚡",
     group: "cross",
-    access: true,
-    path: "/service-requests",
+    access: false,
   },
 ];
 

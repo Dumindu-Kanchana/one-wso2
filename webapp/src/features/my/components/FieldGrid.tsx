@@ -57,7 +57,17 @@ export default function FieldGrid({ fields }: { fields: FieldDef[] }) {
               label={f.chip.label}
               color={f.chip.color}
               size="small"
-              sx={{ height: 22, fontSize: 11, fontWeight: 600 }}
+              variant="outlined"
+              sx={{
+                height: 26,
+                fontSize: 12,
+                fontWeight: 600,
+                borderWidth: 1.5,
+                px: 0.5,
+                // MUI collapses the "px" on Chip through the label span, so
+                // widen it explicitly for the roomier pill look.
+                "& .MuiChip-label": { px: 1.25 },
+              }}
             />
           ) : (
             <Typography sx={{ fontSize: 13.5, fontWeight: 500, lineHeight: 1.35, wordWrap: "break-word" }}>

@@ -32,6 +32,18 @@ declare global {
       // My profile page. Optional — when absent, the My page still loads
       // but the profile sections show a "not configured" state.
       ONE_WSO2_PEOPLE_BACKEND_URL?: string;
+      // Base URL for the digiops-hr promotion-app backend. Optional — when
+      // absent, ConnectedServices' "Last promoted date" row falls back to a
+      // "not configured" state and doesn't fire a request.
+      ONE_WSO2_PROMOTION_BACKEND_URL?: string;
+      // Base URL for the digiops-hr par-app backend. Optional — when
+      // absent, the Performance & growth review row falls back to a
+      // "not configured" state.
+      ONE_WSO2_PAR_BACKEND_URL?: string;
+      // Base URL for the digiops-hr banking-app backend. Optional — when
+      // absent, the Bank accounts card in Connected apps shows a
+      // "not configured" state.
+      ONE_WSO2_BANKING_BACKEND_URL?: string;
       // Override for the Asgardeo My Account portal URL that the top-bar
       // "Profile" menu item opens. Only set this on non-standard tenants
       // (self-hosted / custom domain); on Asgardeo Cloud we derive it from

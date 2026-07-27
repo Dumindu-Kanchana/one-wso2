@@ -38,11 +38,14 @@ export default function SideRail() {
         borderRight: 1,
         borderColor: "divider",
         backgroundColor: "background.paper",
-        px: 1.25,
-        py: 1.75,
-        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
       }}
     >
+      {/* Scrollable body — perspective sections + For you. Settings row
+          below sits pinned to the rail's viewport bottom. */}
+      <Box sx={{ flex: 1, overflowY: "auto", px: 1.25, py: 1.75 }}>
       {/* Active perspective header */}
       <Typography
         sx={{
@@ -97,7 +100,7 @@ export default function SideRail() {
       >
         For you
       </Typography>
-      {CROSS_PERSPECTIVES.map((p) => (
+      {CROSS_PERSPECTIVES.filter((p) => p.access && p.path).map((p) => (
         <ListItemButton
           key={p.key}
           component={NavLink}
@@ -121,13 +124,17 @@ export default function SideRail() {
         </ListItemButton>
       ))}
 
-      {/* Settings footer */}
+      </Box>
+
+      {/* Settings — pinned to the rail's viewport bottom, same treatment as
+          cs-tools customer-portal. Currently inert; wire to /settings when
+          the page exists. */}
       <Box
         sx={{
-          mt: 1.75,
           borderTop: 1,
           borderColor: "divider",
-          pt: 1.25,
+          px: 1.25,
+          py: 1.25,
         }}
       >
         <ListItemButton sx={{ borderRadius: 1.125, py: 0.75, px: 1.25 }}>

@@ -18,6 +18,7 @@ import { Alert, Box, Button, Chip, Typography } from "@wso2/oxygen-ui";
 import ProfileHero from "../components/ProfileHero";
 import GeneralInfo from "../components/GeneralInfo";
 import PersonalInfo from "../components/PersonalInfo";
+import EmergencyContacts from "../components/EmergencyContacts";
 import ConnectedServices from "../components/ConnectedServices";
 import SectionHeader from "../../people-ops/components/SectionHeader";
 import { isPeopleBackendConfigured, useMeProfile } from "../api/useMeProfile";
@@ -72,16 +73,21 @@ export default function MyProfilePage() {
       <GeneralInfo employee={employee} isLoading={isLoading} />
 
       <SectionHeader id="my-personal">Personal information</SectionHeader>
-      <PersonalInfo personalInfo={personalInfo} isLoading={isLoading} />
+      <PersonalInfo
+        personalInfo={personalInfo}
+        employeeId={userInfo?.employeeId ?? employee?.employeeId}
+        isLoading={isLoading}
+      />
 
-      <SectionHeader id="my-connected">Connected</SectionHeader>
+      <SectionHeader id="my-emergency">Emergency contacts</SectionHeader>
+      <EmergencyContacts
+        contacts={personalInfo?.emergencyContacts ?? undefined}
+        employeeId={userInfo?.employeeId ?? employee?.employeeId}
+        isLoading={isLoading}
+      />
+
+      <SectionHeader id="my-connected">Connected apps</SectionHeader>
       <ConnectedServices />
-
-      <Typography sx={{ fontSize: 12, color: "text.disabled", mt: 3, textAlign: "center", lineHeight: 1.6 }}>
-        Same One shell · bar &amp; Ask Novera stay put · this canvas is <b>My profile</b>.
-        <br />
-        Shape mirrors <code>people-ops-suite / apps / people-app / webapp / view / me</code>.
-      </Typography>
     </Box>
   );
 }

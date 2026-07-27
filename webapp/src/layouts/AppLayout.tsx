@@ -21,6 +21,7 @@ import TopBar from "@components/top-bar/TopBar";
 import SideRail from "@components/side-rail/SideRail";
 import WaffleOverlay from "@components/waffle/WaffleOverlay";
 import AskNoveraPalette from "@components/ask-novera/AskNoveraPalette";
+import AppFooter from "@components/footer/AppFooter";
 import AuthDebugPanel from "@features/debug/AuthDebugPanel";
 
 // The persistent shell — the top bar and rail stay put; the canvas swaps
@@ -44,16 +45,20 @@ export default function AppLayout() {
         }}
       >
         <SideRail />
-        <Box
-          component="main"
-          sx={{
-            overflowY: "auto",
-            px: 3,
-            py: 3,
-            backgroundColor: "background.default",
-          }}
-        >
-          <Outlet />
+        <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <Box
+            component="main"
+            sx={{
+              overflowY: "auto",
+              px: 3,
+              py: 3,
+              flex: 1,
+              backgroundColor: "background.default",
+            }}
+          >
+            <Outlet />
+          </Box>
+          <AppFooter />
         </Box>
       </Box>
       {waffleOpen && <WaffleOverlay onClose={() => setWaffleOpen(false)} />}
