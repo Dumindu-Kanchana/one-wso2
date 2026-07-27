@@ -43,6 +43,33 @@ export class HttpError extends Error {
   }
 }
 
+// One-place translator from any thrown value to a user-facing string,
+// used by every dialog / notification banner that surfaces a request
+// failure. Prefers a well-formed `{message: "..."}` body when the
+// backend supplies one, and otherwise falls back to a status-only
+// message — the raw `responseBody` is NEVER returned to the UI,
+// because backend responses can include stack traces, internal ids,
+// gateway HTML pages, etc. The class comment on HttpError above
+// documented this intent; we now enforce it in one place instead of
+// six near-duplicate copy-pastes across dialog components.
+export function humanizeHttpError(err: unknown): string {
+  if (err instanceof HttpError) {
+    if (err.responseBody) {
+      try {
+        const parsed = JSON.parse(err.responseBody) as { message?: unknown };
+        if (parsed && typeof parsed.message === "string" && parsed.message.trim()) {
+          return parsed.message;
+        }
+      } catch {
+        // Non-JSON body — fall through to the status-only message.
+      }
+    }
+    return `Something went wrong (HTTP ${err.status}).`;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return "Something went wrong.";
+}
+
 // Build the Header record for an authed request. Extra headers are spread
 // FIRST so Authorization always wins — an untyped caller cannot accidentally
 // overwrite the Bearer token by supplying an `Authorization` key of any

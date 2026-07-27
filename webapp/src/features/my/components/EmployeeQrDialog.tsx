@@ -27,7 +27,7 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { useAsgardeo } from "@asgardeo/react";
-import { HttpError } from "@api/http";
+import { HttpError, humanizeHttpError } from "@api/http";
 import { peopleServiceUrls } from "@config/apiConfig";
 
 // Employee QR-code dialog. Mirrors people-app/webapp's view/me QR flow —
@@ -90,7 +90,7 @@ export default function EmployeeQrDialog({
         // flight) shows up as a DOMException / AbortError — don't
         // surface it as a red error, the component is already gone.
         if (e instanceof DOMException && e.name === "AbortError") return;
-        setError(readableError(e));
+        setError(humanizeHttpError(e));
         setStatus("error");
       }
     })();
@@ -177,18 +177,6 @@ export default function EmployeeQrDialog({
   );
 }
 
-function readableError(err: unknown): string {
-  if (err instanceof HttpError && err.responseBody) {
-    try {
-      const parsed = JSON.parse(err.responseBody) as { message?: string };
-      return parsed.message ?? err.responseBody;
-    } catch {
-      return err.responseBody;
-    }
-  }
-  if (err instanceof Error) return err.message;
-  return "Failed to load QR code";
-}
 
 function DownloadIcon() {
   return (
