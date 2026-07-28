@@ -151,8 +151,8 @@ export default function PersonalInfo({
         />
       </Box>
       {editing && (
-        <Typography sx={{ fontSize: 11, color: "text.disabled", fontStyle: "italic", mb: 0.75 }}>
-          Identity fields (name, DOB, gender, nationality, NIC) are managed by People Ops.
+        <Typography sx={{ fontSize: 11, color: "primary.dark", fontStyle: "italic", mb: 0.75 }}>
+          Identity fields (name, DOB, gender, nationality, NIC) are managed by the people operations team.
         </Typography>
       )}
       <FieldGrid fields={readOnly} />
