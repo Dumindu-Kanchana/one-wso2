@@ -33,13 +33,13 @@ export { isExpenseBackendConfigured };
 
 // GET /app-data — the caller's employee record, lead/finance view flags,
 // reimbursement currency, travels and any draft. Keyed per-user.
-export function useExpenseAppData() {
+export function useExpenseAppData(enabled = true) {
   const { getIdToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseAppData>({
     queryKey: ["expense-app-data", userSub],
-    enabled: isSignedIn && configured && Boolean(userSub),
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");

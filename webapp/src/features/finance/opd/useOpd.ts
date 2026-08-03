@@ -32,13 +32,13 @@ export { isOpdBackendConfigured };
 
 // GET /user-info — the OPD role scheme (userRoles: 444 submitter / 555
 // finance). Keyed per-user so an account switch can't leak.
-export function useOpdUserInfo() {
+export function useOpdUserInfo(enabled = true) {
   const { getIdToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdUserInfo>({
     queryKey: ["opd-user-info", userSub],
-    enabled: isSignedIn && configured && Boolean(userSub),
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");

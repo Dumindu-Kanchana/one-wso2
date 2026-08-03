@@ -21,6 +21,7 @@ import { useActivePerspective } from "@context/perspective/PerspectiveContext";
 import { CROSS_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
 import { useUserInfo } from "@api/useUserInfo";
+import { useFinanceGate } from "@features/finance/api/useFinanceGate";
 
 // Context-sensitive left rail. Header = the active perspective; body =
 // its sections (jump-anchor to canvas ids); footer = For you (My +
@@ -38,6 +39,15 @@ export default function SideRail() {
   const caps = capabilitiesFromPrivileges(userInfo.data?.privileges);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Finance items gate on each finance app's OWN backend roles (cc/opd/
+  // expense), not the coarse people-app capabilities — so someone who is a
+  // people-app lead but not a cc-expenses lead/finance doesn't see
+  // "Approve Submissions". Only fetch those roles while Finance is active.
+  const isFinance = active.key === "finance";
+  const financeGate = useFinanceGate(isFinance);
+  const resolveVisible = (s: PerspectiveSection): boolean =>
+    isFinance ? financeGate.canSee(s.id) : sectionAllowed(s.requires, caps);
 
   // App groups start expanded so the menu is immediately useful; a group
   // id in this set is collapsed.
@@ -133,7 +143,7 @@ export default function SideRail() {
             <SectionNode
               key={s.id}
               section={s}
-              caps={caps}
+              resolveVisible={resolveVisible}
               collapsed={collapsed}
               onToggle={toggle}
               onScroll={scrollToSection}
@@ -223,20 +233,20 @@ function sectionAllowed(requires: Capability[] | undefined, caps: Set<Capability
 // collapsed to a leaf, or a plain scroll-anchor leaf.
 function SectionNode({
   section,
-  caps,
+  resolveVisible,
   collapsed,
   onToggle,
   onScroll,
 }: {
   section: PerspectiveSection;
-  caps: Set<Capability>;
+  resolveVisible: (section: PerspectiveSection) => boolean;
   collapsed: Set<string>;
   onToggle: (id: string) => void;
   onScroll: (id: string) => void;
 }) {
-  // Group section (has children) — filter children by capability.
+  // Group section (has children) — filter children by visibility.
   if (section.children && section.children.length > 0) {
-    const visible = section.children.filter((c) => sectionAllowed(c.requires, caps));
+    const visible = section.children.filter((c) => resolveVisible(c));
     if (visible.length === 0) return null;
 
     // Single visible child → collapse the whole app to a plain leaf that
@@ -306,7 +316,7 @@ function SectionNode({
 
   // Leaf section — a route (e.g. Dashboard) when it has a `path`, otherwise
   // a scroll-anchor (e.g. the My perspective's General/Personal sections).
-  if (!sectionAllowed(section.requires, caps)) return null;
+  if (!resolveVisible(section)) return null;
   return (
     <Leaf
       label={section.label}

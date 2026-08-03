@@ -33,13 +33,13 @@ import type {
 
 export { isCcBackendConfigured };
 
-export function useCcUserInfo() {
+export function useCcUserInfo(enabled = true) {
   const { getIdToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   return useQuery<CcEmployee>({
     queryKey: ["cc-user-info", userSub],
-    enabled: isSignedIn && configured && Boolean(userSub),
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");

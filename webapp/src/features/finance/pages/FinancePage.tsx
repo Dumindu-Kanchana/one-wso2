@@ -16,21 +16,16 @@
 
 import { Box, Card, Chip, Stack, Typography } from "@wso2/oxygen-ui";
 import { NavLink } from "react-router";
-import { useUserInfo } from "@api/useUserInfo";
-import {
-  CAPABILITY_LABEL,
-  capabilitiesFromPrivileges,
-  visibleItems,
-} from "@constants/appMenu";
+import { CAPABILITY_LABEL } from "@constants/appMenu";
 import { FINANCE_APPS } from "@constants/financeApps";
+import { useFinanceGate } from "../api/useFinanceGate";
 
 // Finance perspective overview — the three digiops-finance apps (OPD claims,
 // credit-card expenses, expense claims), now native. Every item is a route,
 // so the overview renders each visible item as a link card (the left rail
 // jumps to the same routes). What shows is scoped to the caller's role.
 export default function FinancePage() {
-  const userInfo = useUserInfo();
-  const caps = capabilitiesFromPrivileges(userInfo.data?.privileges);
+  const gate = useFinanceGate();
 
   return (
     <Box>
@@ -49,7 +44,7 @@ export default function FinancePage() {
       </Typography>
 
       {FINANCE_APPS.map((app) => {
-        const items = visibleItems(app, caps);
+        const items = app.items.filter((it) => gate.canSee(it.id));
         if (items.length === 0) return null;
         return (
           <Box key={app.key}>
