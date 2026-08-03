@@ -80,6 +80,128 @@ export const parServiceUrls = {
     `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/par-ratings`,
 };
 
+// Leave app backend (people-ops-suite/apps/leave-app). Its own service
+// with its own /user-info + privilege scheme (LEAD=879, not people-app's
+// 993). Same Choreo Bearer → x-jwt-assertion gateway rewrite; no
+// x-user-timezone-offset needed.
+export const leaveBackendUrl: string =
+  window.config?.ONE_WSO2_LEAVE_BACKEND_URL ?? "";
+
+export const leaveServiceUrls = {
+  userInfo: `${leaveBackendUrl}/user-info`,
+  appConfigs: `${leaveBackendUrl}/app-configs`,
+  leaves: `${leaveBackendUrl}/leaves`,
+  leave: (id: number) => `${leaveBackendUrl}/leaves/${id}`,
+  // action = "approve" | "reject" (sabbatical only)
+  leaveAction: (id: number, action: "approve" | "reject") =>
+    `${leaveBackendUrl}/leaves/${id}/${action}`,
+  employees: `${leaveBackendUrl}/employees`,
+  leaveEntitlement: (email: string) =>
+    `${leaveBackendUrl}/employees/${encodeURIComponent(email)}/leave-entitlement`,
+};
+
+export function isLeaveBackendConfigured(): boolean {
+  return Boolean(leaveBackendUrl);
+}
+
+// ---- digiops-finance backends ---------------------------------------------
+//
+// The three finance apps (opd-claims, cc-expenses, expense-claims) are
+// separate Ballerina services, each with its own base URL, its own
+// /user-info + role scheme, and the same Choreo Bearer → x-jwt-assertion
+// gateway rewrite. Receipts are raw-binary endpoints (not multipart), so
+// the receipt helpers post the file bytes directly. Empty string = not
+// configured; the FinanceShell renders a "not connected" state.
+
+// OPD (outpatient medical) claims — opd-claims/backend.
+export const opdBackendUrl: string =
+  window.config?.ONE_WSO2_OPD_BACKEND_URL ?? "";
+
+export function isOpdBackendConfigured(): boolean {
+  return Boolean(opdBackendUrl);
+}
+
+export const opdServiceUrls = {
+  userInfo: `${opdBackendUrl}/user-info`,
+  appData: `${opdBackendUrl}/app-data`,
+  searchClaims: `${opdBackendUrl}/search-claims`,
+  claims: `${opdBackendUrl}/claims`,
+  claimDrafts: `${opdBackendUrl}/claim-drafts`,
+  claimStatus: (claimId: string) =>
+    `${opdBackendUrl}/claims/${encodeURIComponent(claimId)}/status`,
+  claimTransactions: (claimId: string) =>
+    `${opdBackendUrl}/claims/${encodeURIComponent(claimId)}/transactions`,
+  employees: `${opdBackendUrl}/employees`,
+  // Raw-binary receipt endpoints. Upload is keyed on the caller's email.
+  receiptUpload: (email: string) =>
+    `${opdBackendUrl}/claims/${encodeURIComponent(email)}/transactions/receipts/file`,
+  receiptFile: (fileName: string) =>
+    `${opdBackendUrl}/claims/transactions/receipts/file/${encodeURIComponent(fileName)}`,
+};
+
+// Corporate credit-card expenses — cc-expenses/backend.
+export const ccBackendUrl: string =
+  window.config?.ONE_WSO2_CC_EXPENSES_BACKEND_URL ?? "";
+
+export function isCcBackendConfigured(): boolean {
+  return Boolean(ccBackendUrl);
+}
+
+export const ccServiceUrls = {
+  userInfo: `${ccBackendUrl}/user-info`,
+  creditCards: `${ccBackendUrl}/credit-cards`,
+  transactions: (query = "") => `${ccBackendUrl}/transactions${query}`,
+  saveDraft: `${ccBackendUrl}/transactions/save-draft`,
+  employeeSubmit: `${ccBackendUrl}/transactions/employee-submit`,
+  saveEdit: `${ccBackendUrl}/transactions/save-edit`,
+  leadApprove: `${ccBackendUrl}/transactions/lead-approve`,
+  financeApprove: `${ccBackendUrl}/transactions/finance-approve`,
+  processStatement: (bankCode: string, fileName: string) =>
+    `${ccBackendUrl}/transactions/process-statement?bankCode=${encodeURIComponent(bankCode)}&statementFileName=${encodeURIComponent(fileName)}`,
+  uploadTransactions: (bankCode: string, fileName: string) =>
+    `${ccBackendUrl}/transactions?bankCode=${encodeURIComponent(bankCode)}&statementFileName=${encodeURIComponent(fileName)}`,
+  expenseTypes: `${ccBackendUrl}/configurations/expense-types`,
+  subRegions: `${ccBackendUrl}/configurations/sub-regions`,
+  productAndBusinessUnits: `${ccBackendUrl}/configurations/product-and-business-units`,
+  jobNumbers: `${ccBackendUrl}/travels/job-numbers`,
+  // GET base64 attachment / DELETE it.
+  attachment: (id: number, attachmentType: string) =>
+    `${ccBackendUrl}/transactions/${id}/attachments?attachmentType=${encodeURIComponent(attachmentType)}`,
+  // PUT raw file bytes — note the backend's (misspelled) `fileExtenstion` query param.
+  attachmentUpload: (id: number, fileExtension: string, attachmentType: string) =>
+    `${ccBackendUrl}/transactions/${id}/attachments?fileExtenstion=${encodeURIComponent(fileExtension)}&attachmentType=${encodeURIComponent(attachmentType)}`,
+};
+
+// Out-of-pocket expense claims — expense-claims/backend.
+export const expenseBackendUrl: string =
+  window.config?.ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL ?? "";
+
+export function isExpenseBackendConfigured(): boolean {
+  return Boolean(expenseBackendUrl);
+}
+
+export const expenseServiceUrls = {
+  appData: `${expenseBackendUrl}/app-data`,
+  searchClaims: `${expenseBackendUrl}/search-claims`,
+  claims: `${expenseBackendUrl}/claims`,
+  claimDrafts: `${expenseBackendUrl}/claim-drafts`,
+  claimStatus: (claimId: string) =>
+    `${expenseBackendUrl}/claims/${encodeURIComponent(claimId)}/status`,
+  claimTransactions: (claimId: string) =>
+    `${expenseBackendUrl}/claims/${encodeURIComponent(claimId)}/transactions`,
+  employees: `${expenseBackendUrl}/employees`,
+  expenseTypes: (travelJobNumber?: string) =>
+    `${expenseBackendUrl}/user-configurations/expense-types${
+      travelJobNumber ? `?travelJobNumber=${encodeURIComponent(travelJobNumber)}` : ""
+    }`,
+  exchangeRates: (baseCode: string, date: string) =>
+    `${expenseBackendUrl}/currencies/${encodeURIComponent(baseCode)}/rates/${encodeURIComponent(date)}`,
+  receiptUpload: (email: string) =>
+    `${expenseBackendUrl}/claims/${encodeURIComponent(email)}/transactions/receipts/file`,
+  receiptFile: (fileName: string) =>
+    `${expenseBackendUrl}/claims/transactions/receipts/file/${encodeURIComponent(fileName)}`,
+};
+
 export const promotionServiceUrls = {
   // GET /employee-info?employeeWorkEmail=<email> — returns the caller's
   // EmployeeInfoWithLead (startDate, jobBand, lastPromotedDate, reportingLead,

@@ -14,20 +14,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Button, Chip, Stack, Typography } from "@wso2/oxygen-ui";
-import SectionHeader from "../components/SectionHeader";
+import { Box, Chip, Typography } from "@wso2/oxygen-ui";
 import InsightCard from "../components/InsightCard";
 import KpiRow from "../components/KpiRow";
-import OpenRequisitions from "../components/OpenRequisitions";
-import InterviewsThisWeek from "../components/InterviewsThisWeek";
-import CandidatesTable from "../components/CandidatesTable";
-import PerformancePromotions from "../components/PerformancePromotions";
-import RecentJoiners from "../components/RecentJoiners";
-import EmployeeDirectory from "../components/EmployeeDirectory";
-import OperationalServices from "../components/OperationalServices";
+import AppMenuBoard from "@components/app-menu/AppMenuBoard";
+import { PEOPLE_OPS_APPS } from "@constants/peopleOpsApps";
 import { INSIGHT_TEXT, INSIGHT_SOURCE } from "../constants/data";
-
-const CHIPS = ["Open a req", "Review candidates", "Publish a job", "Start review cycle", "✦ Ask Novera"];
 
 export default function PeopleOpsPage() {
   return (
@@ -39,47 +31,19 @@ export default function PeopleOpsPage() {
         size="small"
         sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 2.25 }}>
+      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
         People Operations
+      </Typography>
+      <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
+        Every people-ops-suite app in one place — jump to any app's section from the
+        left rail. What you see is scoped to your role.
       </Typography>
 
       <InsightCard text={INSIGHT_TEXT} source={INSIGHT_SOURCE} />
 
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-        {CHIPS.map((c) => (
-          <Button
-            key={c}
-            variant="outlined"
-            size="small"
-            sx={{ fontSize: 12, fontWeight: 500, borderRadius: 1.125 }}
-          >
-            {c}
-          </Button>
-        ))}
-      </Stack>
-
       <KpiRow />
 
-      <SectionHeader id="sec-hiring">Hiring</SectionHeader>
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.75 }}>
-        <OpenRequisitions />
-        <InterviewsThisWeek />
-      </Box>
-
-      <SectionHeader id="sec-candidates">Candidates</SectionHeader>
-      <CandidatesTable />
-
-      <SectionHeader id="sec-performance">Performance &amp; promotions</SectionHeader>
-      <PerformancePromotions />
-
-      <SectionHeader id="sec-people">People</SectionHeader>
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.75 }}>
-        <RecentJoiners />
-        <EmployeeDirectory />
-      </Box>
-
-      <SectionHeader id="sec-ops">Operational services</SectionHeader>
-      <OperationalServices />
+      <AppMenuBoard apps={PEOPLE_OPS_APPS} />
     </Box>
   );
 }

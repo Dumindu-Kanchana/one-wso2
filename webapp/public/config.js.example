@@ -37,4 +37,19 @@ window.config = {
   // gateway URL pattern; unlike par/promotion apps, this one does NOT
   // require the x-user-timezone-offset header.
   // ONE_WSO2_BANKING_BACKEND_URL: "<your-banking-app-backend-url>",
+
+  // people-ops-suite leave-app backend base URL. Optional — when absent,
+  // the People Ops → Leave screens (Apply / Approve / My History /
+  // Reports) show a "not configured" state. Same Choreo API gateway URL
+  // pattern; leave-app has its own /user-info + privileges.
+  // ONE_WSO2_LEAVE_BACKEND_URL: "<your-leave-app-backend-url>",
+
+  // digiops-finance backend base URLs — the three apps in the Finance
+  // perspective. Each is a separate Ballerina service with its own
+  // /user-info + role scheme. Optional — when a URL is absent, that app's
+  // screens show a "not connected" state. Same Choreo API gateway URL
+  // pattern as the other backends.
+  // ONE_WSO2_OPD_BACKEND_URL: "<your-opd-claims-backend-url>",
+  // ONE_WSO2_CC_EXPENSES_BACKEND_URL: "<your-cc-expenses-backend-url>",
+  // ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL: "<your-expense-claims-backend-url>",
 };

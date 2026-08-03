@@ -1,0 +1,151 @@
+// Copyright (c) 2026 WSO2 LLC. (https://www.wso2.com).
+//
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+// DTOs + enums mirrored from digiops-finance/apps/expense-claims/backend.
+
+export type ExpenseClaimStatus =
+  | "PENDING_LEAD"
+  | "LEAD_REJECTED"
+  | "PENDING_FINANCE"
+  | "APPROVED"
+  | "FINANCE_REJECTED";
+
+// The Lead and Finance approval screens are the same component parameterized
+// by which stage the approver acts at.
+export type ApproverView = "LEAD" | "FINANCE";
+
+export interface ExpenseTravelData {
+  jobNumber: string;
+  customerName: string | null;
+  engagementCode: string | null;
+  country: string | null;
+  productUnit: string | null;
+  businessUnit: string | null;
+}
+
+export interface ExpenseAppData {
+  userInfo: { workEmail: string; firstName: string | null; lastName: string | null };
+  enableLeadView: boolean;
+  enableFinanceView: boolean;
+  currencyCode: string; // reimbursement / subsidiary currency
+  countryCode: string;
+  travels: ExpenseTravelData[];
+  draft: { transactions: ExpenseTransaction[] } | null;
+  pastDateRestrictionDays: number | null;
+}
+
+// Line item as returned on a claim (backend enriches with reimbursement
+// figures). The submit payload is the trimmed ExpenseTransactionPayload.
+export interface ExpenseTransaction {
+  amount: number;
+  currency: string;
+  currencyConversionRate: number;
+  reimbursementAmount: number;
+  reimbursementCurrency: string;
+  expenseTypeId: number;
+  expenseType: string;
+  date: string;
+  comment?: string | null;
+  receiptUrl?: string | null;
+  travelJobNumber?: string | null;
+}
+
+// POST /claims line item (what we send).
+export interface ExpenseTransactionPayload {
+  date: string;
+  amount: number;
+  currency: string;
+  expenseTypeId: number;
+  comment: string | null;
+  receiptUrl: string | null;
+  travelJobNumber?: string | null;
+}
+
+export interface ExpenseClaimStatusDetails {
+  status: ExpenseClaimStatus | null;
+  leadApprovedDate: string | null;
+  leadRejectedReason: string | null;
+  leadRejectedDate: string | null;
+  financeApproverEmail: string | null;
+  financeApprovedDate: string | null;
+  financeRejectedDate: string | null;
+}
+
+export interface ExpenseClaim {
+  id: string;
+  transactions: ExpenseTransaction[];
+  totalAmount: number;
+  currencyCode: string | null;
+  employeeEmail: string;
+  leadEmails: string[];
+  statusDetails: ExpenseClaimStatusDetails;
+  createdDate: string;
+}
+
+export interface ExpenseClaimSearchPayload {
+  ids?: string[] | null;
+  email?: string | null;
+  leadEmail?: string | null;
+  status?: ExpenseClaimStatus[] | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  limit?: number | null;
+  offset?: number | null;
+}
+
+export interface ExpenseClaimsSearchResponse {
+  body: ExpenseClaim[];
+}
+
+export interface ExpenseClaimPayload {
+  transactions: ExpenseTransactionPayload[];
+}
+
+export interface ExpenseStatusPayload {
+  status: ExpenseClaimStatus;
+  reason?: string;
+}
+
+export interface ExchangeRate {
+  currencyCode: string;
+  exchangeRate: number;
+}
+
+export interface ExpenseTypeData {
+  id: number;
+  type: string;
+}
+
+// ---- stage helpers ---------------------------------------------------------
+
+// The tab → status filters differ by approver stage (see spec).
+export const LEAD_TABS: { key: string; label: string; statuses: ExpenseClaimStatus[] }[] = [
+  { key: "pending", label: "Pending", statuses: ["PENDING_LEAD"] },
+  { key: "approved", label: "Approved", statuses: ["PENDING_FINANCE", "APPROVED", "FINANCE_REJECTED"] },
+  { key: "rejected", label: "Rejected", statuses: ["LEAD_REJECTED"] },
+];
+
+export const FINANCE_TABS: { key: string; label: string; statuses: ExpenseClaimStatus[] }[] = [
+  { key: "pending", label: "Pending", statuses: ["PENDING_FINANCE"] },
+  { key: "approved", label: "Approved", statuses: ["APPROVED"] },
+  { key: "rejected", label: "Rejected", statuses: ["FINANCE_REJECTED"] },
+];
+
+// Approve/reject target status per stage.
+export function nextStatus(view: ApproverView, decision: "approve" | "reject"): ExpenseClaimStatus {
+  if (view === "LEAD") return decision === "approve" ? "PENDING_FINANCE" : "LEAD_REJECTED";
+  return decision === "approve" ? "APPROVED" : "FINANCE_REJECTED";
+}
