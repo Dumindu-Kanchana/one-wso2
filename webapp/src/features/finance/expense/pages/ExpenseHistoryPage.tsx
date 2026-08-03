@@ -54,30 +54,43 @@ export default function ExpenseHistoryPage() {
   );
 }
 
+// Match the source app's default: "Latest 100" sends limit=100 with NO date
+// filter (so claims across all years show); a specific year narrows via a
+// startDate/endDate range.
+const LATEST = "latest";
+type Range = typeof LATEST | number;
+
 function HistoryBody() {
   const appData = useExpenseAppData();
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
+  const [range, setRange] = useState<Range>(LATEST);
   const [selected, setSelected] = useState<ExpenseClaim | null>(null);
 
   const email = appData.data?.userInfo.workEmail ?? undefined;
   const claims = useExpenseClaims(
-    { email, startDate: startOfYearIso(year), endDate: endOfYearIso(year) },
+    range === LATEST
+      ? { email, limit: 100 }
+      : { email, startDate: startOfYearIso(range), endDate: endOfYearIso(range) },
     Boolean(email),
   );
 
   const years = useMemo(() => {
     const out: number[] = [];
-    for (let y = currentYear; y >= currentYear - 4; y--) out.push(y);
+    for (let y = currentYear; y >= currentYear - 5; y--) out.push(y);
     return out;
   }, [currentYear]);
 
   return (
     <Box>
       <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-        <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>Year</Typography>
+        <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>Show</Typography>
         <FormControl size="small">
-          <Select value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 110 }}>
+          <Select<Range>
+            value={range}
+            onChange={(e) => setRange(e.target.value === LATEST ? LATEST : Number(e.target.value))}
+            sx={{ minWidth: 130 }}
+          >
+            <MenuItem value={LATEST}>Latest 100</MenuItem>
             {years.map((y) => (
               <MenuItem key={y} value={y}>
                 {y}
@@ -97,7 +110,7 @@ function HistoryBody() {
         <Alert severity="error">Couldn't load your claims. {describeError(claims.error)}</Alert>
       ) : (claims.data?.length ?? 0) === 0 ? (
         <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>
-          No expense claims on record for {year}.
+          {range === LATEST ? "No expense claims on record." : `No expense claims on record for ${range}.`}
         </Typography>
       ) : (
         <ClaimsTable claims={claims.data!} onView={setSelected} />
