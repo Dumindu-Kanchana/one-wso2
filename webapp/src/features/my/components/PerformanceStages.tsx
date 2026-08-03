@@ -119,7 +119,19 @@ export default function PerformanceStages({ workEmail }: { workEmail?: string })
     },
   ];
 
-  const currentIdx = pickCurrentStage(stages);
+  // The stages are broadly sequential, and 360° has no direct per-employee
+  // status field, so a later completed stage implies the earlier ones are
+  // done too. Fold "done" leftward: the stepper can then never show a
+  // completed stage sitting after an incomplete one (which is what made a
+  // locked Employee PAR look like it was blocking finished Lead/F2F steps).
+  const doneMono: boolean[] = new Array(stages.length).fill(false);
+  for (let i = stages.length - 1; i >= 0; i--) {
+    doneMono[i] = stages[i].status.done || (i + 1 < stages.length && doneMono[i + 1]);
+  }
+  // Current = leftmost stage that isn't (effectively) done; if all are done,
+  // park on the last so the detail line still has something to point at.
+  let currentIdx = doneMono.findIndex((d) => !d);
+  if (currentIdx === -1) currentIdx = stages.length - 1;
   const detail = stages[currentIdx];
 
   return (
@@ -144,7 +156,7 @@ export default function PerformanceStages({ workEmail }: { workEmail?: string })
       <Stack direction="row" alignItems="flex-start" sx={{ px: 0.25 }}>
         {stages.map((s, i) => {
           const state: NodeState =
-            s.status.done ? "done" : i === currentIdx ? "current" : "upcoming";
+            doneMono[i] ? "done" : i === currentIdx ? "current" : "upcoming";
           return (
             <Box
               key={s.index}
@@ -166,8 +178,7 @@ export default function PerformanceStages({ workEmail }: { workEmail?: string })
                     left: 0,
                     right: "50%",
                     height: 2,
-                    backgroundColor:
-                      stages[i - 1].status.done ? "primary.main" : "divider",
+                    backgroundColor: doneMono[i - 1] ? "primary.main" : "divider",
                   }}
                 />
               )}
@@ -180,7 +191,7 @@ export default function PerformanceStages({ workEmail }: { workEmail?: string })
                     left: "50%",
                     right: 0,
                     height: 2,
-                    backgroundColor: s.status.done ? "primary.main" : "divider",
+                    backgroundColor: doneMono[i] ? "primary.main" : "divider",
                   }}
                 />
               )}
@@ -299,16 +310,6 @@ function CheckIcon() {
   );
 }
 
-// Pick the leftmost stage that isn't yet done — that's "where the
-// employee currently is". If every stage is done, park the marker on
-// the last one so the detail line still has something to point at.
-function pickCurrentStage(stages: Stage[]): number {
-  for (let i = 0; i < stages.length; i++) {
-    if (!stages[i].status.done) return i;
-  }
-  return stages.length - 1;
-}
-
 // ---- status mappers --------------------------------------------------------
 // A CLOSED cycle collapses every stage to "Complete" — by the time a
 // cycle closes all stages have been sealed off, and we don't want to
@@ -325,7 +326,10 @@ function mapEmployeeStatus(
     case "DRAFT":
       return { label: "Draft", done: false };
     case "SHARED_BLOCKED":
-      return { label: "Blocked", done: false };
+      // Employee already SHARED (submitted); the backend locks it once the
+      // lead moves off PENDING. So this stage is DONE — just no longer
+      // editable — not an incomplete "blocked" step.
+      return { label: "Submitted · locked", done: true };
     case "PENDING":
     default:
       return { label: "Pending", done: false };
