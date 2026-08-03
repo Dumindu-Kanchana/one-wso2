@@ -49,8 +49,8 @@ export const FINANCE_APPS: readonly MenuApp[] = [
     items: [
       { id: "cc-new", label: "New Transactions", desc: "Unsubmitted card transactions to categorise and submit.", path: "/finance/cc/new" },
       { id: "cc-pending", label: "Pending Submissions", desc: "Submissions awaiting approval.", path: "/finance/cc/pending" },
-      { id: "cc-approve", label: "Approve Submissions", desc: "Review and approve your team's card submissions.", requires: ["lead", "admin"], path: "/finance/cc/approve" },
-      { id: "cc-history", label: "History", desc: "Your past card submissions.", path: "/finance/cc/history" },
+      { id: "cc-approve", label: "Approve Submissions", desc: "Review and approve your team's submitted card transactions.", requires: ["lead", "admin"], path: "/finance/cc/approve" },
+      { id: "cc-history", label: "History", desc: "Your submitted past card transactions.", path: "/finance/cc/history" },
       { id: "cc-settings", label: "Statement ingestion", desc: "Upload and reconcile bank statements (finance).", requires: ["admin"], path: "/finance/cc/settings" },
     ],
   },

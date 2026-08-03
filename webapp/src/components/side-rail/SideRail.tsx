@@ -71,6 +71,27 @@ export default function SideRail() {
   const sections = active.sections ?? [];
   const crossPerspectives = CROSS_PERSPECTIVES.filter((p) => p.access && p.path);
 
+  // The perspective eyebrow ("FINANCE", "PEOPLE OPS", …). When the
+  // perspective has a landing route, the whole header links to it.
+  const perspectiveHeaderSx = {
+    fontSize: 10.5,
+    textTransform: "uppercase",
+    letterSpacing: "0.07em",
+    color: "text.disabled",
+    fontWeight: 600,
+    mb: 0.75,
+    mx: 1,
+    display: "flex",
+    alignItems: "center",
+    gap: 0.75,
+  } as const;
+  const headerInner = (
+    <>
+      <span style={{ fontSize: 13 }}>{active.emoji}</span>
+      {active.label}
+    </>
+  );
+
   return (
     <Box
       component="nav"
@@ -86,24 +107,26 @@ export default function SideRail() {
       {/* Scrollable body — perspective sections + For you. Settings row
           below sits pinned to the rail's viewport bottom. */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 1.25, py: 1.75 }}>
-        {/* Active perspective header */}
-        <Typography
-          sx={{
-            fontSize: 10.5,
-            textTransform: "uppercase",
-            letterSpacing: "0.07em",
-            color: "text.disabled",
-            fontWeight: 600,
-            mb: 0.75,
-            mx: 1,
-            display: "flex",
-            alignItems: "center",
-            gap: 0.75,
-          }}
-        >
-          <span style={{ fontSize: 13 }}>{active.emoji}</span>
-          {active.label}
-        </Typography>
+        {/* Active perspective header — links to the perspective's landing
+            page when it has one (e.g. Finance → /finance overview). */}
+        {active.path ? (
+          <Typography
+            component={NavLink}
+            to={active.path}
+            sx={{
+              ...perspectiveHeaderSx,
+              textDecoration: "none",
+              cursor: "pointer",
+              "&:hover": { color: "text.secondary" },
+              "&.active": { color: "primary.main" },
+            }}
+            end
+          >
+            {headerInner}
+          </Typography>
+        ) : (
+          <Typography sx={perspectiveHeaderSx}>{headerInner}</Typography>
+        )}
 
         {sections.length > 0 ? (
           sections.map((s) => (
