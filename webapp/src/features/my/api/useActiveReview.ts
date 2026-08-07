@@ -74,6 +74,66 @@ export function useParRating(parCycleId: number | undefined, workEmail: string |
   });
 }
 
+// Returns the caller's CLOSED par cycles. Only fires when explicitly
+// enabled (typically because the OPEN query came back empty and we want
+// to fall back to the last completed cycle).
+export function useClosedParCycles(workEmail: string | undefined, enabled: boolean) {
+  const { getIdToken, isSignedIn } = useAsgardeo();
+  const backendConfigured = Boolean(parBackendUrl);
+  return useQuery<ParCycle[]>({
+    queryKey: ["par-cycles-closed", workEmail],
+    enabled: enabled && isSignedIn && backendConfigured && Boolean(workEmail),
+    queryFn: async () => {
+      const idToken = await getIdToken();
+      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      return authedGet<ParCycle[]>(
+        parServiceUrls.parCycles(workEmail!, "CLOSED"),
+        idToken,
+        digiopsHeaders(),
+      );
+    },
+    // Historical cycles change rarely — 10 min stale window is fine.
+    staleTime: 10 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
+      return failureCount < 1;
+    },
+  });
+}
+
+// Returns "the cycle to show" for the Performance & growth card:
+// prefer any currently OPEN cycle; if none, fall back to the most-recent
+// CLOSED one so the section is never empty just because a new cycle
+// hasn't opened yet. Also reports whether the returned cycle is active
+// or past so the UI can differentiate messaging.
+export function useLatestReviewCycle(workEmail: string | undefined) {
+  const open = useActiveParCycle(workEmail);
+  const openCycles = open.data ?? [];
+  const hasOpen = openCycles.length > 0;
+  // Fire the CLOSED lookup only after OPEN resolves with an empty array.
+  const closed = useClosedParCycles(
+    workEmail,
+    !open.isLoading && !open.isError && !hasOpen,
+  );
+  const cycle = hasOpen ? pickMostRecent(openCycles) : pickMostRecent(closed.data ?? []);
+  return {
+    cycle,
+    isActive: hasOpen,
+    isLoading: open.isLoading || (!hasOpen && closed.isLoading),
+    isError: open.isError || (!hasOpen && closed.isError),
+    error: open.error ?? closed.error,
+  };
+}
+
+// Sort by parCycleStartDate DESC so we pick the freshest cycle regardless
+// of the backend's default ordering.
+function pickMostRecent(cycles: ParCycle[]): ParCycle | undefined {
+  if (!cycles.length) return undefined;
+  return [...cycles].sort((a, b) =>
+    (b.parCycleStartDate ?? "").localeCompare(a.parCycleStartDate ?? ""),
+  )[0];
+}
+
 export function isParBackendConfigured(): boolean {
   return Boolean(parBackendUrl);
 }

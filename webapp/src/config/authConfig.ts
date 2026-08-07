@@ -44,6 +44,19 @@ declare global {
       // absent, the Bank accounts card in Connected apps shows a
       // "not configured" state.
       ONE_WSO2_BANKING_BACKEND_URL?: string;
+      // Base URL for the people-ops-suite leave-app backend. Optional —
+      // when absent, the People Ops → Leave screens show a
+      // "not configured" state. Leave-app has its own /user-info +
+      // privileges, distinct from people-app.
+      ONE_WSO2_LEAVE_BACKEND_URL?: string;
+      // Base URLs for the three digiops-finance backends surfaced in the
+      // Finance perspective. Each is its own service with its own
+      // /user-info + role scheme. Optional — when a URL is absent, that
+      // app's screens show a "not connected" state instead of firing
+      // broken requests.
+      ONE_WSO2_OPD_BACKEND_URL?: string; // opd-claims
+      ONE_WSO2_CC_EXPENSES_BACKEND_URL?: string; // cc-expenses
+      ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL?: string; // expense-claims
       // Override for the Asgardeo My Account portal URL that the top-bar
       // "Profile" menu item opens. Only set this on non-standard tenants
       // (self-hosted / custom domain); on Asgardeo Cloud we derive it from

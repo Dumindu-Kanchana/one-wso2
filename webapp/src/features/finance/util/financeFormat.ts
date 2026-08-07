@@ -1,0 +1,97 @@
+// Copyright (c) 2026 WSO2 LLC. (https://www.wso2.com).
+//
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+// Native formatting/date helpers for the finance feature — no dayjs / money
+// lib in one-wso2 (matches the Leave feature's approach). `YYYY-MM-DD`
+// strings are parsed in the LOCAL calendar to avoid the UTC-midnight
+// off-by-one for users west of UTC.
+
+// Money with a currency prefix, thousand separators, 2 decimals.
+// e.g. money(1234.5, "LKR") → "Rs. 1,234.50"; money(80, "USD") → "$80.00".
+const CURRENCY_PREFIX: Record<string, string> = {
+  LKR: "Rs.",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+};
+
+export function money(amount: number | null | undefined, currency = "LKR"): string {
+  const n = typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
+  const prefix = CURRENCY_PREFIX[currency] ?? currency;
+  const formatted = n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  // A symbol prefix ("$","€","£") hugs the number; a word/abbrev prefix
+  // ("Rs.","USD") takes a space.
+  const sep = /[A-Za-z.]$/.test(prefix) ? " " : "";
+  return `${prefix}${sep}${formatted}`;
+}
+
+// Today as "YYYY-MM-DD" in the local calendar.
+export function todayIso(): string {
+  return toIso(new Date());
+}
+
+export function toIso(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Parse "YYYY-MM-DD[...]" (or a UTC datetime like the createdDate fields) as
+// a local calendar day. Returns null on an unrecognisable value.
+export function parseIso(input: string | null | undefined): Date | null {
+  if (!input) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(input);
+  if (!m) return null;
+  const [, y, mo, d] = m;
+  const date = new Date(Number(y), Number(mo) - 1, Number(d));
+  // Reject impossible dates instead of letting the Date constructor roll them
+  // over (e.g. 2026-02-31 → Mar 3), matching the leave date parser.
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== Number(y) ||
+    date.getMonth() !== Number(mo) - 1 ||
+    date.getDate() !== Number(d)
+  ) {
+    return null;
+  }
+  return date;
+}
+
+// "Aug 15, 2026" from an ISO date/datetime string.
+export function formatNice(input: string | null | undefined): string {
+  const d = parseIso(input);
+  if (!d) return "—";
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
+export function startOfYearIso(year: number): string {
+  return `${year}-01-01`;
+}
+
+export function endOfYearIso(year: number): string {
+  return `${year}-12-31`;
+}
+
+// N days ago as an ISO date (for default "last 7 days" history windows).
+export function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return toIso(d);
+}

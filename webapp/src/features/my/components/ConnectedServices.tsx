@@ -25,7 +25,7 @@ import {
 } from "../api/usePromotionEmployeeInfo";
 import { formatDate } from "../api/derive";
 import PromotionHistoryDialog from "./PromotionHistoryDialog";
-import ActiveReviewRow from "./ActiveReviewRow";
+import PerformanceStages from "./PerformanceStages";
 import BankAccountsCard from "./BankAccountsCard";
 
 // Three cards surfacing adjacent people-ops-suite services inside the
@@ -47,10 +47,6 @@ export default function ConnectedServices() {
     <>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 1.75 }}>
-        <VehiclesCard ownerEmail={ownerEmail} />
-
-        <BankAccountsCard ownerEmail={ownerEmail} />
-
         {/* Performance */}
         <Card variant="outlined" sx={{ p: 2 }}>
           <Typography sx={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary", fontWeight: 600, mb: 1.5 }}>
@@ -82,8 +78,12 @@ export default function ConnectedServices() {
               </span>
             </Tooltip>
           </Stack>
-          <ActiveReviewRow workEmail={ownerEmail} />
+          <PerformanceStages workEmail={ownerEmail} />
         </Card>
+
+        <BankAccountsCard ownerEmail={ownerEmail} />
+
+        <VehiclesCard ownerEmail={ownerEmail} />
       </Box>
 
       <PromotionHistoryDialog

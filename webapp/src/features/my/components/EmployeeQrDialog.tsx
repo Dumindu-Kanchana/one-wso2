@@ -158,7 +158,7 @@ export default function EmployeeQrDialog({
               {error ?? "Failed to load QR code."}
             </Typography>
             <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-              Contact People Ops to update your record, then try again.
+              Contact People Operations to update your record, then try again.
             </Typography>
           </Alert>
         )}
