@@ -64,8 +64,13 @@ function SettingsBody() {
   const { showSuccess, showError } = useNotifications();
 
   const [bank, setBank] = useState<CcBankCode>("svb");
-  const [fileName, setFileName] = useState("file");
-  const [group, setGroup] = useState<CcTransactionUploadGroup | null>(null);
+  // The bank code + file name are captured at parse time and kept WITH the
+  // parsed group, so changing the bank Select afterwards can't make Save
+  // post the group under a different bankCode than it was parsed with.
+  const [parsed, setParsed] = useState<
+    { group: CcTransactionUploadGroup; bankCode: CcBankCode; fileName: string } | null
+  >(null);
+  const group = parsed?.group ?? null;
   const [tab, setTab] = useState<"new" | "duplicate" | "invalid">("new");
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -81,12 +86,13 @@ function SettingsBody() {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setFileName(file.name);
+    const bankCode = bank;
+    const fileName = file.name;
     process.mutate(
-      { bankCode: bank, fileName: file.name, file },
+      { bankCode, fileName, file },
       {
         onSuccess: (g) => {
-          setGroup(g);
+          setParsed({ group: g, bankCode, fileName });
           setTab("new");
         },
         onError: (err) => showError(describeError(err)),
@@ -96,13 +102,13 @@ function SettingsBody() {
   };
 
   const handleSave = () => {
-    if (!group) return;
+    if (!parsed) return;
     upload.mutate(
-      { bankCode: bank, fileName, group },
+      { bankCode: parsed.bankCode, fileName: parsed.fileName, group: parsed.group },
       {
         onSuccess: () => {
-          showSuccess(`${group.newItems.length} transaction(s) saved as pending`);
-          setGroup(null);
+          showSuccess(`${parsed.group.newItems.length} transaction(s) saved as pending`);
+          setParsed(null);
         },
         onError: (err) => showError(describeError(err)),
       },
@@ -135,7 +141,7 @@ function SettingsBody() {
             {process.isPending ? "Parsing…" : "Upload statement CSV"}
           </Button>
           <Typography sx={{ fontSize: 12, color: "text.disabled" }}>
-            {group ? fileName : "Select a bank, then choose the statement file."}
+            {parsed ? parsed.fileName : "Select a bank, then choose the statement file."}
           </Typography>
         </Stack>
       </Card>
@@ -188,7 +194,7 @@ function SettingsBody() {
           )}
 
           <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 2 }}>
-            <Button onClick={() => setGroup(null)} disabled={upload.isPending}>
+            <Button onClick={() => setParsed(null)} disabled={upload.isPending}>
               Discard
             </Button>
             <Button

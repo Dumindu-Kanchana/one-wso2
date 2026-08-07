@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -56,6 +56,17 @@ export function OpdClaimDetailsDialog({
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [receiptLoad, setReceiptLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
+
+  // The dialog stays mounted between claims, so reset its transient state
+  // whenever the target claim changes — otherwise a typed rejection reason
+  // (and the open reject panel / receipt viewer) would leak into the next
+  // claim opened.
+  const claimId = claim?.id;
+  useEffect(() => {
+    setRejecting(false);
+    setReason("");
+    setReceiptLoad(null);
+  }, [claimId]);
 
   const meta = opdStatusMeta(claim?.statusDetails.status);
   const isPending =

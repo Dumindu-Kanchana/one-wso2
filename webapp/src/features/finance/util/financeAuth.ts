@@ -31,6 +31,9 @@ export function useUserSub(): string | undefined {
       return;
     }
     let cancelled = false;
+    // Clear any previous subject before re-resolving so a stale sub from a
+    // prior account can't remain in query keys while the new token decodes.
+    setSub(undefined);
     getDecodedIdToken()
       .then((token) => {
         if (cancelled) return;

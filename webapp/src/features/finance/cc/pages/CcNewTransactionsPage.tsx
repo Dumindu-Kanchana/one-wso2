@@ -106,6 +106,13 @@ function NewTxnBody() {
   if (userInfo.isLoading || cards.isLoading) {
     return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />;
   }
+  if (userInfo.isError || cards.isError) {
+    return (
+      <Alert severity="error">
+        Couldn't load your cards. {describeError(userInfo.error ?? cards.error)}
+      </Alert>
+    );
+  }
   if (ownCards.length === 0) {
     return <Alert severity="info">You don't have a corporate credit card assigned.</Alert>;
   }

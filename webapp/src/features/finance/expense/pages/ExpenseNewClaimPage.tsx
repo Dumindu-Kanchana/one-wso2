@@ -39,7 +39,7 @@ import FinanceShell from "../../components/FinanceShell";
 import { DraftStatusChip } from "../../components/DraftStatusChip";
 import { describeError } from "../../util/financeError";
 import { money, todayIso, formatNice, daysAgoIso } from "../../util/financeFormat";
-import { RECEIPT_ACCEPT, RECEIPT_MAX_BYTES } from "../../util/financeReceipts";
+import { RECEIPT_ACCEPT, EXPENSE_RECEIPT_MAX_BYTES, maxSizeLabel } from "../../util/financeReceipts";
 import { useDraftAutosave } from "../../util/useDraftAutosave";
 import { useExchangeRates, useExpenseAppData, useExpenseTypes } from "../useExpense";
 import { useExpenseDraftSync, useExpenseReceiptUpload, useSubmitExpenseClaim } from "../useExpenseMutations";
@@ -258,12 +258,15 @@ function AddExpenseDialog({
   const rates = useExchangeRates(reimbursementCurrency, date);
   const expenseTypes = useExpenseTypes(jobNumber === NO_JOB ? undefined : jobNumber);
 
-  // Conversion rate for the chosen currency (1 when it's already the
-  // reimbursement currency).
-  const rate = useMemo(() => {
+  // Conversion rate for the chosen currency: 1 when it's already the
+  // reimbursement currency; null when a foreign currency has no rate in the
+  // fetched list (missing, or the list is stale/loading after a date change).
+  // null must NOT collapse to 1 — that would let the user submit the raw
+  // foreign amount as if it were already converted.
+  const rate = useMemo<number | null>(() => {
     if (currency === reimbursementCurrency) return 1;
     const found = (rates.data ?? []).find((r) => r.currencyCode === currency);
-    return found?.exchangeRate ?? 1;
+    return found ? found.exchangeRate : null;
   }, [currency, reimbursementCurrency, rates.data]);
 
   const currencyOptions = useMemo(() => {
@@ -273,10 +276,12 @@ function AddExpenseDialog({
 
   const amountNum = Number(amount);
   const amountValid = Number.isFinite(amountNum) && amountNum > 0;
-  const reimbursementAmount = amountValid ? Math.round(amountNum * rate * 100) / 100 : 0;
+  const rateReady = rate != null;
+  const reimbursementAmount = amountValid && rateReady ? Math.round(amountNum * rate * 100) / 100 : 0;
   const selectedType = (expenseTypes.data ?? []).find((t) => t.id === expenseTypeId);
   const valid =
     amountValid &&
+    rateReady &&
     expenseTypeId !== "" &&
     comment.trim().length > 0 &&
     comment.length <= COMMENT_MAX &&
@@ -285,8 +290,8 @@ function AddExpenseDialog({
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > RECEIPT_MAX_BYTES) {
-      showError("Receipt must be 10 MB or smaller.");
+    if (file.size > EXPENSE_RECEIPT_MAX_BYTES) {
+      showError(`Receipt must be ${maxSizeLabel(EXPENSE_RECEIPT_MAX_BYTES)} or smaller.`);
       return;
     }
     try {
@@ -368,9 +373,16 @@ function AddExpenseDialog({
               <FieldLabel>Reimbursement</FieldLabel>
               <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, px: 1.25, py: 0.9 }}>
                 <Typography sx={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                  {money(reimbursementAmount, reimbursementCurrency)}
+                  {rateReady ? money(reimbursementAmount, reimbursementCurrency) : "—"}
                 </Typography>
               </Box>
+              {!rateReady && (
+                <Typography sx={{ fontSize: 11, color: "warning.main", mt: 0.5 }}>
+                  {rates.isLoading
+                    ? "Fetching exchange rate…"
+                    : `No exchange rate available for ${currency} on ${date}.`}
+                </Typography>
+              )}
             </Box>
           </Box>
 
@@ -421,7 +433,7 @@ function AddExpenseDialog({
                 {uploading ? "Uploading…" : receiptUrl ? "Replace file" : "Upload receipt"}
               </Button>
               <Typography sx={{ fontSize: 12, color: receiptUrl ? "success.main" : "text.disabled" }} noWrap>
-                {receiptUrl ? `✓ ${fileName}` : "JPG, PNG or PDF"}
+                {receiptUrl ? `✓ ${fileName}` : `JPG, PNG or PDF · max ${maxSizeLabel(EXPENSE_RECEIPT_MAX_BYTES)}`}
               </Typography>
             </Stack>
           </Box>

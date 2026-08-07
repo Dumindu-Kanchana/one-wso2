@@ -54,10 +54,13 @@ export function useExpenseAppData(enabled = true) {
 // (leadEmail) and Finance approvals (admin). `enabled` defers until ready.
 export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = true) {
   const { getIdToken, isSignedIn } = useAsgardeo();
+  const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseClaim[]>({
-    queryKey: ["expense-claims", payload],
-    enabled: enabled && isSignedIn && configured,
+    // Scope per user — a claim search with no explicit email resolves the
+    // caller from the token, so two users would share one cache entry.
+    queryKey: ["expense-claims", userSub, payload],
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");

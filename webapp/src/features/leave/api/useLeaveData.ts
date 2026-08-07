@@ -117,10 +117,14 @@ export function useLeaveAppConfig() {
 // the filter is ready (e.g. a report needs a date range first).
 export function useLeaves(filter: LeaveFilter, enabled = true) {
   const { getIdToken, isSignedIn } = useAsgardeo();
+  const userSub = useUserSub();
   const configured = isLeaveBackendConfigured();
   return useQuery<FetchedLeavesRecord>({
-    queryKey: ["leaves", filter],
-    enabled: enabled && isSignedIn && configured,
+    // Scope per user — a filter without an explicit email resolves the
+    // caller from the token, so an account switch in the same tab could
+    // otherwise serve the previous user's leave rows within staleTime.
+    queryKey: ["leaves", userSub, filter],
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");

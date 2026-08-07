@@ -71,10 +71,13 @@ export function useOpdAppData() {
 // Approvals (all claims). `enabled` defers until a filter is ready.
 export function useOpdClaims(payload: OpdClaimSearchPayload, enabled = true) {
   const { getIdToken, isSignedIn } = useAsgardeo();
+  const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdClaim[]>({
-    queryKey: ["opd-claims", payload],
-    enabled: enabled && isSignedIn && configured,
+    // Scope per user — a search with no explicit email resolves the caller
+    // from the token, so two users would otherwise share one cache entry.
+    queryKey: ["opd-claims", userSub, payload],
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");
@@ -89,10 +92,11 @@ export function useOpdClaims(payload: OpdClaimSearchPayload, enabled = true) {
 // GET /employees — for resolving approver-view user names/avatars.
 export function useOpdEmployees(enabled = true) {
   const { getIdToken, isSignedIn } = useAsgardeo();
+  const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdEmployee[]>({
-    queryKey: ["opd-employees"],
-    enabled: enabled && isSignedIn && configured,
+    queryKey: ["opd-employees", userSub],
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");

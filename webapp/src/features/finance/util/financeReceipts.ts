@@ -23,7 +23,31 @@ import { HttpError } from "@api/http";
 // object URL for inline viewing. Same Bearer contract as @api/http.
 
 export const RECEIPT_ACCEPT = "application/pdf,image/jpeg,image/png";
-export const RECEIPT_MAX_BYTES = 10 * 1024 * 1024; // 10 MB (opd limit; expense is 5 MB)
+
+// The backends enforce different max upload sizes, so the client limit must
+// match per app — a shared 10 MB constant let the expense page accept a 6 MB
+// file the expense backend then rejected.
+export const OPD_RECEIPT_MAX_BYTES = 10 * 1024 * 1024; // opd-claims: 10 MB
+export const EXPENSE_RECEIPT_MAX_BYTES = 5 * 1024 * 1024; // expense-claims: 5 MB
+export const CC_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024; // cc-expenses: 5 MB
+
+// Human label for a byte limit, so UI copy is derived from the constant
+// rather than hardcoded ("10 MB" drifting from a 5 MB limit).
+export function maxSizeLabel(bytes: number): string {
+  return `${Math.round(bytes / (1024 * 1024))} MB`;
+}
+
+// Parse a 2xx body as JSON, but never let a non-JSON 2xx (plain text / HTML
+// from a proxy) surface as a raw SyntaxError — turn it into an HttpError so
+// describeError shows an upload failure, not a parser message.
+function parseJsonOrThrow(text: string, url: string, status: number): Record<string, unknown> {
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new HttpError(url, status, text);
+  }
+}
 
 // Upload one receipt file. Returns the server-generated file name that must
 // be stored on the claim line as `receiptUrl`. Both backends wrap the name
@@ -46,7 +70,7 @@ export async function uploadReceipt(
     throw new HttpError(url, res.status, body);
   }
   const text = await res.text();
-  const parsed = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  const parsed = parseJsonOrThrow(text, url, res.status);
   const direct = parsed.fileName;
   const wrapped = (parsed.body as { fileName?: unknown } | undefined)?.fileName;
   const fileName = typeof direct === "string" ? direct : typeof wrapped === "string" ? wrapped : "";
@@ -81,7 +105,7 @@ export async function fetchBase64Attachment(url: string, idToken: string): Promi
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
   }
-  const json = (await res.json()) as { body?: unknown };
+  const json = parseJsonOrThrow(await res.text(), url, res.status) as { body?: unknown };
   const raw = typeof json.body === "string" ? json.body : "";
   if (!raw) throw new HttpError(url, res.status, "empty attachment");
   // Accept either a bare base64 string or an already-formed data URL.
@@ -106,8 +130,11 @@ export async function putBinaryFile(url: string, idToken: string, file: File): P
     throw new HttpError(url, res.status, body);
   }
   const text = await res.text();
-  const parsed = text ? (JSON.parse(text) as { body?: unknown; fileName?: unknown }) : {};
+  const parsed = parseJsonOrThrow(text, url, res.status) as { body?: unknown; fileName?: unknown };
   const name = typeof parsed.body === "string" ? parsed.body : typeof parsed.fileName === "string" ? parsed.fileName : "";
+  // Fail the same way uploadReceipt does — never return "" so a caller can't
+  // store an empty attachment name.
+  if (!name) throw new HttpError(url, res.status, text);
   return name;
 }
 

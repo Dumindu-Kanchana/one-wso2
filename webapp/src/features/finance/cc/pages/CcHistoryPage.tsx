@@ -101,10 +101,10 @@ function HistoryBody() {
         </FormControl>
       </Stack>
 
-      {txns.isLoading ? (
+      {userInfo.isLoading || txns.isLoading ? (
         <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />
-      ) : txns.isError ? (
-        <Alert severity="error">Couldn't load history. {describeError(txns.error)}</Alert>
+      ) : userInfo.isError || txns.isError ? (
+        <Alert severity="error">Couldn't load history. {describeError(userInfo.error ?? txns.error)}</Alert>
       ) : rows.length === 0 ? (
         <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>
           No transactions match this filter.

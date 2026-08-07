@@ -36,7 +36,7 @@ import FinanceShell from "../../components/FinanceShell";
 import { DraftStatusChip } from "../../components/DraftStatusChip";
 import { describeError } from "../../util/financeError";
 import { money, todayIso, startOfYearIso, formatNice } from "../../util/financeFormat";
-import { RECEIPT_ACCEPT, RECEIPT_MAX_BYTES } from "../../util/financeReceipts";
+import { RECEIPT_ACCEPT, OPD_RECEIPT_MAX_BYTES, maxSizeLabel } from "../../util/financeReceipts";
 import { useDraftAutosave } from "../../util/useDraftAutosave";
 import { useOpdAppData, useOpdUserInfo } from "../useOpd";
 import { useOpdDraftSync, useOpdReceiptUpload, useSubmitOpdClaim } from "../useOpdMutations";
@@ -265,8 +265,8 @@ function AddBillDialog({
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > RECEIPT_MAX_BYTES) {
-      showError("Receipt must be 10 MB or smaller.");
+    if (file.size > OPD_RECEIPT_MAX_BYTES) {
+      showError(`Receipt must be ${maxSizeLabel(OPD_RECEIPT_MAX_BYTES)} or smaller.`);
       return;
     }
     try {
@@ -353,7 +353,7 @@ function AddBillDialog({
                 {uploading ? "Uploading…" : receiptUrl ? "Replace file" : "Upload receipt"}
               </Button>
               <Typography sx={{ fontSize: 12, color: receiptUrl ? "success.main" : "text.disabled" }} noWrap>
-                {receiptUrl ? `✓ ${fileName}` : "JPG, PNG or PDF · max 10 MB"}
+                {receiptUrl ? `✓ ${fileName}` : `JPG, PNG or PDF · max ${maxSizeLabel(OPD_RECEIPT_MAX_BYTES)}`}
               </Typography>
             </Stack>
           </Box>

@@ -84,6 +84,9 @@ function ApprovalsBody({ view }: { view: ApproverView }) {
   if (appData.isLoading) {
     return <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />;
   }
+  if (appData.isError) {
+    return <Alert severity="error">Couldn't load your finance profile. {describeError(appData.error)}</Alert>;
+  }
   if (!allowed) {
     return (
       <Alert severity="info">

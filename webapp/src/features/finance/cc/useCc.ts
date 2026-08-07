@@ -104,8 +104,14 @@ export function useCcTransactions(
 // mounts one hook.
 export function useCcMenus() {
   const { getIdToken, isSignedIn } = useAsgardeo();
+  const userSub = useUserSub();
   const configured = isCcBackendConfigured();
-  const enabled = isSignedIn && configured;
+  // Scope these to the signed-in user like the other authenticated CC
+  // queries: logout only calls Asgardeo signOut() and does not clear the
+  // React Query cache, so an in-tab account switch could otherwise serve a
+  // prior user's cached responses (job numbers are per-user; the rest are
+  // reference data, but keying uniformly keeps the cache clean).
+  const enabled = isSignedIn && configured && Boolean(userSub);
 
   const auth = async () => {
     const idToken = await getIdToken();
@@ -114,28 +120,28 @@ export function useCcMenus() {
   };
 
   const expenseTypes = useQuery<CcExpenseTypeList>({
-    queryKey: ["cc-expense-types"],
+    queryKey: ["cc-expense-types", userSub],
     enabled,
     queryFn: async () => authedGet<CcExpenseTypeList>(ccServiceUrls.expenseTypes, await auth()),
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,
   });
   const subRegions = useQuery<CcSubRegionList>({
-    queryKey: ["cc-sub-regions"],
+    queryKey: ["cc-sub-regions", userSub],
     enabled,
     queryFn: async () => authedGet<CcSubRegionList>(ccServiceUrls.subRegions, await auth()),
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,
   });
   const units = useQuery<CcProductAndBusinessUnitList>({
-    queryKey: ["cc-units"],
+    queryKey: ["cc-units", userSub],
     enabled,
     queryFn: async () => authedGet<CcProductAndBusinessUnitList>(ccServiceUrls.productAndBusinessUnits, await auth()),
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,
   });
   const jobNumbers = useQuery<CcJobNumberList>({
-    queryKey: ["cc-job-numbers"],
+    queryKey: ["cc-job-numbers", userSub],
     enabled,
     queryFn: async () => authedGet<CcJobNumberList>(ccServiceUrls.jobNumbers, await auth()),
     staleTime: 30 * 60 * 1000,

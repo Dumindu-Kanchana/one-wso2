@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Autocomplete,
@@ -99,24 +99,56 @@ function ApplyForm() {
     return { periodType: "half", isMorningLeave: portion === "first" };
   }, [portion, days]);
 
-  // Live validation whenever the date range / portion changes.
-  const validateMutate = validate.mutate;
+  // Live validation whenever the date range / portion changes. Debounced,
+  // and guarded against out-of-order settles: only the latest request's
+  // result is accepted, so `workingDays` always describes the current range.
+  // useMutation keeps only the last-settled result, which two in-flight
+  // validations can corrupt — hence the local state + sequence ref.
+  const validateAsync = validate.mutateAsync;
+  const seqRef = useRef(0);
+  const [validating, setValidating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [workingDays, setWorkingDays] = useState<number | undefined>(undefined);
   useEffect(() => {
-    if (!rangeValid) return;
-    validateMutate({ startDate, endDate, periodType, isMorningLeave, leaveType });
+    if (!rangeValid) {
+      setValidating(false);
+      setValidationError(null);
+      setWorkingDays(undefined);
+      return;
+    }
+    const seq = ++seqRef.current;
+    setValidating(true);
+    const timer = window.setTimeout(() => {
+      validateAsync({ startDate, endDate, periodType, isMorningLeave, leaveType })
+        .then((res) => {
+          if (seq !== seqRef.current) return; // superseded by a newer request
+          setWorkingDays(res.workingDays);
+          setValidationError(null);
+          setValidating(false);
+        })
+        .catch((err) => {
+          if (seq !== seqRef.current) return;
+          setWorkingDays(undefined);
+          setValidationError(describeError(err));
+          setValidating(false);
+        });
+    }, 400);
+    return () => window.clearTimeout(timer);
     // leaveType doesn't change working days, but include for parity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, periodType, isMorningLeave, rangeValid]);
 
-  const workingDays = validate.data?.workingDays;
   const canSubmit =
     rangeValid &&
-    !validate.isPending &&
-    !validate.isError &&
+    !validating &&
+    !validationError &&
     typeof workingDays === "number" &&
     workingDays >= 1 &&
     !submit.isPending &&
-    Boolean(userInfo.data);
+    Boolean(userInfo.data) &&
+    // Mandatory recipients (lead + People Ops) come from appConfig; don't
+    // let a submit go out without them if appConfig hasn't resolved yet.
+    Boolean(appConfig.data);
 
   const employeeOptions = useMemo(
     () => (employees.data ?? []).map((e) => e.workEmail).filter(Boolean),
@@ -166,6 +198,14 @@ function ApplyForm() {
   if (userInfo.isError) {
     return <Alert severity="error">Couldn't load your leave profile. {describeError(userInfo.error)}</Alert>;
   }
+  if (appConfig.isError) {
+    return (
+      <Alert severity="error">
+        Couldn't load leave configuration, so submissions are disabled (the required
+        notifications can't be resolved). {describeError(appConfig.error)}
+      </Alert>
+    );
+  }
 
   return (
     <Stack spacing={1.75} sx={{ maxWidth: 880 }}>
@@ -176,15 +216,15 @@ function ApplyForm() {
           <DateField label="Start" value={startDate} min={yearStart} onChange={setStartDate} />
           <DateField label="End" value={endDate} min={startDate} onChange={setEndDate} />
           <Stat label="Days selected" value={rangeValid ? String(days) : "—"} />
-          <Stat label="Working days" value={validate.isPending ? "…" : workingDays != null ? String(workingDays) : "—"} />
+          <Stat label="Working days" value={validating ? "…" : workingDays != null ? String(workingDays) : "—"} />
         </Box>
         <Box sx={{ mt: 1.25 }}>
           {!rangeValid ? (
             <Chip label="Select a valid date range" size="small" color="default" variant="outlined" sx={CHIP_SX} />
-          ) : validate.isPending ? (
+          ) : validating ? (
             <Chip label="Validating…" size="small" color="default" variant="outlined" sx={CHIP_SX} />
-          ) : validate.isError ? (
-            <Chip label={describeError(validate.error)} size="small" color="error" variant="outlined" sx={CHIP_SX} />
+          ) : validationError ? (
+            <Chip label={validationError} size="small" color="error" variant="outlined" sx={CHIP_SX} />
           ) : workingDays != null && workingDays < 1 ? (
             <Chip label="No working days in this range" size="small" color="warning" variant="outlined" sx={CHIP_SX} />
           ) : (

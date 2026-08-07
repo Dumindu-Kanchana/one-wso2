@@ -65,7 +65,16 @@ function ApproveBody() {
   }, [txns.data, stage, email]);
 
   const isSelectable = (t: CcTransaction) => t.status === targetStatus;
-  const selectedIds = Array.from(checked);
+  // Derive submitted IDs from the currently visible, selectable rows — not
+  // the raw `checked` set. A refetch (30s staleTime) can move a checked
+  // transaction out of `targetStatus` between selection and submit; without
+  // this filter its stale ID would still be posted to the approve endpoint.
+  const selectedIds = useMemo(
+    () => rows.filter((t) => isSelectable(t) && checked.has(t.id)).map((t) => t.id),
+    // isSelectable depends only on targetStatus
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, checked, targetStatus],
+  );
 
   const toggle = (id: number) =>
     setChecked((prev) => {
@@ -88,6 +97,9 @@ function ApproveBody() {
 
   if (userInfo.isLoading) {
     return <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />;
+  }
+  if (userInfo.isError) {
+    return <Alert severity="error">Couldn't load your finance profile. {describeError(userInfo.error)}</Alert>;
   }
   if (!isFinance && !isLead) {
     return <Alert severity="info">Approvals are limited to leads and finance approvers.</Alert>;

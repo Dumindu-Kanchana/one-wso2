@@ -54,8 +54,12 @@ function PendingBody() {
   if (userInfo.isLoading || txns.isLoading) {
     return <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />;
   }
-  if (txns.isError) {
-    return <Alert severity="error">Couldn't load transactions. {describeError(txns.error)}</Alert>;
+  if (userInfo.isError || txns.isError) {
+    return (
+      <Alert severity="error">
+        Couldn't load transactions. {describeError(userInfo.error ?? txns.error)}
+      </Alert>
+    );
   }
   if (rows.length === 0) {
     return (

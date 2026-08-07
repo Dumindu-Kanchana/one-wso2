@@ -86,6 +86,30 @@ export default function PerformanceStages({ workEmail }: { workEmail?: string })
 
   const cycle = review.cycle;
   const cycleStatus = cycle.parCycleStatus;
+
+  // For an active cycle the per-stage status comes from the rating record.
+  // Wait for it (and surface a genuine failure) before deriving stages —
+  // otherwise a still-loading or failed rating maps submitted stages to
+  // "Pending" and shows wrong progress. `rating.data === null` is the valid
+  // no-rating case (the hook maps a 404 to null), so only block on
+  // isLoading / isError.
+  if (review.isActive && rating.isLoading) {
+    return (
+      <Box sx={{ py: 1.125 }}>
+        <Skeleton variant="text" width={180} sx={{ mb: 0.75, fontSize: 13 }} />
+        <Skeleton variant="rectangular" height={44} sx={{ borderRadius: 1, mb: 0.75 }} />
+        <Skeleton variant="text" width={220} sx={{ fontSize: 11 }} />
+      </Box>
+    );
+  }
+  if (review.isActive && rating.isError) {
+    return (
+      <Typography sx={{ py: 1.5, fontSize: 12.5, color: "error.main" }}>
+        Couldn't load your PAR rating.
+      </Typography>
+    );
+  }
+
   const par = rating.data;
 
   const stages: Stage[] = [

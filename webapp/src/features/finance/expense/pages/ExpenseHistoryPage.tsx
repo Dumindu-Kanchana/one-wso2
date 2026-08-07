@@ -106,8 +106,8 @@ function HistoryBody() {
             <Skeleton key={i} variant="rectangular" height={48} sx={{ borderRadius: 1 }} />
           ))}
         </Stack>
-      ) : claims.isError ? (
-        <Alert severity="error">Couldn't load your claims. {describeError(claims.error)}</Alert>
+      ) : appData.isError || claims.isError ? (
+        <Alert severity="error">Couldn't load your claims. {describeError(appData.error ?? claims.error)}</Alert>
       ) : (claims.data?.length ?? 0) === 0 ? (
         <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>
           {range === LATEST ? "No expense claims on record." : `No expense claims on record for ${range}.`}

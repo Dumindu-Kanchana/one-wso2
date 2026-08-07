@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -32,7 +32,7 @@ import {
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { describeError } from "../util/financeError";
 import { money, formatNice } from "../util/financeFormat";
-import { RECEIPT_ACCEPT, RECEIPT_MAX_BYTES } from "../util/financeReceipts";
+import { RECEIPT_ACCEPT, CC_ATTACHMENT_MAX_BYTES, maxSizeLabel } from "../util/financeReceipts";
 import { useCcMenus } from "./useCc";
 import { useCcAttachment } from "./useCcMutations";
 import {
@@ -91,6 +91,18 @@ function CcEditForm({
     () => productUnits.map((pu, i) => ({ i, label: `${pu} — ${businessUnits[i] ?? ""}` })),
     [productUnits, businessUnits],
   );
+
+  // Re-select the transaction's stored product/business unit once the
+  // aligned unit arrays load. Without this, editing an already-categorised
+  // non-travel transaction would blank the unit (Save stays disabled) until
+  // the user re-picks it.
+  useEffect(() => {
+    if (unitIndex !== "" || !txn.productUnit) return;
+    const i = productUnits.findIndex(
+      (pu, idx) => pu === txn.productUnit && businessUnits[idx] === txn.businessUnit,
+    );
+    if (i >= 0) setUnitIndex(i);
+  }, [productUnits, businessUnits, txn.productUnit, txn.businessUnit, unitIndex]);
 
   const isTravel = category === CC_TRAVEL_CATEGORY;
   const isMarketing = category === CC_MARKETING_CATEGORY;
@@ -286,8 +298,8 @@ function AttachmentField({
   const handle = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > RECEIPT_MAX_BYTES) {
-      showError("File must be 10 MB or smaller.");
+    if (file.size > CC_ATTACHMENT_MAX_BYTES) {
+      showError(`File must be ${maxSizeLabel(CC_ATTACHMENT_MAX_BYTES)} or smaller.`);
       return;
     }
     try {

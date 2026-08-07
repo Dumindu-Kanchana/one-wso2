@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -55,6 +55,16 @@ export function ExpenseClaimDetailsDialog({
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [receiptLoad, setReceiptLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
+
+  // Reset transient state when the target claim changes — the dialog stays
+  // mounted, so a typed reason / open reject panel would otherwise carry
+  // over into the next claim.
+  const claimId = claim?.id;
+  useEffect(() => {
+    setRejecting(false);
+    setReason("");
+    setReceiptLoad(null);
+  }, [claimId]);
 
   const meta = expenseStatusMeta(claim?.statusDetails.status);
   const pendingForView =
