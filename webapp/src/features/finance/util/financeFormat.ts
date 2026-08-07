@@ -61,7 +61,17 @@ export function parseIso(input: string | null | undefined): Date | null {
   if (!m) return null;
   const [, y, mo, d] = m;
   const date = new Date(Number(y), Number(mo) - 1, Number(d));
-  return Number.isNaN(date.getTime()) ? null : date;
+  // Reject impossible dates instead of letting the Date constructor roll them
+  // over (e.g. 2026-02-31 → Mar 3), matching the leave date parser.
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== Number(y) ||
+    date.getMonth() !== Number(mo) - 1 ||
+    date.getDate() !== Number(d)
+  ) {
+    return null;
+  }
+  return date;
 }
 
 // "Aug 15, 2026" from an ISO date/datetime string.

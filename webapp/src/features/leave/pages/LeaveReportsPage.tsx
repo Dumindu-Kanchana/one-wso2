@@ -73,12 +73,18 @@ function ReportsBody() {
   const [employee, setEmployee] = useState<string | null>(null);
   const [applied, setApplied] = useState({ from: fromDate, to: toDate, email: null as string | null });
 
+  // Bound the fetch — for People Ops this is otherwise an org-wide, un-paged
+  // pull rendered into a non-virtualised table. If we hit the cap the totals
+  // below only cover what came back, so the UI says so.
+  const REPORT_LIMIT = 1000;
+
   const filter: LeaveFilter = useMemo(() => {
     const base: LeaveFilter = {
       startDate: applied.from,
       endDate: applied.to,
       statuses: ["APPROVED"],
       orderBy: "DESC",
+      limit: REPORT_LIMIT,
     };
     if (isPeopleOps) {
       if (applied.email) base.email = applied.email;
@@ -110,6 +116,9 @@ function ReportsBody() {
 
   const rows = leaves.data?.leaves ?? [];
   const totalDays = rows.reduce((sum, r) => sum + (r.numberOfDays ?? 0), 0);
+  // We asked for at most REPORT_LIMIT rows; if we got exactly that many there
+  // may be more, and the total below under-reports. Surface that caveat.
+  const capped = rows.length >= REPORT_LIMIT;
 
   return (
     <Box>
@@ -153,9 +162,14 @@ function ReportsBody() {
         </Typography>
       ) : (
         <>
-          <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-            <Chip label={`${rows.length} record${rows.length === 1 ? "" : "s"}`} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap" }}>
+            <Chip label={`${rows.length}${capped ? "+" : ""} record${rows.length === 1 ? "" : "s"}`} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
             <Chip label={`${totalDays} day${totalDays === 1 ? "" : "s"} total`} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
+            {capped && (
+              <Typography sx={{ fontSize: 11, color: "warning.main" }}>
+                Showing the first {REPORT_LIMIT} — narrow the date range for a complete total.
+              </Typography>
+            )}
           </Stack>
           <Card variant="outlined" sx={{ overflowX: "auto" }}>
             <Table size="small">

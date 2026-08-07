@@ -124,6 +124,12 @@ function NewClaimBody() {
       {
         onSuccess: () => {
           showSuccess("OPD claim submitted to finance");
+          // Delete the server draft NOW rather than relying on the autosave
+          // debounce — that timer is cleared on unmount, so navigating away
+          // within the debounce window would leave the draft to be re-seeded
+          // and submitted again as a duplicate. mutate() starts the request
+          // synchronously, so it survives an immediate unmount.
+          draft.remove.mutate();
           setItems([]);
         },
         onError: (err) => showError(describeError(err)),
@@ -281,7 +287,17 @@ function AddBillDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={() => {
+        // Reset on Esc / backdrop dismissal too — otherwise the amount,
+        // description and uploaded receipt persist into the next bill.
+        reset();
+        onClose();
+      }}
+      maxWidth="sm"
+      fullWidth
+    >
       <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Add a bill</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 0.5 }}>

@@ -14,34 +14,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { HttpError } from "@api/http";
+// Shared with the rest of the app — see @api/errors. Re-exported here (with
+// the finance-local retry name) so this feature's many call sites keep their
+// import path while the logic lives in one place.
+import { describeError, httpRetry } from "@api/errors";
 
-// Translate a thrown value into a user-facing string. Prefers a well-formed
-// `{message: "..."}` body (the digiops-finance backends use this shape),
-// never returns the raw responseBody (which can carry stack traces /
-// gateway HTML). Local to the finance feature so it doesn't depend on the
-// shared helper that's still in review.
-export function describeError(err: unknown): string {
-  if (err instanceof HttpError) {
-    if (err.responseBody) {
-      try {
-        const parsed = JSON.parse(err.responseBody) as { message?: unknown };
-        if (parsed && typeof parsed.message === "string" && parsed.message.trim()) {
-          return parsed.message;
-        }
-      } catch {
-        // non-JSON body — fall through
-      }
-    }
-    return `Something went wrong (HTTP ${err.status}).`;
-  }
-  if (err instanceof Error && err.message) return err.message;
-  return "Something went wrong.";
-}
-
-// React Query retry predicate: skip 4xx (won't improve on retry), retry
-// once otherwise.
-export function financeRetry(failureCount: number, error: unknown): boolean {
-  if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
-  return failureCount < 1;
-}
+export { describeError };
+export const financeRetry = httpRetry;

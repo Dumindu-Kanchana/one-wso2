@@ -80,10 +80,12 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
 // scoped to the caller's country and (optionally) a travel job number.
 export function useExpenseTypes(travelJobNumber: string | undefined, enabled = true) {
   const { getIdToken, isSignedIn } = useAsgardeo();
+  const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseTypeData[]>({
-    queryKey: ["expense-types", travelJobNumber ?? null],
-    enabled: enabled && isSignedIn && configured,
+    // Country-scoped per caller — key per user like the sibling queries.
+    queryKey: ["expense-types", userSub, travelJobNumber ?? null],
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");
@@ -98,10 +100,11 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
 // reimbursement currency for the bill date. Only fires once base+date exist.
 export function useExchangeRates(baseCode: string | undefined, date: string | undefined) {
   const { getIdToken, isSignedIn } = useAsgardeo();
+  const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExchangeRate[]>({
-    queryKey: ["expense-rates", baseCode ?? null, date ?? null],
-    enabled: isSignedIn && configured && Boolean(baseCode) && Boolean(date),
+    queryKey: ["expense-rates", userSub, baseCode ?? null, date ?? null],
+    enabled: isSignedIn && configured && Boolean(userSub) && Boolean(baseCode) && Boolean(date),
     queryFn: async () => {
       const idToken = await getIdToken();
       if (!idToken) throw new Error("No id_token available from Asgardeo");

@@ -14,11 +14,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { FINANCE_APPS } from "@constants/financeApps";
 import { useCcUserInfo } from "../cc/useCc";
 import { ccHasAccess } from "../cc/ccTypes";
 import { useOpdUserInfo } from "../opd/useOpd";
 import { OPD_ROLE, opdHasRole } from "../opd/opdTypes";
 import { useExpenseAppData } from "../expense/useExpense";
+
+// Items that declare `requires` in the registry but aren't explicitly mapped
+// below must fail CLOSED — otherwise a renamed or newly-added restricted item
+// would silently become visible to everyone. Per-user items (no `requires`)
+// stay open.
+const RESTRICTED_IDS = new Set(
+  FINANCE_APPS.flatMap((app) => app.items)
+    .filter((it) => it.requires && it.requires.length > 0)
+    .map((it) => it.id),
+);
 
 // Role-gates the Finance menu items against each app's OWN backend roles —
 // not the coarse One WSO2 capabilities derived from people-app. The rail
@@ -59,8 +70,10 @@ export function useFinanceGate(enabled = true): FinanceGate {
       case "expense-finance":
         return expenseFinance;
       default:
-        // New / Pending / History and the like — per-user views, no role.
-        return true;
+        // Per-user views (New / Pending / History) are open; any other item
+        // that declares `requires` but reaches here fails closed rather than
+        // leaking, so the menu can't drift ahead of the explicit mapping.
+        return !RESTRICTED_IDS.has(itemId);
     }
   };
 

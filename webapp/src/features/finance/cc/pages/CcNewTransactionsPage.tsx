@@ -93,11 +93,18 @@ function NewTxnBody() {
 
   const handleSubmit = () => {
     if (completeChecked.length === 0) return;
+    const submittedIds = new Set(completeChecked.map((t) => t.id));
     submit.mutate(completeChecked, {
       onSuccess: () => {
         showSuccess(`${completeChecked.length} transaction(s) submitted for lead approval`);
-        setChecked(new Set());
-        setEdits({});
+        // Prune only the submitted rows — clearing all of `edits`/`checked`
+        // would discard categorisation the user did on rows they didn't tick.
+        setChecked((prev) => new Set([...prev].filter((id) => !submittedIds.has(id))));
+        setEdits((prev) => {
+          const next = { ...prev };
+          submittedIds.forEach((id) => delete next[id]);
+          return next;
+        });
       },
       onError: (err) => showError(describeError(err)),
     });

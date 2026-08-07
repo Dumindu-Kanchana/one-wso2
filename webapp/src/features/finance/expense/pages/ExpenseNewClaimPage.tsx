@@ -102,18 +102,28 @@ function NewClaimBody() {
     const drafted = appData.data?.draft?.transactions ?? [];
     if (drafted.length > 0) {
       setItems(
-        drafted.map((t) => ({
-          date: t.date,
-          amount: t.amount,
-          currency: t.currency,
-          expenseTypeId: t.expenseTypeId,
-          comment: t.comment ?? null,
-          receiptUrl: t.receiptUrl ?? null,
-          travelJobNumber: t.travelJobNumber ?? null,
-          reimbursementAmount: t.reimbursementAmount,
-          reimbursementCurrency: t.reimbursementCurrency,
-          expenseType: t.expenseType,
-        })),
+        // We send drafts as the trimmed payload (no derived fields), so don't
+        // assume the echoed draft carries reimbursementAmount / currency /
+        // expenseType — recompute them if absent, or the restored total is
+        // NaN and renders as "Rs. 0.00".
+        drafted.map((t) => {
+          const rate = Number.isFinite(t.currencyConversionRate) ? t.currencyConversionRate : 1;
+          const reimbursementAmount = Number.isFinite(t.reimbursementAmount)
+            ? t.reimbursementAmount
+            : Math.round(t.amount * rate * 100) / 100;
+          return {
+            date: t.date,
+            amount: t.amount,
+            currency: t.currency,
+            expenseTypeId: t.expenseTypeId,
+            comment: t.comment ?? null,
+            receiptUrl: t.receiptUrl ?? null,
+            travelJobNumber: t.travelJobNumber ?? null,
+            reimbursementAmount,
+            reimbursementCurrency: t.reimbursementCurrency ?? reimbursementCurrency,
+            expenseType: t.expenseType ?? "",
+          };
+        }),
       );
     }
   }, [appData.isSuccess, appData.data]);
@@ -142,6 +152,9 @@ function NewClaimBody() {
       {
         onSuccess: () => {
           showSuccess("Expense claim submitted to your lead");
+          // Delete the draft synchronously (see OPD note) so a fast unmount
+          // can't leave it to be re-seeded and submitted as a duplicate.
+          draft.remove.mutate();
           setItems([]);
         },
         onError: (err) => showError(describeError(err)),
@@ -370,7 +383,7 @@ function AddExpenseDialog({
               />
             </Box>
             <Box>
-              <FieldLabel>Reimbursement</FieldLabel>
+              <FieldLabel>Reimbursement (est.)</FieldLabel>
               <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, px: 1.25, py: 0.9 }}>
                 <Typography sx={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
                   {rateReady ? money(reimbursementAmount, reimbursementCurrency) : "—"}

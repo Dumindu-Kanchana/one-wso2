@@ -154,7 +154,12 @@ export default function PerformanceStages({ workEmail }: { workEmail?: string })
   }
   // Current = leftmost stage that isn't (effectively) done; if all are done,
   // park on the last so the detail line still has something to point at.
-  let currentIdx = doneMono.findIndex((d) => !d);
+  // Skip the derived 360° stage (index 1): it has no per-employee status and
+  // is always "in progress" during an active cycle, so without this the
+  // pointer would stick on 360° and the Lead stage could never surface as
+  // current (its deadline would never show).
+  const DERIVED_360_IDX = 1;
+  let currentIdx = doneMono.findIndex((d, i) => !d && i !== DERIVED_360_IDX);
   if (currentIdx === -1) currentIdx = stages.length - 1;
   const detail = stages[currentIdx];
 

@@ -86,6 +86,21 @@ export interface ReceiptSource {
   type: string;
 }
 
+// Only these types are ever previewed inline / labelled as their real type.
+// Anything else is coerced to octet-stream so a mislabeled or HTML payload
+// can't execute in the app origin (a top-level blob:/data: navigation of an
+// HTML document runs same-origin — rel="noopener" doesn't help). Callers
+// download non-previewable types rather than navigating to them.
+const PREVIEWABLE_TYPES = new Set(["application/pdf", "image/jpeg", "image/png"]);
+
+function safeType(type: string): string {
+  return PREVIEWABLE_TYPES.has(type) ? type : "application/octet-stream";
+}
+
+export function isPreviewable(type: string): boolean {
+  return PREVIEWABLE_TYPES.has(type);
+}
+
 // Fetch a stored receipt (binary endpoint) as an object URL for preview.
 export async function fetchReceiptObjectUrl(url: string, idToken: string): Promise<ReceiptSource> {
   const res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
@@ -94,7 +109,11 @@ export async function fetchReceiptObjectUrl(url: string, idToken: string): Promi
     throw new HttpError(url, res.status, body);
   }
   const blob = await res.blob();
-  return { url: URL.createObjectURL(blob), type: blob.type || guessTypeFromUrl(url) };
+  const type = safeType(blob.type || guessTypeFromUrl(url));
+  // Re-wrap when coercing so the object URL carries the safe type, never the
+  // original (possibly text/html) one.
+  const safeBlob = type === blob.type ? blob : new Blob([blob], { type });
+  return { url: URL.createObjectURL(safeBlob), type };
 }
 
 // cc-expenses returns attachments as `{ body: <base64> }` (no MIME), so we
@@ -108,12 +127,19 @@ export async function fetchBase64Attachment(url: string, idToken: string): Promi
   const json = parseJsonOrThrow(await res.text(), url, res.status) as { body?: unknown };
   const raw = typeof json.body === "string" ? json.body : "";
   if (!raw) throw new HttpError(url, res.status, "empty attachment");
-  // Accept either a bare base64 string or an already-formed data URL.
+  // Accept either a bare base64 string or an already-formed data URL. Coerce
+  // any non-previewable/mislabeled type to octet-stream (download, no inline
+  // execution).
   if (raw.startsWith("data:")) {
-    const type = raw.slice(5, raw.indexOf(";")) || "application/octet-stream";
-    return { url: raw, type };
+    const declared = raw.slice(5, raw.indexOf(";")) || "application/octet-stream";
+    const type = safeType(declared);
+    if (type === declared) return { url: raw, type };
+    // Rebuild the data URL under the safe type, preserving the base64 payload.
+    const comma = raw.indexOf(",");
+    const payload = comma >= 0 ? raw.slice(comma + 1) : "";
+    return { url: `data:${type};base64,${payload}`, type };
   }
-  const type = sniffBase64Type(raw);
+  const type = safeType(sniffBase64Type(raw));
   return { url: `data:${type};base64,${raw}`, type };
 }
 

@@ -109,11 +109,17 @@ function ApplyForm() {
   const [validating, setValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [workingDays, setWorkingDays] = useState<number | undefined>(undefined);
+  // The validation response also carries an overlap check + human message;
+  // both gate submission (an overlapping range must not be submittable).
+  const [hasOverlap, setHasOverlap] = useState(false);
+  const [overlapMessage, setOverlapMessage] = useState<string | null>(null);
   useEffect(() => {
     if (!rangeValid) {
       setValidating(false);
       setValidationError(null);
       setWorkingDays(undefined);
+      setHasOverlap(false);
+      setOverlapMessage(null);
       return;
     }
     const seq = ++seqRef.current;
@@ -123,12 +129,16 @@ function ApplyForm() {
         .then((res) => {
           if (seq !== seqRef.current) return; // superseded by a newer request
           setWorkingDays(res.workingDays);
+          setHasOverlap(Boolean(res.hasOverlap));
+          setOverlapMessage(res.message ?? null);
           setValidationError(null);
           setValidating(false);
         })
         .catch((err) => {
           if (seq !== seqRef.current) return;
           setWorkingDays(undefined);
+          setHasOverlap(false);
+          setOverlapMessage(null);
           setValidationError(describeError(err));
           setValidating(false);
         });
@@ -142,8 +152,10 @@ function ApplyForm() {
     rangeValid &&
     !validating &&
     !validationError &&
+    !hasOverlap &&
     typeof workingDays === "number" &&
-    workingDays >= 1 &&
+    // Half-day requests are worth 0.5, so gate on > 0, not >= 1.
+    workingDays > 0 &&
     !submit.isPending &&
     Boolean(userInfo.data) &&
     // Mandatory recipients (lead + People Ops) come from appConfig; don't
@@ -225,7 +237,9 @@ function ApplyForm() {
             <Chip label="Validating…" size="small" color="default" variant="outlined" sx={CHIP_SX} />
           ) : validationError ? (
             <Chip label={validationError} size="small" color="error" variant="outlined" sx={CHIP_SX} />
-          ) : workingDays != null && workingDays < 1 ? (
+          ) : hasOverlap ? (
+            <Chip label={overlapMessage ?? "Overlaps existing leave"} size="small" color="error" variant="outlined" sx={CHIP_SX} />
+          ) : workingDays != null && workingDays <= 0 ? (
             <Chip label="No working days in this range" size="small" color="warning" variant="outlined" sx={CHIP_SX} />
           ) : (
             <Chip label="Valid selection" size="small" color="success" variant="outlined" sx={CHIP_SX} />

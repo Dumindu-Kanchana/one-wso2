@@ -32,9 +32,14 @@ export function useDraftAutosave(
   delay = 1000,
 ): DraftState {
   const [state, setState] = useState<DraftState>("idle");
+  // baseline = last persisted signature (seeded on first ready render, then
+  // advanced after each successful save).
   const baseline = useRef<string | null>(null);
   const runRef = useRef(run);
   runRef.current = run;
+  // Holds a queued (debounced-but-not-yet-run) save so it can be flushed on
+  // unmount instead of silently dropped.
+  const pendingRef = useRef<null | (() => Promise<void>)>(null);
 
   useEffect(() => {
     if (!ready) return;
@@ -43,16 +48,41 @@ export function useDraftAutosave(
       baseline.current = signature;
       return;
     }
-    if (signature === baseline.current) return;
+    // Reverted back to the last-saved state — nothing to persist. Reset the
+    // chip (otherwise it stays stuck on "Saving…" from the change we undid).
+    if (signature === baseline.current) {
+      pendingRef.current = null;
+      setState("idle");
+      return;
+    }
     setState("saving");
+    const target = signature;
+    const fn = runRef.current;
+    pendingRef.current = fn;
     const timer = window.setTimeout(() => {
-      runRef
-        .current()
-        .then(() => setState("saved"))
+      pendingRef.current = null;
+      fn()
+        .then(() => {
+          baseline.current = target;
+          setState("saved");
+        })
         .catch(() => setState("error"));
     }, delay);
     return () => window.clearTimeout(timer);
   }, [signature, ready, delay]);
+
+  // Flush a still-queued save when the component unmounts, so leaving within
+  // the debounce window doesn't drop the last edit.
+  useEffect(
+    () => () => {
+      const fn = pendingRef.current;
+      if (fn) {
+        pendingRef.current = null;
+        void fn().catch(() => {});
+      }
+    },
+    [],
+  );
 
   return state;
 }

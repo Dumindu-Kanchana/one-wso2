@@ -75,6 +75,8 @@ export function ReceiptViewer({
   }, [load]);
 
   const isPdf = source?.type === "application/pdf";
+  const isImage = source?.type.startsWith("image/") ?? false;
+  const previewable = isPdf || isImage;
 
   return (
     <Dialog open={!!load} onClose={onClose} maxWidth="md" fullWidth>
@@ -89,20 +91,33 @@ export function ReceiptViewer({
         ) : source ? (
           isPdf ? (
             <Box component="iframe" title={title} src={source.url} sx={{ width: "100%", height: 460, border: 0 }} />
-          ) : (
+          ) : isImage ? (
             <Box
               component="img"
               alt={title}
               src={source.url}
               sx={{ display: "block", maxWidth: "100%", maxHeight: 460, mx: "auto", objectFit: "contain" }}
             />
+          ) : (
+            <Alert severity="info">
+              This file type can't be previewed here. Use Download to open it.
+            </Alert>
           )
         ) : null}
       </DialogContent>
       <DialogActions>
         {source && (
-          <Button size="small" component="a" href={source.url} target="_blank" rel="noopener noreferrer" sx={{ textTransform: "none" }}>
-            Open in new tab
+          // Download rather than navigate: a top-level blob:/data: navigation
+          // of a non-previewable (e.g. HTML) payload would run in the app
+          // origin. `download` forces a save instead.
+          <Button
+            size="small"
+            component="a"
+            href={source.url}
+            download={previewable ? title : `${title}.download`}
+            sx={{ textTransform: "none" }}
+          >
+            Download
           </Button>
         )}
         <Button size="small" onClick={onClose}>

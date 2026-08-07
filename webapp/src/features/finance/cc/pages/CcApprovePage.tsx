@@ -47,34 +47,41 @@ function ApproveBody() {
 
   const isFinance = ccHasAccess(userInfo.data, "finance");
   const isLead = ccHasAccess(userInfo.data, "lead");
-  // Finance acts first (final stage) when the user is both.
-  const stage: "lead" | "finance" = isFinance ? "finance" : "lead";
-  const approve = useCcApprove(stage);
   const email = userInfo.data?.workEmail;
+  // Instantiate both stages so a user who holds BOTH roles can lead-approve
+  // AND finance-approve — the previous single pinned stage left dual-role
+  // users unable to action pending_lead rows at all. The stage per row is
+  // derived from its status at submit time.
+  const leadApprove = useCcApprove("lead");
+  const financeApprove = useCcApprove("finance");
 
-  const targetStatus = stage === "finance" ? "pending_finance" : "pending_lead";
-  const rows = useMemo(() => {
-    return (txns.data ?? []).filter((t) => {
-      if (stage === "lead") {
-        const leads = (t.leadEmail ?? "").split(",").map((s) => s.trim());
-        return t.status === "pending_lead" && email != null && leads.includes(email);
-      }
-      // finance sees both stages but can only action pending_finance
-      return t.status === "pending_lead" || t.status === "pending_finance";
-    });
-  }, [txns.data, stage, email]);
+  // A row is actionable if the user is a lead of it (pending_lead) or a
+  // finance approver (pending_finance). Only actionable rows are shown.
+  const isUserLeadOf = (t: CcTransaction) => {
+    const leads = (t.leadEmail ?? "").split(",").map((s) => s.trim());
+    return email != null && leads.includes(email);
+  };
+  const isSelectable = (t: CcTransaction) =>
+    (isLead && t.status === "pending_lead" && isUserLeadOf(t)) ||
+    (isFinance && t.status === "pending_finance");
 
-  const isSelectable = (t: CcTransaction) => t.status === targetStatus;
-  // Derive submitted IDs from the currently visible, selectable rows — not
-  // the raw `checked` set. A refetch (30s staleTime) can move a checked
-  // transaction out of `targetStatus` between selection and submit; without
-  // this filter its stale ID would still be posted to the approve endpoint.
-  const selectedIds = useMemo(
-    () => rows.filter((t) => isSelectable(t) && checked.has(t.id)).map((t) => t.id),
-    // isSelectable depends only on targetStatus
+  const rows = useMemo(
+    () => (txns.data ?? []).filter(isSelectable),
+    // isSelectable closes over isLead/isFinance/email
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, checked, targetStatus],
+    [txns.data, isLead, isFinance, email],
   );
+
+  // Split the checked, still-selectable rows by stage — each goes to its own
+  // approve endpoint.
+  const selected = useMemo(
+    () => rows.filter((t) => checked.has(t.id)),
+    [rows, checked],
+  );
+  const leadIds = selected.filter((t) => t.status === "pending_lead").map((t) => t.id);
+  const financeIds = selected.filter((t) => t.status === "pending_finance").map((t) => t.id);
+  const selectedCount = leadIds.length + financeIds.length;
+  const approving = leadApprove.isPending || financeApprove.isPending;
 
   const toggle = (id: number) =>
     setChecked((prev) => {
@@ -85,14 +92,16 @@ function ApproveBody() {
     });
 
   const handleApprove = () => {
-    if (selectedIds.length === 0) return;
-    approve.mutate(selectedIds, {
-      onSuccess: () => {
-        showSuccess(`${selectedIds.length} transaction(s) approved`);
+    if (selectedCount === 0) return;
+    const tasks: Promise<unknown>[] = [];
+    if (leadIds.length) tasks.push(leadApprove.mutateAsync(leadIds));
+    if (financeIds.length) tasks.push(financeApprove.mutateAsync(financeIds));
+    Promise.all(tasks)
+      .then(() => {
+        showSuccess(`${selectedCount} transaction(s) approved`);
         setChecked(new Set());
-      },
-      onError: (err) => showError(describeError(err)),
-    });
+      })
+      .catch((err) => showError(describeError(err)));
   };
 
   if (userInfo.isLoading) {
@@ -105,11 +114,13 @@ function ApproveBody() {
     return <Alert severity="info">Approvals are limited to leads and finance approvers.</Alert>;
   }
 
+  const roleLabel =
+    isLead && isFinance ? "Lead & Finance approver" : isFinance ? "Finance approver" : "Lead";
+
   return (
     <Box>
       <Typography sx={{ fontSize: 12, color: "text.secondary", mb: 1.5 }}>
-        Acting as <b>{stage === "finance" ? "Finance approver" : "Lead"}</b> — you can approve{" "}
-        {stage === "finance" ? "pending-finance" : "pending-lead"} transactions.
+        Acting as <b>{roleLabel}</b> — approve the transactions awaiting your decision.
       </Typography>
 
       {txns.isLoading ? (
@@ -128,10 +139,10 @@ function ApproveBody() {
               variant="contained"
               color="success"
               onClick={handleApprove}
-              disabled={selectedIds.length === 0 || approve.isPending}
+              disabled={selectedCount === 0 || approving}
               sx={{ fontWeight: 600 }}
             >
-              {approve.isPending ? "Approving…" : `Approve ${selectedIds.length || ""}`.trim()}
+              {approving ? "Approving…" : `Approve ${selectedCount || ""}`.trim()}
             </Button>
           </Box>
         </Stack>
