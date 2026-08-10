@@ -23,6 +23,7 @@ import WaffleOverlay from "@components/waffle/WaffleOverlay";
 import AskNoveraPalette from "@components/ask-novera/AskNoveraPalette";
 import AppFooter from "@components/footer/AppFooter";
 import AuthDebugPanel from "@features/debug/AuthDebugPanel";
+import { useIdleLogout } from "@hooks/useIdleLogout";
 
 // The persistent shell — the top bar and rail stay put; the canvas swaps
 // with the active perspective (Outlet). Waffle and Ask Novera are overlays
@@ -30,6 +31,8 @@ import AuthDebugPanel from "@features/debug/AuthDebugPanel";
 export default function AppLayout() {
   const [waffleOpen, setWaffleOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
+  // Sign out after 20 min idle (< 30 min) and purge the cache (ONEWSO2-R1).
+  useIdleLogout(20);
 
   return (
     <Box sx={{ display: "grid", gridTemplateRows: "56px 1fr", height: "100vh" }}>
