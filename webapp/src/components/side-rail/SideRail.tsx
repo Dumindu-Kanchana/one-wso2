@@ -18,7 +18,7 @@ import { useState } from "react";
 import { Box, ListItemButton, ListItemText, Typography } from "@wso2/oxygen-ui";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
-import { CROSS_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
+import { CROSS_PERSPECTIVES, FUNCTIONAL_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
@@ -80,6 +80,11 @@ export default function SideRail() {
 
   const sections = active.sections ?? [];
   const crossPerspectives = CROSS_PERSPECTIVES.filter((p) => p.access && p.path);
+  // The Home perspective (cross group) is itself the "Me" landing, so a
+  // "For you → Me" link there is redundant — show the Apps launcher instead.
+  // Inside an App (functional group) we keep "For you → Me" so the user can
+  // jump home.
+  const onHome = active.group === "cross";
 
   // The perspective eyebrow ("FINANCE", "PEOPLE OPS", …). When the
   // perspective has a landing route, the whole header links to it.
@@ -101,6 +106,18 @@ export default function SideRail() {
       {active.label}
     </>
   );
+  // Sub-section group header ("For you", "Apps") — same eyebrow styling with
+  // top spacing to separate it from the sections above.
+  const railHeaderSx = {
+    fontSize: 10.5,
+    textTransform: "uppercase",
+    letterSpacing: "0.07em",
+    color: "text.disabled",
+    fontWeight: 600,
+    mt: 1.75,
+    mb: 0.75,
+    mx: 1,
+  } as const;
 
   return (
     <Box
@@ -155,25 +172,11 @@ export default function SideRail() {
           </Box>
         )}
 
-        {/* For you — only render when there's at least one accessible
-            cross-cutting perspective (currently none by default; the
-            header would otherwise sit above an empty list). */}
-        {crossPerspectives.length > 0 && (
+        {/* Inside an App: "For you → Me" so you can jump home. Only render
+            when there's at least one accessible cross-cutting perspective. */}
+        {!onHome && crossPerspectives.length > 0 && (
           <>
-            <Typography
-              sx={{
-                fontSize: 10.5,
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-                color: "text.disabled",
-                fontWeight: 600,
-                mt: 1.75,
-                mb: 0.75,
-                mx: 1,
-              }}
-            >
-              For you
-            </Typography>
+            <Typography sx={railHeaderSx}>For you</Typography>
             {crossPerspectives.map((p) => (
               <ListItemButton
                 key={p.key}
@@ -197,6 +200,46 @@ export default function SideRail() {
                 />
               </ListItemButton>
             ))}
+          </>
+        )}
+
+        {/* On Home: the Apps launcher — jump into any App. Unlocked ones
+            navigate; locked ones show a padlock. */}
+        {onHome && (
+          <>
+            <Typography sx={railHeaderSx}>Apps</Typography>
+            {FUNCTIONAL_PERSPECTIVES.map((p) =>
+              p.access && p.path ? (
+                <ListItemButton
+                  key={p.key}
+                  component={NavLink}
+                  to={p.path}
+                  sx={{
+                    borderRadius: 1.125,
+                    py: 0.75,
+                    px: 1.25,
+                    "&.active": {
+                      bgcolor: "primary.light",
+                      color: "primary.main",
+                      "& .MuiListItemText-primary": { fontWeight: 600 },
+                    },
+                  }}
+                >
+                  <Box sx={{ width: 18, mr: 1.25, fontSize: 13, textAlign: "center" }}>{p.emoji}</Box>
+                  <ListItemText primary={p.label} primaryTypographyProps={{ fontSize: 13.5, fontWeight: 500 }} />
+                </ListItemButton>
+              ) : (
+                <ListItemButton
+                  key={p.key}
+                  disabled
+                  sx={{ borderRadius: 1.125, py: 0.75, px: 1.25, opacity: 0.55 }}
+                >
+                  <Box sx={{ width: 18, mr: 1.25, fontSize: 13, textAlign: "center" }}>{p.emoji}</Box>
+                  <ListItemText primary={p.label} primaryTypographyProps={{ fontSize: 13.5, fontWeight: 500 }} />
+                  <Box component="span" sx={{ fontSize: 11 }}>🔒</Box>
+                </ListItemButton>
+              ),
+            )}
           </>
         )}
       </Box>
