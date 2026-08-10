@@ -30,6 +30,7 @@ import {
 } from "@wso2/oxygen-ui";
 import { describeError } from "../util/leaveError";
 import { useNotifications } from "@context/notifications/NotificationsContext";
+import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
 import LeaveShell from "../components/LeaveShell";
 import {
   GENERAL_LEAVE_TYPES,
@@ -303,6 +304,8 @@ function ApplyForm() {
           value={recipients}
           onChange={(_e, v) => setRecipients(v as string[])}
           loading={employees.isLoading}
+          disableListWrap
+          ListboxComponent={VirtualizedListbox}
           renderInput={(params) => (
             <TextField {...params} placeholder="Add people to notify (optional)" />
           )}
