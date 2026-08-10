@@ -58,11 +58,19 @@ function appsToSections(apps: readonly MenuApp[]): PerspectiveSection[] {
 }
 
 const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
-  { id: "sec-dashboard", label: "Dashboard", emoji: "📊", path: "/people-ops/dashboard" },
   ...appsToSections(PEOPLE_OPS_APPS),
 ];
 
 const FINANCE_SECTIONS: PerspectiveSection[] = appsToSections(FINANCE_APPS);
+
+// The Me home landing — leaf scroll-anchors matching the SectionHeader ids
+// on the profile page (see features/my/pages/MyProfilePage).
+const ME_SECTIONS: PerspectiveSection[] = [
+  { id: "my-general", label: "General information", emoji: "🧾" },
+  { id: "my-personal", label: "Personal information", emoji: "👤" },
+  { id: "my-emergency", label: "Emergency contacts", emoji: "🆘" },
+  { id: "my-connected", label: "Connected apps", emoji: "🔗" },
+];
 
 export interface PerspectiveDef {
   key: string;
@@ -75,8 +83,8 @@ export interface PerspectiveDef {
 }
 
 export const PERSPECTIVES: readonly PerspectiveDef[] = [
-  // Functional (persona-based, locked or unlocked)
-  { key: "csm", label: "CSM", emoji: "🛟", group: "functional", access: false },
+  // "Apps" (persona areas, locked or unlocked). Order here is the order
+  // shown in the waffle's Apps group.
   {
     key: "people",
     label: "People Ops",
@@ -86,9 +94,6 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     path: "/people-ops",
     sections: PEOPLE_OPS_SECTIONS,
   },
-  { key: "sales", label: "Sales", emoji: "📈", group: "functional", access: false },
-  { key: "revops", label: "Rev Ops", emoji: "⚙️", group: "functional", access: false },
-  { key: "marketing", label: "Marketing", emoji: "📣", group: "functional", access: false },
   {
     key: "finance",
     label: "Finance",
@@ -98,11 +103,28 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     path: "/finance",
     sections: FINANCE_SECTIONS,
   },
-  { key: "leadership", label: "Leadership", emoji: "🧭", group: "functional", access: false },
+  { key: "csm", label: "CSM", emoji: "🛟", group: "functional", access: false },
+  { key: "revops", label: "Rev Ops", emoji: "⚙️", group: "functional", access: false },
+  { key: "legal", label: "Legal", emoji: "⚖️", group: "functional", access: false },
+  { key: "marketing", label: "Marketing Ops", emoji: "📣", group: "functional", access: false },
+  { key: "business", label: "Business", emoji: "💼", group: "functional", access: false },
+  { key: "customer", label: "Customer", emoji: "🤝", group: "functional", access: false },
 
-  // Cross-cutting (available to everyone). "My" used to live here as its
-  // own perspective; it now lives inside People Ops as People → Me (the
-  // default landing), so it's no longer a separate rail/waffle entry.
+  // Cross-cutting (available to everyone).
+  //
+  // "Me" is the Home landing: the person's own profile plus the cross-app
+  // aggregation (Connected apps). The people-app profile sections are also
+  // surfaced inside People Ops as People → Me, but slimmed (no Connected
+  // apps) — see MyProfilePage's `variant`.
+  {
+    key: "me",
+    label: "Me",
+    emoji: "🏠",
+    group: "cross",
+    access: true,
+    path: "/me",
+    sections: ME_SECTIONS,
+  },
   //
   // Locked until the Service Requests surface has real content — the page
   // was a static prototype and the persona was showing up as "clickable"

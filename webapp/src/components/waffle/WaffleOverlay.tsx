@@ -15,7 +15,7 @@
 // under the License.
 
 import { useEffect, useRef } from "react";
-import { Box, IconButton, Tooltip, Typography } from "@wso2/oxygen-ui";
+import { Box, Typography } from "@wso2/oxygen-ui";
 import { useNavigate } from "react-router";
 import {
   FUNCTIONAL_PERSPECTIVES,
@@ -86,7 +86,7 @@ export default function WaffleOverlay({ onClose }: WaffleOverlayProps) {
         }}
       >
         <WaffleGroup
-          title="Functional"
+          title="Apps"
           items={FUNCTIONAL_PERSPECTIVES}
           activeKey={active.key}
           onPick={pick}
@@ -98,38 +98,6 @@ export default function WaffleOverlay({ onClose }: WaffleOverlayProps) {
           activeKey={active.key}
           onPick={pick}
         />
-        <Box
-          sx={{
-            mt: 1.5,
-            borderTop: 1,
-            borderColor: "divider",
-            pt: 1.25,
-            fontSize: 12,
-            color: "text.secondary",
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>Home perspective</span>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <b style={{ color: "var(--mui-palette-primary-main)" }}>People Ops</b>
-            {/* Affordance only for now — signals the home perspective is
-                editable. Wire up the picker later. */}
-            <Tooltip title="Change home perspective" placement="top">
-              <IconButton
-                size="small"
-                aria-label="Change home perspective"
-                sx={{
-                  p: 0.25,
-                  color: "text.disabled",
-                  "&:hover": { color: "primary.main" },
-                }}
-              >
-                <PencilIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
       </Box>
     </Box>
   );
@@ -214,14 +182,5 @@ function WaffleGroup({ title, items, activeKey, onPick, firstTileRef }: WaffleGr
         ))}
       </Box>
     </>
-  );
-}
-
-function PencilIcon() {
-  return (
-    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
-    </svg>
   );
 }

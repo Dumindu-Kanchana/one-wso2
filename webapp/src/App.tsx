@@ -18,7 +18,6 @@ import { Navigate, Route, Routes } from "react-router";
 import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
-import PeopleOpsDashboardPage from "@features/people-ops/pages/PeopleOpsDashboardPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import LeaveApplyPage from "@features/leave/pages/LeaveApplyPage";
@@ -45,12 +44,14 @@ export default function App() {
     <Routes>
       <Route element={<AuthGuard />}>
         <Route element={<AppLayout />}>
-          {/* Default landing = People → Me (everyone's own profile). */}
-          <Route index element={<Navigate to="/people-ops/me" replace />} />
+          {/* Default landing = the Me home (own profile + connected apps). */}
+          <Route index element={<Navigate to="/me" replace />} />
+          {/* Me home — the full profile page including Connected apps. */}
+          <Route path="me" element={<MyProfilePage variant="home" />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
-          <Route path="people-ops/dashboard" element={<PeopleOpsDashboardPage />} />
-          {/* People → Me: the profile page (formerly the "My" perspective). */}
-          <Route path="people-ops/me" element={<MyProfilePage />} />
+          {/* People Ops → Me: the people-app profile sections only (no
+              Connected apps — that lives on the Me home). */}
+          <Route path="people-ops/me" element={<MyProfilePage variant="peopleOps" />} />
           {/* People Ops → Leave: native screens ported from leave-app. */}
           <Route path="people-ops/leave/apply" element={<LeaveApplyPage />} />
           <Route path="people-ops/leave/approve" element={<LeaveApprovePage />} />
@@ -75,10 +76,10 @@ export default function App() {
           <Route path="finance/expense/history" element={<ExpenseHistoryPage />} />
           <Route path="finance/expense/lead-approvals" element={<ExpenseLeadApprovalsPage />} />
           <Route path="finance/expense/finance-approvals" element={<ExpenseFinanceApprovalsPage />} />
-          {/* Legacy /my bookmarks → the new Me location. */}
-          <Route path="my" element={<Navigate to="/people-ops/me" replace />} />
+          {/* Legacy /my bookmarks → the Me home. */}
+          <Route path="my" element={<Navigate to="/me" replace />} />
           {/* Catch-all → landing */}
-          <Route path="*" element={<Navigate to="/people-ops/me" replace />} />
+          <Route path="*" element={<Navigate to="/me" replace />} />
         </Route>
       </Route>
     </Routes>
