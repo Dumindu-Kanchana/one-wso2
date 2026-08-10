@@ -5,25 +5,29 @@ import path from "path";
 // Content-Security-Policy for the shipped SPA (threat-model risk ONEWSO2-R2:
 // no app-defined headers previously). Injected as a <meta> on PRODUCTION
 // builds only — the dev server relies on inline scripts + ws HMR that a
-// strict CSP would block. HTTP-only headers that a meta tag can't express
-// (X-Frame-Options, HSTS, X-Content-Type-Options, Permissions-Policy) must
-// still be set at the Choreo/Cloudflare edge.
+// strict CSP would block. Headers a meta tag can't express must still be set
+// at the Choreo/Cloudflare edge: X-Frame-Options / frame-ancestors (ignored
+// in meta), HSTS, X-Content-Type-Options, Permissions-Policy, Clear-Site-Data.
 //
-// connect-src covers the Asgardeo IdP and the Choreo backend gateway hosts
-// (apis[-stg].wso2.com); style-src allows 'unsafe-inline' for MUI/emotion's
-// injected styles; img-src/frame-src allow blob:/data: for receipt previews.
+// Origins: backend calls and employee thumbnails go through the Choreo
+// gateway (apis[-stg].wso2.com) and Asgardeo (*.asgardeo.io). Those hosts are
+// runtime-configurable (window.config) so a static build can't pin exact
+// origins — the wso2/asgardeo wildcards are the tightest portable allowlist;
+// pin them further at the edge if the CSP is moved there. style-src allows
+// 'unsafe-inline' for MUI/emotion; img-src/frame-src allow blob: and data:
+// for receipt previews (fetchReceiptObjectUrl → blob:, fetchBase64Attachment
+// → data:, incl. PDF <iframe src="data:...">).
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https://*.wso2.com https://*.asgardeo.io",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.wso2.com https://*.asgardeo.io https://api.asgardeo.io",
-  "frame-src 'self' blob: https://*.asgardeo.io",
+  "connect-src 'self' https://*.wso2.com https://*.asgardeo.io",
+  "frame-src 'self' blob: data: https://*.asgardeo.io",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'",
   "upgrade-insecure-requests",
 ].join("; ");
 
