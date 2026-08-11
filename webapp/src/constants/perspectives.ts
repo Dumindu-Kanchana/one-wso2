@@ -20,6 +20,7 @@
 import type { Capability, MenuApp } from "@constants/appMenu";
 import { PEOPLE_OPS_APPS } from "@constants/peopleOpsApps";
 import { FINANCE_APPS } from "@constants/financeApps";
+import { ME_APPS } from "@constants/meApps";
 
 export type PerspectiveGroup = "functional" | "cross";
 
@@ -64,12 +65,15 @@ const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
 const FINANCE_SECTIONS: PerspectiveSection[] = appsToSections(FINANCE_APPS);
 
 // The Me home landing — leaf scroll-anchors matching the SectionHeader ids
-// on the profile page (see features/my/pages/MyProfilePage).
+// on the profile page (see features/my/pages/MyProfilePage), followed by
+// the apps that live here (Leave — things an employee does for themself,
+// as opposed to People Ops' HR-team tools).
 const ME_SECTIONS: PerspectiveSection[] = [
   { id: "my-general", label: "General information", emoji: "🧾" },
   { id: "my-personal", label: "Personal information", emoji: "👤" },
   { id: "my-emergency", label: "Emergency contacts", emoji: "🆘" },
   { id: "my-connected", label: "Connected apps", emoji: "🔗" },
+  ...appsToSections(ME_APPS),
 ];
 
 export interface PerspectiveDef {

@@ -48,15 +48,17 @@ export default function App() {
           <Route index element={<Navigate to="/me" replace />} />
           {/* Me home — the full profile page including Connected apps. */}
           <Route path="me" element={<MyProfilePage variant="home" />} />
+          {/* Me → Leave: native screens ported from leave-app. Lives here
+              (not People Ops) — it's something every employee does for
+              themself, not an HR-team tool. */}
+          <Route path="me/leave/apply" element={<LeaveApplyPage />} />
+          <Route path="me/leave/approve" element={<LeaveApprovePage />} />
+          <Route path="me/leave/history" element={<LeaveHistoryPage />} />
+          <Route path="me/leave/reports" element={<LeaveReportsPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
           {/* People Ops → Me: the people-app profile sections only (no
               Connected apps — that lives on the Me home). */}
           <Route path="people-ops/me" element={<MyProfilePage variant="peopleOps" />} />
-          {/* People Ops → Leave: native screens ported from leave-app. */}
-          <Route path="people-ops/leave/apply" element={<LeaveApplyPage />} />
-          <Route path="people-ops/leave/approve" element={<LeaveApprovePage />} />
-          <Route path="people-ops/leave/history" element={<LeaveHistoryPage />} />
-          <Route path="people-ops/leave/reports" element={<LeaveReportsPage />} />
           {/* Finance perspective — overview + native screens ported from the
               three digiops-finance apps (opd-claims, cc-expenses,
               expense-claims). */}

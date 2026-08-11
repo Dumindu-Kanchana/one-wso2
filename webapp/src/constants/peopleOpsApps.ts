@@ -19,9 +19,11 @@
 // App → items left-rail menu (and as scroll-anchored sections on the
 // People Ops canvas).
 //
-// This is data-driven, not live-fetched: the five apps
-// (people-app, leave-app, menu-app, visitor-app, careers-app) are each
-// deployed separately, so we can't read their route configs at runtime.
+// This is data-driven, not live-fetched: the four apps
+// (people-app, menu-app, visitor-app, careers-app) are each deployed
+// separately, so we can't read their route configs at runtime. Leave
+// lives under the Me perspective instead — see @constants/meApps — since
+// it's something every employee does for themselves, not an HR-team tool.
 // This registry mirrors the top-level nav items each app's own webapp
 // renders (src/route.ts / layout/sidebar), transcribed here as the single
 // source of truth for both the rail and the page. When an app adds a
@@ -43,18 +45,6 @@ export const PEOPLE_OPS_APPS: readonly MenuApp[] = [
       { id: "people-my-team", label: "My Team", desc: "Your direct and indirect reports.", requires: ["lead"] },
       { id: "people-reports", label: "Reports", desc: "Active/inactive employee reports and QR codes.", requires: ["admin", "serviceDesk"] },
       { id: "people-master-data", label: "Master Data", desc: "Org master data — business units, teams, designations.", requires: ["admin"] },
-    ],
-  },
-  {
-    key: "leave",
-    name: "Leave",
-    emoji: "🌴",
-    purpose: "Apply for and track leave; leads and people-ops approve and report.",
-    items: [
-      { id: "leave-apply", label: "Apply", desc: "Request general or sabbatical leave.", path: "/people-ops/leave/apply" },
-      { id: "leave-approve", label: "Approve", desc: "Review and approve your team's leave requests.", requires: ["lead"], path: "/people-ops/leave/approve" },
-      { id: "leave-history", label: "My History", desc: "Your past and upcoming leave.", path: "/people-ops/leave/history" },
-      { id: "leave-reports", label: "Reports", desc: "Leave usage reports across the org.", requires: ["lead", "admin"], path: "/people-ops/leave/reports" },
     ],
   },
   {
