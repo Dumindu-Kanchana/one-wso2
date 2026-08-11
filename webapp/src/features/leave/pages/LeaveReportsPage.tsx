@@ -137,6 +137,8 @@ function ReportsBody() {
                 value={employee}
                 onChange={(_e, v) => setEmployee(v as string | null)}
                 loading={employees.isLoading}
+                loadingText="Loading employees…"
+                noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
                 disableListWrap
                 ListboxComponent={VirtualizedListbox}
                 renderInput={(params) => <TextField {...params} placeholder="All employees" />}
@@ -148,9 +150,10 @@ function ReportsBody() {
           <Button
             variant="contained"
             onClick={() => setApplied({ from: fromDate, to: toDate, email: employee })}
+            disabled={leaves.isFetching}
             sx={{ fontWeight: 600 }}
           >
-            Fetch report
+            {leaves.isFetching ? "Loading…" : "Fetch report"}
           </Button>
         </Box>
       </Card>
