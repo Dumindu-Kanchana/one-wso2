@@ -92,10 +92,16 @@ function buildHeaders(
 // itself (it's a plain storage read), so any long-lived tab eventually
 // attaches a dead token and every backend starts 401ing at once. On a 401
 // specifically — never other statuses — try one silent re-auth (dedup'd
-// across concurrent callers in @api/authBridge) and replay the exact same
-// request once with the fresh token. Safe to retry a POST/PATCH/DELETE
-// here: a 401 means the gateway rejected the request before it reached
-// business logic, so nothing partially executed server-side.
+// across concurrent callers in @api/authBridge).
+//
+// Only GET is safe to replay ourselves. A 401 doesn't prove a POST/PATCH/
+// DELETE never reached business logic — each backend has its own
+// JwtInterceptor in addition to the gateway's, and none of the ~15
+// backends this app talks to support a client-supplied idempotency key —
+// so resubmitting a mutation risks a duplicate submit/approve/claim if
+// that assumption is ever wrong for one of them. For those, still refresh
+// (heals the session for the user's *next* attempt) but surface the
+// original 401 rather than replaying it.
 //
 // If there's no way to refresh (accessors not registered yet, or the
 // silent re-auth itself fails — e.g. no live Asgardeo session at all),
@@ -110,12 +116,14 @@ async function fetchWithReauth(url: string, init: RequestInit, idToken: string):
   const first = await fetch(url, withAuth(idToken));
   if (first.status !== 401) return first;
 
+  const isReplaySafe = (init.method ?? "GET").toUpperCase() === "GET";
   let freshToken: string;
   try {
     freshToken = await refreshIdToken();
   } catch {
     return first;
   }
+  if (!isReplaySafe) return first;
   return fetch(url, withAuth(freshToken));
 }
 
