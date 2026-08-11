@@ -22,6 +22,8 @@
 // `HttpError.status`, so features MUST throw HttpError (or subclasses) on
 // non-2xx to get the right retry behavior.
 
+import { refreshIdToken } from "@api/authBridge";
+
 // Thrown on non-2xx responses (and on unexpectedly-empty 2xx GETs). Carries
 // the HTTP status so retry logic (both per-query in features and global in
 // AppWithConfig) can key off it without regex-parsing the message.
@@ -84,6 +86,37 @@ function buildHeaders(
     ...(withJsonBody ? { "Content-Type": "application/json" } : {}),
     Authorization: `Bearer ${idToken}`,
   };
+}
+
+// Asgardeo's id_token lives ~15min and getIdToken() never checks expiry
+// itself (it's a plain storage read), so any long-lived tab eventually
+// attaches a dead token and every backend starts 401ing at once. On a 401
+// specifically — never other statuses — try one silent re-auth (dedup'd
+// across concurrent callers in @api/authBridge) and replay the exact same
+// request once with the fresh token. Safe to retry a POST/PATCH/DELETE
+// here: a 401 means the gateway rejected the request before it reached
+// business logic, so nothing partially executed server-side.
+//
+// If there's no way to refresh (accessors not registered yet, or the
+// silent re-auth itself fails — e.g. no live Asgardeo session at all),
+// fall back to the original 401 response so the caller's normal
+// HttpError/error-banner path handles it, rather than surfacing a
+// different failure mode for this one case.
+async function fetchWithReauth(url: string, init: RequestInit, idToken: string): Promise<Response> {
+  const withAuth = (token: string): RequestInit => ({
+    ...init,
+    headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` },
+  });
+  const first = await fetch(url, withAuth(idToken));
+  if (first.status !== 401) return first;
+
+  let freshToken: string;
+  try {
+    freshToken = await refreshIdToken();
+  } catch {
+    return first;
+  }
+  return fetch(url, withAuth(freshToken));
 }
 
 // Parse a 2xx response body as JSON. Both the empty-body case (204,
@@ -150,7 +183,7 @@ export async function authedGet<T>(
   idToken: string,
   extraHeaders?: Record<string, string>,
 ): Promise<T> {
-  const res = await fetch(url, { headers: buildHeaders(idToken, extraHeaders) });
+  const res = await fetchWithReauth(url, { headers: buildHeaders(idToken, extraHeaders) }, idToken);
   if (!res.ok) await throwFromError(url, res, "authedGet");
   return readJsonOrThrow<T>(res, url);
 }
@@ -163,11 +196,11 @@ export async function authedPost<T>(
   body: unknown,
   extraHeaders?: Record<string, string>,
 ): Promise<T | null> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: buildHeaders(idToken, extraHeaders, true),
-    body: JSON.stringify(body),
-  });
+  const res = await fetchWithReauth(
+    url,
+    { method: "POST", headers: buildHeaders(idToken, extraHeaders, true), body: JSON.stringify(body) },
+    idToken,
+  );
   if (!res.ok) await throwFromError(url, res, "authedPost");
   return readJsonOrNull<T>(res, url);
 }
@@ -180,11 +213,11 @@ export async function authedPatch<T>(
   body: unknown,
   extraHeaders?: Record<string, string>,
 ): Promise<T | null> {
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: buildHeaders(idToken, extraHeaders, true),
-    body: JSON.stringify(body),
-  });
+  const res = await fetchWithReauth(
+    url,
+    { method: "PATCH", headers: buildHeaders(idToken, extraHeaders, true), body: JSON.stringify(body) },
+    idToken,
+  );
   if (!res.ok) await throwFromError(url, res, "authedPatch");
   return readJsonOrNull<T>(res, url);
 }
@@ -214,9 +247,6 @@ export async function authedDelete(
   idToken: string,
   extraHeaders?: Record<string, string>,
 ): Promise<void> {
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: buildHeaders(idToken, extraHeaders),
-  });
+  const res = await fetchWithReauth(url, { method: "DELETE", headers: buildHeaders(idToken, extraHeaders) }, idToken);
   if (!res.ok) await throwFromError(url, res, "authedDelete");
 }

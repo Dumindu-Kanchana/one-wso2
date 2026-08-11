@@ -14,7 +14,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { AsgardeoProvider } from "@asgardeo/react";
+import { useEffect } from "react";
+import { AsgardeoProvider, useAsgardeo } from "@asgardeo/react";
 import { OxygenUIThemeProvider } from "@wso2/oxygen-ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -25,7 +26,19 @@ import { ThemeModeProvider } from "@context/theme-mode/ThemeModeContext";
 import { PerspectiveProvider } from "@context/perspective/PerspectiveContext";
 import { NotificationsProvider } from "@context/notifications/NotificationsContext";
 import { HttpError } from "@api/http";
+import { registerAuthAccessors } from "@api/authBridge";
 import App from "./App";
+
+// Registers the live getIdToken/signInSilently into @api/authBridge so
+// http.ts's 401 → silent-reauth → retry path (see authBridge.ts) has
+// something to call. Renders nothing; must live inside <AsgardeoProvider>.
+function AuthBridgeMount() {
+  const { getIdToken, signInSilently } = useAsgardeo();
+  useEffect(() => {
+    registerAuthAccessors({ getIdToken, signInSilently });
+  }, [getIdToken, signInSilently]);
+  return null;
+}
 
 // One shared QueryClient — retry only on transient upstream errors. All
 // HTTP failures the app throws are HttpError (see @features/my/api), so we
@@ -59,6 +72,7 @@ export default function AppWithConfig() {
         user: { fetchUserProfile: false, fetchOrganizations: false },
       }}
     >
+      <AuthBridgeMount />
       <QueryClientProvider client={queryClient}>
         <OxygenUIThemeProvider theme={themeConfig}>
           <ThemeModeProvider>

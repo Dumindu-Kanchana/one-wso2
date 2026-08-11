@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAsgardeo } from "@asgardeo/react";
+import { refreshIdToken } from "@api/authBridge";
 
 // Resolves the current Asgardeo user's `sub` claim. Used as an identity
 // discriminator in downstream query keys so a sign-out → different-user
@@ -71,7 +72,26 @@ export function useAsgardeoSub(): { state: SubState; retry: () => void } {
           });
         }
       })
-      .catch((e: unknown) => {
+      .catch(async (e: unknown) => {
+        if (cancelled) return;
+        // getDecodedIdToken() rejects once the cached id_token has expired
+        // (~15min in practice) — try one silent re-auth via the same
+        // bridge @api/http uses for 401s, then retry the decode, instead
+        // of leaving every sub-keyed query (useUserInfo, useLeaveUserInfo,
+        // useLeaves, ...) silently disabled with no visible error.
+        try {
+          await refreshIdToken();
+          const token = await getDecodedIdToken();
+          if (cancelled) return;
+          const s = (token as { sub?: string } | null | undefined)?.sub;
+          if (typeof s === "string" && s.length > 0) {
+            setState({ status: "ready", sub: s });
+            return;
+          }
+        } catch {
+          // Refresh or the retried decode also failed — fall through to
+          // the terminal error state below, using the original error.
+        }
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : String(e);
         setState({ status: "error", message: `Couldn't decode identity token: ${msg}` });
