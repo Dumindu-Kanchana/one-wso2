@@ -33,6 +33,7 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { describeError } from "../util/leaveError";
+import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
 import LeaveShell from "../components/LeaveShell";
 import { LeaveTypeChip } from "../components/LeaveChips";
 import { LEAVE_PRIVILEGE, type LeaveFilter } from "../api/leaveTypes";
@@ -136,6 +137,8 @@ function ReportsBody() {
                 value={employee}
                 onChange={(_e, v) => setEmployee(v as string | null)}
                 loading={employees.isLoading}
+                disableListWrap
+                ListboxComponent={VirtualizedListbox}
                 renderInput={(params) => <TextField {...params} placeholder="All employees" />}
               />
             </Box>
