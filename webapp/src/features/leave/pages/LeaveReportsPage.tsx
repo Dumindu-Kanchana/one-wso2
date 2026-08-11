@@ -138,7 +138,7 @@ function ReportsBody() {
                 onChange={(_e, v) => setEmployee(v as string | null)}
                 loading={employees.isLoading}
                 loadingText="Loading employees…"
-                noOptionsText="No employees found"
+                noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
                 disableListWrap
                 ListboxComponent={VirtualizedListbox}
                 renderInput={(params) => <TextField {...params} placeholder="All employees" />}

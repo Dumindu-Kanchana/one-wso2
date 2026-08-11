@@ -305,7 +305,7 @@ function ApplyForm() {
           onChange={(_e, v) => setRecipients(v as string[])}
           loading={employees.isLoading}
           loadingText="Loading employees…"
-          noOptionsText="No employees found"
+          noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
           disableListWrap
           ListboxComponent={VirtualizedListbox}
           renderInput={(params) => (
