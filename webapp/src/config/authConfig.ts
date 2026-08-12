@@ -57,6 +57,10 @@ declare global {
       ONE_WSO2_OPD_BACKEND_URL?: string; // opd-claims
       ONE_WSO2_CC_EXPENSES_BACKEND_URL?: string; // cc-expenses
       ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL?: string; // expense-claims
+      // Base URL of the leave-app frontend itself (not its backend) —
+      // used to deep-link into flows this webapp doesn't replicate, like
+      // sabbatical requests. Optional — when absent, that link is hidden.
+      ONE_WSO2_LEAVE_WEB_APP_URL?: string;
       // Override for the Asgardeo My Account portal URL that the top-bar
       // "Profile" menu item opens. Only set this on non-standard tenants
       // (self-hosted / custom domain); on Asgardeo Cloud we derive it from

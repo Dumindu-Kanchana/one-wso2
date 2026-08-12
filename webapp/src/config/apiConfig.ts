@@ -108,6 +108,21 @@ export function isLeaveBackendConfigured(): boolean {
   return Boolean(leaveBackendUrl);
 }
 
+// The leave-app frontend itself (not its backend) — for deep-linking into
+// flows this webapp doesn't replicate. Empty string = not configured; the
+// caller should hide the link rather than render a broken relative URL.
+export const leaveWebAppUrl: string =
+  window.config?.ONE_WSO2_LEAVE_WEB_APP_URL ?? "";
+
+export function isLeaveWebAppConfigured(): boolean {
+  return Boolean(leaveWebAppUrl);
+}
+
+export const leaveAppUrls = {
+  applySabbatical: `${leaveWebAppUrl}/apply/sabbatical`,
+  approveSabbatical: `${leaveWebAppUrl}/approve/sabbatical`,
+};
+
 // ---- digiops-finance backends ---------------------------------------------
 //
 // The three finance apps (opd-claims, cc-expenses, expense-claims) are
