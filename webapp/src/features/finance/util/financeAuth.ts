@@ -14,38 +14,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect, useState } from "react";
-import { useAsgardeo } from "@asgardeo/react";
+import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
 
-// Resolve the signed-in user's `sub` claim so each finance backend's
-// user-info / app-data cache is scoped per-user (no cross-user leak on an
-// account switch in the same tab). Decoding the id_token is the one path
-// that always works — mirrors the inline pattern in @api/useUserInfo and
-// the Leave feature.
+// Resolve the signed-in user's `sub` claim via the shared hook, so each
+// finance backend's user-info / app-data cache is scoped per-user (no
+// cross-user leak on an account switch in the same tab) and gets the same
+// retry-after-silent-reauth resilience as every other sub-keyed query —
+// see @hooks/useAsgardeoSub.
 export function useUserSub(): string | undefined {
-  const { isSignedIn, getDecodedIdToken } = useAsgardeo();
-  const [sub, setSub] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    if (!isSignedIn) {
-      setSub(undefined);
-      return;
-    }
-    let cancelled = false;
-    // Clear any previous subject before re-resolving so a stale sub from a
-    // prior account can't remain in query keys while the new token decodes.
-    setSub(undefined);
-    getDecodedIdToken()
-      .then((token) => {
-        if (cancelled) return;
-        const s = (token as { sub?: string } | null | undefined)?.sub;
-        setSub(typeof s === "string" && s.length > 0 ? s : undefined);
-      })
-      .catch(() => {
-        if (!cancelled) setSub(undefined);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isSignedIn, getDecodedIdToken]);
-  return sub;
+  const { state } = useAsgardeoSub();
+  return state.status === "ready" ? state.sub : undefined;
 }
