@@ -49,11 +49,10 @@ export default function SideRail() {
   const resolveVisible = (s: PerspectiveSection): boolean =>
     isFinance ? financeGate.canSee(s.id) : sectionAllowed(s.requires, caps);
 
-  // App groups start expanded so the menu is immediately useful; a group
-  // id in this set is collapsed.
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // App groups start collapsed; a group id in this set is expanded.
+  const [opened, setOpened] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
-    setCollapsed((prev) => {
+    setOpened((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -161,7 +160,7 @@ export default function SideRail() {
               key={s.id}
               section={s}
               resolveVisible={resolveVisible}
-              collapsed={collapsed}
+              opened={opened}
               onToggle={toggle}
               onScroll={scrollToSection}
             />
@@ -277,13 +276,13 @@ function sectionAllowed(requires: Capability[] | undefined, caps: Set<Capability
 function SectionNode({
   section,
   resolveVisible,
-  collapsed,
+  opened,
   onToggle,
   onScroll,
 }: {
   section: PerspectiveSection;
   resolveVisible: (section: PerspectiveSection) => boolean;
-  collapsed: Set<string>;
+  opened: Set<string>;
   onToggle: (id: string) => void;
   onScroll: (id: string) => void;
 }) {
@@ -306,7 +305,7 @@ function SectionNode({
       );
     }
 
-    const isOpen = !collapsed.has(section.id);
+    const isOpen = opened.has(section.id);
     return (
       <>
         <ListItemButton

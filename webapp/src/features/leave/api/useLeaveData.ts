@@ -14,11 +14,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet } from "@api/http";
 import { isLeaveBackendConfigured, leaveServiceUrls } from "@config/apiConfig";
+import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { leaveRetry } from "../util/leaveError";
 import type {
   AppConfig,
@@ -48,33 +48,13 @@ function leavesQuery(filter: LeaveFilter): string {
   return qs ? `?${qs}` : "";
 }
 
-// Resolve the signed-in user's `sub` claim, so the leave-user-info cache
-// is scoped per-user (no cross-user leak on account switch in the same
-// tab). Decoding the id_token is the one path that always works — mirrors
-// the inline pattern in @api/useUserInfo.
+// Resolve the signed-in user's `sub` claim via the shared hook, so the
+// leave-user-info cache is scoped per-user (no cross-user leak on account
+// switch in the same tab) and gets the same retry-after-silent-reauth
+// resilience as every other sub-keyed query — see @hooks/useAsgardeoSub.
 function useUserSub(): string | undefined {
-  const { isSignedIn, getDecodedIdToken } = useAsgardeo();
-  const [sub, setSub] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    if (!isSignedIn) {
-      setSub(undefined);
-      return;
-    }
-    let cancelled = false;
-    getDecodedIdToken()
-      .then((token) => {
-        if (cancelled) return;
-        const s = (token as { sub?: string } | null | undefined)?.sub;
-        setSub(typeof s === "string" && s.length > 0 ? s : undefined);
-      })
-      .catch(() => {
-        if (!cancelled) setSub(undefined);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isSignedIn, getDecodedIdToken]);
-  return sub;
+  const { state } = useAsgardeoSub();
+  return state.status === "ready" ? state.sub : undefined;
 }
 
 // GET /user-info from the LEAVE backend. Distinct from people-app's — this
