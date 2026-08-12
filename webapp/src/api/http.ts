@@ -108,7 +108,12 @@ function buildHeaders(
 // fall back to the original 401 response so the caller's normal
 // HttpError/error-banner path handles it, rather than surfacing a
 // different failure mode for this one case.
-async function fetchWithReauth(url: string, init: RequestInit, accessToken: string): Promise<Response> {
+//
+// Exported so callers with a non-JSON response shape (binary/blob
+// receipts — see @features/finance/util/financeReceipts) can get the
+// same retry-on-401 behavior without going through authedGet's JSON
+// parsing.
+export async function fetchWithReauth(url: string, init: RequestInit, accessToken: string): Promise<Response> {
   const withAuth = (token: string): RequestInit => ({
     ...init,
     headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` },

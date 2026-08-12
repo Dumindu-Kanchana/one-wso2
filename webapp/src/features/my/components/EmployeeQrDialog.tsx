@@ -27,7 +27,7 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { useAsgardeo } from "@asgardeo/react";
-import { HttpError, humanizeHttpError } from "@api/http";
+import { fetchWithReauth, HttpError, humanizeHttpError } from "@api/http";
 import { peopleServiceUrls } from "@config/apiConfig";
 
 // Employee QR-code dialog. Mirrors people-app/webapp's view/me QR flow —
@@ -72,10 +72,11 @@ export default function EmployeeQrDialog({
       try {
         const accessToken = await getAccessToken();
         if (!accessToken) throw new Error("No access_token available from Asgardeo");
-        const res = await fetch(peopleServiceUrls.employeeQrCode(employeeId), {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          signal: controller.signal,
-        });
+        const res = await fetchWithReauth(
+          peopleServiceUrls.employeeQrCode(employeeId),
+          { signal: controller.signal },
+          accessToken,
+        );
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           throw new HttpError(res.url, res.status, text);
