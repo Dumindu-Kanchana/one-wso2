@@ -32,13 +32,13 @@ function invalidate(qc: ReturnType<typeof useQueryClient>) {
 // POST /transactions/employee-submit — a CC owner submits categorised `new`
 // transactions for lead approval.
 export function useCcEmployeeSubmit() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, CcTransaction[]>({
     mutationFn: async (transactions) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(ccServiceUrls.employeeSubmit, idToken, transactions);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(ccServiceUrls.employeeSubmit, accessToken, transactions);
     },
     onSuccess: () => invalidate(qc),
   });
@@ -46,13 +46,13 @@ export function useCcEmployeeSubmit() {
 
 // POST /transactions/save-edit — edit categorisation while still pending.
 export function useCcSaveEdit() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, CcTransaction[]>({
     mutationFn: async (transactions) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(ccServiceUrls.saveEdit, idToken, transactions);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(ccServiceUrls.saveEdit, accessToken, transactions);
     },
     onSuccess: () => invalidate(qc),
   });
@@ -61,14 +61,14 @@ export function useCcSaveEdit() {
 // POST /transactions/lead-approve | /transactions/finance-approve — body is
 // an array of transaction ids.
 export function useCcApprove(stage: "lead" | "finance") {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, number[]>({
     mutationFn: async (ids) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const url = stage === "lead" ? ccServiceUrls.leadApprove : ccServiceUrls.financeApprove;
-      await authedPost<unknown>(url, idToken, ids);
+      await authedPost<unknown>(url, accessToken, ids);
     },
     onSuccess: () => invalidate(qc),
   });
@@ -77,22 +77,22 @@ export function useCcApprove(stage: "lead" | "finance") {
 // Attachment upload (PUT raw bytes) + delete for a transaction's receipt or
 // contract. Returns the stored file name from the upload.
 export function useCcAttachment() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   const upload = useMutation<string, Error, { id: number; attachmentType: CcAttachmentType; file: File }>({
     mutationFn: async ({ id, attachmentType, file }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const url = ccServiceUrls.attachmentUpload(id, fileExtension(file), attachmentType);
-      return putBinaryFile(url, idToken, file);
+      return putBinaryFile(url, accessToken, file);
     },
     onSuccess: () => invalidate(qc),
   });
   const remove = useMutation<void, Error, { id: number; attachmentType: CcAttachmentType }>({
     mutationFn: async ({ id, attachmentType }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedDelete(ccServiceUrls.attachment(id, attachmentType), idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedDelete(ccServiceUrls.attachment(id, attachmentType), accessToken);
     },
     onSuccess: () => invalidate(qc),
   });
@@ -102,15 +102,15 @@ export function useCcAttachment() {
 // POST /transactions/process-statement — finance uploads a CSV; backend
 // parses it into new/duplicate/invalid groups (raw text/csv body).
 export function useCcProcessStatement() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   return useMutation<CcTransactionUploadGroup, Error, { bankCode: string; fileName: string; file: File }>({
     mutationFn: async ({ bankCode, fileName, file }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const url = ccServiceUrls.processStatement(bankCode, fileName);
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "text/csv", Authorization: `Bearer ${idToken}` },
+        headers: { "Content-Type": "text/csv", Authorization: `Bearer ${accessToken}` },
         body: file,
       });
       if (!res.ok) {
@@ -125,13 +125,13 @@ export function useCcProcessStatement() {
 // POST /transactions — finance saves the reviewed group, creating pending
 // transactions.
 export function useCcUploadTransactions() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, { bankCode: string; fileName: string; group: CcTransactionUploadGroup }>({
     mutationFn: async ({ bankCode, fileName, group }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(ccServiceUrls.uploadTransactions(bankCode, fileName), idToken, group);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(ccServiceUrls.uploadTransactions(bankCode, fileName), accessToken, group);
     },
     onSuccess: () => invalidate(qc),
   });

@@ -33,16 +33,16 @@ export { isOpdBackendConfigured };
 // GET /user-info — the OPD role scheme (userRoles: 444 submitter / 555
 // finance). Keyed per-user so an account switch can't leak.
 export function useOpdUserInfo(enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdUserInfo>({
     queryKey: ["opd-user-info", userSub],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<OpdUserInfo>(opdServiceUrls.userInfo, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<OpdUserInfo>(opdServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,
@@ -51,16 +51,16 @@ export function useOpdUserInfo(enabled = true) {
 
 // GET /app-data — claim summary (limit/remaining) + any saved draft.
 export function useOpdAppData() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdAppData>({
     queryKey: ["opd-app-data", userSub],
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<OpdAppData>(opdServiceUrls.appData, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<OpdAppData>(opdServiceUrls.appData, accessToken);
     },
     staleTime: 60 * 1000,
     retry: financeRetry,
@@ -70,7 +70,7 @@ export function useOpdAppData() {
 // POST /search-claims — the list endpoint for both History (own claims) and
 // Approvals (all claims). `enabled` defers until a filter is ready.
 export function useOpdClaims(payload: OpdClaimSearchPayload, enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdClaim[]>({
@@ -79,9 +79,9 @@ export function useOpdClaims(payload: OpdClaimSearchPayload, enabled = true) {
     queryKey: ["opd-claims", userSub, payload],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      const res = await authedPost<OpdClaim[]>(opdServiceUrls.searchClaims, idToken, payload);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      const res = await authedPost<OpdClaim[]>(opdServiceUrls.searchClaims, accessToken, payload);
       return res ?? [];
     },
     staleTime: 60 * 1000,
@@ -91,16 +91,16 @@ export function useOpdClaims(payload: OpdClaimSearchPayload, enabled = true) {
 
 // GET /employees — for resolving approver-view user names/avatars.
 export function useOpdEmployees(enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdEmployee[]>({
     queryKey: ["opd-employees", userSub],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<OpdEmployee[]>(opdServiceUrls.employees, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<OpdEmployee[]>(opdServiceUrls.employees, accessToken);
     },
     staleTime: 10 * 60 * 1000,
     retry: financeRetry,

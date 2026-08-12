@@ -25,17 +25,17 @@ import type { BankAccountsResponse } from "./types";
 // extra guard needed here. Unlike par/promotion apps, this backend does
 // NOT require x-user-timezone-offset.
 export function useBankAccounts(workEmail: string | undefined) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const backendConfigured = Boolean(bankingBackendUrl);
   return useQuery<BankAccountsResponse>({
     queryKey: ["bank-accounts", workEmail],
     enabled: isSignedIn && backendConfigured && Boolean(workEmail),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<BankAccountsResponse>(
         bankingServiceUrls.employeeAccounts(workEmail!),
-        idToken,
+        accessToken,
       );
     },
     staleTime: 5 * 60 * 1000,

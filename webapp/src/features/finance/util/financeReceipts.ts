@@ -54,14 +54,14 @@ function parseJsonOrThrow(text: string, url: string, status: number): Record<str
 // slightly differently ({fileName} vs {body:{fileName}}), so we accept both.
 export async function uploadReceipt(
   url: string,
-  idToken: string,
+  accessToken: string,
   file: File,
 ): Promise<string> {
   const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": file.type,
-      Authorization: `Bearer ${idToken}`,
+      Authorization: `Bearer ${accessToken}`,
     },
     body: file,
   });
@@ -102,8 +102,8 @@ export function isPreviewable(type: string): boolean {
 }
 
 // Fetch a stored receipt (binary endpoint) as an object URL for preview.
-export async function fetchReceiptObjectUrl(url: string, idToken: string): Promise<ReceiptSource> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
+export async function fetchReceiptObjectUrl(url: string, accessToken: string): Promise<ReceiptSource> {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
@@ -118,8 +118,8 @@ export async function fetchReceiptObjectUrl(url: string, idToken: string): Promi
 
 // cc-expenses returns attachments as `{ body: <base64> }` (no MIME), so we
 // sniff the type from the decoded magic bytes and hand back a data URL.
-export async function fetchBase64Attachment(url: string, idToken: string): Promise<ReceiptSource> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
+export async function fetchBase64Attachment(url: string, accessToken: string): Promise<ReceiptSource> {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
@@ -145,10 +145,10 @@ export async function fetchBase64Attachment(url: string, idToken: string): Promi
 
 // PUT raw file bytes to an attachment endpoint (cc-expenses). Returns the
 // server-stored file name from `{ body: fileName }`.
-export async function putBinaryFile(url: string, idToken: string, file: File): Promise<string> {
+export async function putBinaryFile(url: string, accessToken: string, file: File): Promise<string> {
   const res = await fetch(url, {
     method: "PUT",
-    headers: { "Content-Type": file.type, Authorization: `Bearer ${idToken}` },
+    headers: { "Content-Type": file.type, Authorization: `Bearer ${accessToken}` },
     body: file,
   });
   if (!res.ok) {

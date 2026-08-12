@@ -34,16 +34,16 @@ export { isExpenseBackendConfigured };
 // GET /app-data — the caller's employee record, lead/finance view flags,
 // reimbursement currency, travels and any draft. Keyed per-user.
 export function useExpenseAppData(enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseAppData>({
     queryKey: ["expense-app-data", userSub],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<ExpenseAppData>(expenseServiceUrls.appData, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<ExpenseAppData>(expenseServiceUrls.appData, accessToken);
     },
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,
@@ -53,7 +53,7 @@ export function useExpenseAppData(enabled = true) {
 // POST /search-claims — the list endpoint for History (own), Lead approvals
 // (leadEmail) and Finance approvals (admin). `enabled` defers until ready.
 export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseClaim[]>({
@@ -62,11 +62,11 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
     queryKey: ["expense-claims", userSub, payload],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const res = await authedPost<ExpenseClaimsSearchResponse>(
         expenseServiceUrls.searchClaims,
-        idToken,
+        accessToken,
         payload,
       );
       return res?.body ?? [];
@@ -79,7 +79,7 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
 // GET /user-configurations/expense-types — the expense-type dropdown,
 // scoped to the caller's country and (optionally) a travel job number.
 export function useExpenseTypes(travelJobNumber: string | undefined, enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseTypeData[]>({
@@ -87,9 +87,9 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
     queryKey: ["expense-types", userSub, travelJobNumber ?? null],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<ExpenseTypeData[]>(expenseServiceUrls.expenseTypes(travelJobNumber), idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<ExpenseTypeData[]>(expenseServiceUrls.expenseTypes(travelJobNumber), accessToken);
     },
     staleTime: 10 * 60 * 1000,
     retry: financeRetry,
@@ -99,16 +99,16 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
 // GET /currencies/{base}/rates/{date} — exchange rates into the
 // reimbursement currency for the bill date. Only fires once base+date exist.
 export function useExchangeRates(baseCode: string | undefined, date: string | undefined) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExchangeRate[]>({
     queryKey: ["expense-rates", userSub, baseCode ?? null, date ?? null],
     enabled: isSignedIn && configured && Boolean(userSub) && Boolean(baseCode) && Boolean(date),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<ExchangeRate[]>(expenseServiceUrls.exchangeRates(baseCode!, date!), idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<ExchangeRate[]>(expenseServiceUrls.exchangeRates(baseCode!, date!), accessToken);
     },
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,

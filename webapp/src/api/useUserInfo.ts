@@ -42,7 +42,7 @@ export interface UserInfoLite {
 // key via queryClient.fetchQuery, so the two hooks share cache — the
 // endpoint hits the network only once per (sub, staleTime) window.
 export function useUserInfo() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   // Shared sub resolver — the same one useMeProfile consumes. Guarantees
   // both hooks are byte-identical on the ["user-info", sub] cache key, so
   // the cache-share promise made in the comment above actually holds.
@@ -53,9 +53,9 @@ export function useUserInfo() {
     queryKey: ["user-info", userSub],
     enabled: isSignedIn && Boolean(peopleBackendUrl) && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<UserInfoLite>(peopleServiceUrls.userInfo, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<UserInfoLite>(peopleServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
     retry: defaultQueryRetry,

@@ -23,12 +23,12 @@ import type { OpdClaimPayload, OpdStatusPayload, OpdTransaction } from "./opdTyp
 
 // POST /claims/{email}/transactions/receipts/file (raw binary) → fileName.
 export function useOpdReceiptUpload() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   return useMutation<string, Error, { email: string; file: File }>({
     mutationFn: async ({ email, file }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return uploadReceipt(opdServiceUrls.receiptUpload(email), idToken, file);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return uploadReceipt(opdServiceUrls.receiptUpload(email), accessToken, file);
     },
   });
 }
@@ -36,13 +36,13 @@ export function useOpdReceiptUpload() {
 // POST /claims — submit a new OPD claim. Invalidates the claims + app-data
 // caches so History and the remaining-balance summary refetch.
 export function useSubmitOpdClaim() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, OpdClaimPayload>({
     mutationFn: async (payload) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(opdServiceUrls.claims, idToken, payload);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(opdServiceUrls.claims, accessToken, payload);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["opd-claims"] });
@@ -54,13 +54,13 @@ export function useSubmitOpdClaim() {
 // POST /claim-drafts — persist the in-progress claim as a server-side draft
 // (autosaved from the New Claim page). DELETE /claim-drafts clears it.
 export function useOpdDraftSync() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   const save = useMutation<void, Error, OpdTransaction[]>({
     mutationFn: async (transactions) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(opdServiceUrls.claimDrafts, idToken, { transactions });
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(opdServiceUrls.claimDrafts, accessToken, { transactions });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["opd-app-data"] });
@@ -68,9 +68,9 @@ export function useOpdDraftSync() {
   });
   const remove = useMutation<void, Error, void>({
     mutationFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedDelete(opdServiceUrls.claimDrafts, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedDelete(opdServiceUrls.claimDrafts, accessToken);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["opd-app-data"] });
@@ -81,13 +81,13 @@ export function useOpdDraftSync() {
 
 // POST /claims/{id}/status — finance approve/reject. Reject carries a reason.
 export function useOpdClaimStatus() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, { claimId: string; body: OpdStatusPayload }>({
     mutationFn: async ({ claimId, body }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(opdServiceUrls.claimStatus(claimId), idToken, body);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(opdServiceUrls.claimStatus(claimId), accessToken, body);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["opd-claims"] });

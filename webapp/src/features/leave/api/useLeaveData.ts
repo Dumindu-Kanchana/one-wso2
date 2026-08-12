@@ -61,16 +61,16 @@ function useUserSub(): string | undefined {
 // one carries isLead, subordinateCount, location, leadEmail and the leave
 // privilege scheme. Keyed per-user so an account switch can't leak.
 export function useLeaveUserInfo() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isLeaveBackendConfigured();
   return useQuery<LeaveUserInfo>({
     queryKey: ["leave-user-info", userSub],
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<LeaveUserInfo>(leaveServiceUrls.userInfo, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<LeaveUserInfo>(leaveServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
     retry: leaveRetry,
@@ -78,15 +78,15 @@ export function useLeaveUserInfo() {
 }
 
 export function useLeaveAppConfig() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const configured = isLeaveBackendConfigured();
   return useQuery<AppConfig>({
     queryKey: ["leave-app-config"],
     enabled: isSignedIn && configured,
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<AppConfig>(leaveServiceUrls.appConfigs, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<AppConfig>(leaveServiceUrls.appConfigs, accessToken);
     },
     staleTime: 30 * 60 * 1000,
     retry: leaveRetry,
@@ -96,7 +96,7 @@ export function useLeaveAppConfig() {
 // GET /leaves with an arbitrary filter. `enabled` lets callers defer until
 // the filter is ready (e.g. a report needs a date range first).
 export function useLeaves(filter: LeaveFilter, enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isLeaveBackendConfigured();
   return useQuery<FetchedLeavesRecord>({
@@ -106,11 +106,11 @@ export function useLeaves(filter: LeaveFilter, enabled = true) {
     queryKey: ["leaves", userSub, filter],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<FetchedLeavesRecord>(
         `${leaveServiceUrls.leaves}${leavesQuery(filter)}`,
-        idToken,
+        accessToken,
       );
     },
     staleTime: 60 * 1000,
@@ -119,15 +119,15 @@ export function useLeaves(filter: LeaveFilter, enabled = true) {
 }
 
 export function useLeaveEmployees(enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const configured = isLeaveBackendConfigured();
   return useQuery<MinimalEmployeeInfo[]>({
     queryKey: ["leave-employees"],
     enabled: enabled && isSignedIn && configured,
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<MinimalEmployeeInfo[]>(leaveServiceUrls.employees, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<MinimalEmployeeInfo[]>(leaveServiceUrls.employees, accessToken);
     },
     staleTime: 10 * 60 * 1000,
     retry: leaveRetry,

@@ -24,14 +24,14 @@ import type { CalculatedLeave, LeavePayload } from "./leaveTypes";
 // overlap check without creating anything. The Apply form calls this on
 // every date/portion change to surface "N working days" and validity.
 export function useValidateLeave() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   return useMutation<CalculatedLeave, Error, LeavePayload>({
     mutationFn: async (payload) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const res = await authedPost<CalculatedLeave>(
         `${leaveServiceUrls.leaves}?isValidationOnlyMode=true`,
-        idToken,
+        accessToken,
         payload,
       );
       // Validation mode always returns a body.
@@ -44,15 +44,15 @@ export function useValidateLeave() {
 // POST /leaves — creates the leave. Invalidates the leaves cache so
 // history / reports refetch.
 export function useSubmitLeave() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, LeavePayload>({
     mutationFn: async (payload) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(
         `${leaveServiceUrls.leaves}?isValidationOnlyMode=false`,
-        idToken,
+        accessToken,
         payload,
       );
     },
@@ -65,13 +65,13 @@ export function useSubmitLeave() {
 // DELETE /leaves/{id} — cancels a leave (backend enforces the 30-day
 // window and ownership / people-ops rules).
 export function useCancelLeave() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: async (id) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedDelete(leaveServiceUrls.leave(id), idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedDelete(leaveServiceUrls.leave(id), accessToken);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["leaves"] });
@@ -81,13 +81,13 @@ export function useCancelLeave() {
 
 // POST /leaves/{id}/{approve|reject} — lead action on a pending sabbatical.
 export function useApproveLeave() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, { id: number; action: "approve" | "reject" }>({
     mutationFn: async ({ id, action }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(leaveServiceUrls.leaveAction(id, action), idToken, {});
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(leaveServiceUrls.leaveAction(id, action), accessToken, {});
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["leaves"] });

@@ -23,25 +23,25 @@ import type { NewVehiclePayload, VehiclesResponse } from "./types";
 // people-app vehicle endpoints are keyed on the caller's email (backend
 // enforces employeeEmail === userInfo.email in the JWT). We pass the
 // caller's email in from the component — usually the workEmail from
-// useUserInfo, or the id_token email claim. Both should match.
+// useUserInfo, or the access_token email claim. Both should match.
 
 function vehiclesKey(email: string | undefined) {
   return ["me-vehicles", email] as const;
 }
 
 export function useVehicles(email: string | undefined) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const backendConfigured = Boolean(peopleBackendUrl);
   return useQuery<VehiclesResponse>({
     queryKey: vehiclesKey(email),
     enabled: isSignedIn && backendConfigured && Boolean(email),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       // limit=100 is plenty — client-side pagination in the card is 2 at
       // a time. If a user ever has more than ~10 vehicles we can revisit.
       const url = `${peopleServiceUrls.employeeVehicles(email!)}?vehicleStatus=ACTIVE&limit=100`;
-      return authedGet<VehiclesResponse>(url, idToken);
+      return authedGet<VehiclesResponse>(url, accessToken);
     },
     staleTime: 60 * 1000,
     retry: defaultQueryRetry,
@@ -49,14 +49,14 @@ export function useVehicles(email: string | undefined) {
 }
 
 export function useAddVehicle(email: string | undefined) {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, NewVehiclePayload>({
     mutationFn: async (payload) => {
       if (!email) throw new Error("Missing owner email");
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<void>(peopleServiceUrls.employeeVehicles(email), idToken, payload);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<void>(peopleServiceUrls.employeeVehicles(email), accessToken, payload);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: vehiclesKey(email) });
@@ -65,14 +65,14 @@ export function useAddVehicle(email: string | undefined) {
 }
 
 export function useDeleteVehicle(email: string | undefined) {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: async (vehicleId) => {
       if (!email) throw new Error("Missing owner email");
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedDelete(peopleServiceUrls.employeeVehicle(email, vehicleId), idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedDelete(peopleServiceUrls.employeeVehicle(email, vehicleId), accessToken);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: vehiclesKey(email) });

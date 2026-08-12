@@ -34,16 +34,16 @@ import type {
 export { isCcBackendConfigured };
 
 export function useCcUserInfo(enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   return useQuery<CcEmployee>({
     queryKey: ["cc-user-info", userSub],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<CcEmployee>(ccServiceUrls.userInfo, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<CcEmployee>(ccServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,
@@ -51,16 +51,16 @@ export function useCcUserInfo(enabled = true) {
 }
 
 export function useCreditCards(includeInactive = false) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   return useQuery<CcCreditCard[]>({
     queryKey: ["cc-cards", userSub, includeInactive],
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<CcCreditCard[]>(ccServiceUrls.creditCards, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return authedGet<CcCreditCard[]>(ccServiceUrls.creditCards, accessToken);
     },
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,
@@ -76,7 +76,7 @@ const DEFAULT_WINDOW_DAYS = 365 * 3;
 export function useCcTransactions(
   opts: { dateFrom?: string; dateTo?: string; includeInactive?: boolean } = {},
 ) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   const dateFrom = opts.dateFrom ?? daysAgoIso(DEFAULT_WINDOW_DAYS);
@@ -86,14 +86,14 @@ export function useCcTransactions(
     queryKey: ["cc-transactions", userSub, dateFrom, dateTo, includeInactive],
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       // The backend requires all three query params to be present.
       const p = new URLSearchParams();
       p.set("dateFrom", dateFrom);
       p.set("dateTo", dateTo);
       p.set("includeInactive", String(includeInactive));
-      return authedGet<CcTransaction[]>(ccServiceUrls.transactions(`?${p.toString()}`), idToken);
+      return authedGet<CcTransaction[]>(ccServiceUrls.transactions(`?${p.toString()}`), accessToken);
     },
     staleTime: 30 * 1000,
     retry: financeRetry,
@@ -103,7 +103,7 @@ export function useCcTransactions(
 // The four dropdown sources the submission form needs. Bundled so the form
 // mounts one hook.
 export function useCcMenus() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   // Scope these to the signed-in user like the other authenticated CC
@@ -114,9 +114,9 @@ export function useCcMenus() {
   const enabled = isSignedIn && configured && Boolean(userSub);
 
   const auth = async () => {
-    const idToken = await getIdToken();
-    if (!idToken) throw new Error("No id_token available from Asgardeo");
-    return idToken;
+    const accessToken = await getAccessToken();
+    if (!accessToken) throw new Error("No access_token available from Asgardeo");
+    return accessToken;
   };
 
   const expenseTypes = useQuery<CcExpenseTypeList>({

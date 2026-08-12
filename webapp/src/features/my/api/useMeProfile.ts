@@ -37,7 +37,7 @@ export interface MeProfile {
 //      GET /employees/{id}/personal-info → contact + emergency contacts
 // Steps 2 and 3 run in parallel once employeeId is known.
 export function useMeProfile() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const { state: subState, retry: retryIdentity } = useAsgardeoSub();
   const qc = useQueryClient();
   const userSub = subState.status === "ready" ? subState.sub : undefined;
@@ -50,8 +50,8 @@ export function useMeProfile() {
     queryKey: ["me-profile", userSub],
     enabled: isSignedIn && backendConfigured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
 
       // Share the ["user-info", sub] cache slot with useUserInfo (the
       // TopBar's avatar reader). Without this, both hooks would issue an
@@ -60,14 +60,14 @@ export function useMeProfile() {
       // calls. fetchQuery populates + returns the cached value.
       const userInfo = await qc.fetchQuery<UserInfo>({
         queryKey: ["user-info", userSub],
-        queryFn: () => authedGet<UserInfo>(peopleServiceUrls.userInfo, idToken),
+        queryFn: () => authedGet<UserInfo>(peopleServiceUrls.userInfo, accessToken),
         staleTime: 5 * 60 * 1000,
       });
       const [employee, personalInfo] = await Promise.all([
-        authedGet<Employee>(peopleServiceUrls.employee(userInfo.employeeId), idToken),
+        authedGet<Employee>(peopleServiceUrls.employee(userInfo.employeeId), accessToken),
         authedGet<EmployeePersonalInfo>(
           peopleServiceUrls.employeePersonalInfo(userInfo.employeeId),
-          idToken,
+          accessToken,
         ),
       ]);
       return { userInfo, employee, personalInfo };

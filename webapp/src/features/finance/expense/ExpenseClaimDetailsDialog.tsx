@@ -49,7 +49,7 @@ export function ExpenseClaimDetailsDialog({
   onClose: () => void;
   review?: ApproverView;
 }) {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const { showError, showSuccess } = useNotifications();
   const status = useExpenseClaimStatus();
   const [rejecting, setRejecting] = useState(false);
@@ -76,9 +76,9 @@ export function ExpenseClaimDetailsDialog({
 
   const openReceipt = (fileName: string) => {
     setReceiptLoad(() => async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return fetchReceiptObjectUrl(expenseServiceUrls.receiptFile(fileName), idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return fetchReceiptObjectUrl(expenseServiceUrls.receiptFile(fileName), accessToken);
     });
   };
 

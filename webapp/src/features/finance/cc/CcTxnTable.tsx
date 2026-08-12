@@ -51,7 +51,7 @@ export function CcTxnTable({
     isSelectable: (t: CcTransaction) => boolean;
   };
 }) {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const [load, setLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
 
   const th = {
@@ -64,9 +64,9 @@ export function CcTxnTable({
 
   const view = (id: number, attachmentType: CcAttachmentType) => {
     setLoad(() => async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return fetchBase64Attachment(ccServiceUrls.attachment(id, attachmentType), idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return fetchBase64Attachment(ccServiceUrls.attachment(id, attachmentType), accessToken);
     });
   };
 

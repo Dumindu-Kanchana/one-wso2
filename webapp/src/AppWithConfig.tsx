@@ -29,14 +29,15 @@ import { HttpError } from "@api/http";
 import { registerAuthAccessors } from "@api/authBridge";
 import App from "./App";
 
-// Registers the live getIdToken/signInSilently into @api/authBridge so
-// http.ts's 401 → silent-reauth → retry path (see authBridge.ts) has
+// Registers the live getIdToken/getAccessToken/signInSilently into
+// @api/authBridge so http.ts's 401 → silent-reauth → retry path (access_token)
+// and useAsgardeoSub's decode-failure → retry path (id_token) both have
 // something to call. Renders nothing; must live inside <AsgardeoProvider>.
 function AuthBridgeMount() {
-  const { getIdToken, signInSilently } = useAsgardeo();
+  const { getIdToken, getAccessToken, signInSilently } = useAsgardeo();
   useEffect(() => {
-    registerAuthAccessors({ getIdToken, signInSilently });
-  }, [getIdToken, signInSilently]);
+    registerAuthAccessors({ getIdToken, getAccessToken, signInSilently });
+  }, [getIdToken, getAccessToken, signInSilently]);
   return null;
 }
 

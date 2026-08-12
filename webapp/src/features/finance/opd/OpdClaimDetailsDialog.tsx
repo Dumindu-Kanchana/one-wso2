@@ -50,7 +50,7 @@ export function OpdClaimDetailsDialog({
   onClose: () => void;
   review?: boolean;
 }) {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const { showError, showSuccess } = useNotifications();
   const status = useOpdClaimStatus();
   const [rejecting, setRejecting] = useState(false);
@@ -75,9 +75,9 @@ export function OpdClaimDetailsDialog({
   const openReceipt = (fileName: string) => {
     // Bind the loader to this file; the ReceiptViewer runs it on open.
     setReceiptLoad(() => async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return fetchReceiptObjectUrl(opdServiceUrls.receiptFile(fileName), idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return fetchReceiptObjectUrl(opdServiceUrls.receiptFile(fileName), accessToken);
     });
   };
 

@@ -27,25 +27,25 @@ import type {
 
 // POST /claims/{email}/transactions/receipts/file (raw binary) → fileName.
 export function useExpenseReceiptUpload() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   return useMutation<string, Error, { email: string; file: File }>({
     mutationFn: async ({ email, file }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return uploadReceipt(expenseServiceUrls.receiptUpload(email), idToken, file);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      return uploadReceipt(expenseServiceUrls.receiptUpload(email), accessToken, file);
     },
   });
 }
 
 // POST /claims — submit a new expense claim to the caller's lead.
 export function useSubmitExpenseClaim() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, ExpenseClaimPayload>({
     mutationFn: async (payload) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(expenseServiceUrls.claims, idToken, payload);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(expenseServiceUrls.claims, accessToken, payload);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["expense-claims"] });
@@ -56,13 +56,13 @@ export function useSubmitExpenseClaim() {
 
 // POST /claim-drafts — autosave the in-progress claim; DELETE clears it.
 export function useExpenseDraftSync() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   const save = useMutation<void, Error, ExpenseTransactionPayload[]>({
     mutationFn: async (transactions) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(expenseServiceUrls.claimDrafts, idToken, { transactions });
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(expenseServiceUrls.claimDrafts, accessToken, { transactions });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["expense-app-data"] });
@@ -70,9 +70,9 @@ export function useExpenseDraftSync() {
   });
   const remove = useMutation<void, Error, void>({
     mutationFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedDelete(expenseServiceUrls.claimDrafts, idToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedDelete(expenseServiceUrls.claimDrafts, accessToken);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["expense-app-data"] });
@@ -84,13 +84,13 @@ export function useExpenseDraftSync() {
 // POST /claims/{id}/status — lead or finance approve/reject. The backend
 // authorizes on the caller being a lead of the claim or an admin.
 export function useExpenseClaimStatus() {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const qc = useQueryClient();
   return useMutation<void, Error, { claimId: string; body: ExpenseStatusPayload }>({
     mutationFn: async ({ claimId, body }) => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<unknown>(expenseServiceUrls.claimStatus(claimId), idToken, body);
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
+      await authedPost<unknown>(expenseServiceUrls.claimStatus(claimId), accessToken, body);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["expense-claims"] });

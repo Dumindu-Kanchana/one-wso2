@@ -28,17 +28,17 @@ import { digiopsHeaders } from "../util/digiopsHeaders";
 // Skips the request entirely when ONE_WSO2_PROMOTION_BACKEND_URL isn't
 // configured — the calling component renders a "not configured" fallback.
 export function usePromotionEmployeeInfo(workEmail: string | undefined) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { getAccessToken, isSignedIn } = useAsgardeo();
   const backendConfigured = Boolean(promotionBackendUrl);
   return useQuery<PromotionEmployeeInfoResponse>({
     queryKey: ["promotion-employee-info", workEmail],
     enabled: isSignedIn && backendConfigured && Boolean(workEmail),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<PromotionEmployeeInfoResponse>(
         promotionServiceUrls.employeeInfo(workEmail!),
-        idToken,
+        accessToken,
         digiopsHeaders(),
       );
     },

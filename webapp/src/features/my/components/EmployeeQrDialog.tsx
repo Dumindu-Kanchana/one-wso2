@@ -45,7 +45,7 @@ export default function EmployeeQrDialog({
   email?: string;
   onClose: () => void;
 }) {
-  const { getIdToken } = useAsgardeo();
+  const { getAccessToken } = useAsgardeo();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,10 +70,10 @@ export default function EmployeeQrDialog({
     setError(null);
     (async () => {
       try {
-        const idToken = await getIdToken();
-        if (!idToken) throw new Error("No id_token available from Asgardeo");
+        const accessToken = await getAccessToken();
+        if (!accessToken) throw new Error("No access_token available from Asgardeo");
         const res = await fetch(peopleServiceUrls.employeeQrCode(employeeId), {
-          headers: { Authorization: `Bearer ${idToken}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -98,7 +98,7 @@ export default function EmployeeQrDialog({
       cancelled = true;
       controller.abort();
     };
-  }, [open, employeeId, getIdToken]);
+  }, [open, employeeId, getAccessToken]);
 
   useEffect(() => {
     if (!url) return;
