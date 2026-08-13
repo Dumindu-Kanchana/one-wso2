@@ -19,7 +19,7 @@ import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, defaultQueryRetry } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
-import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
+import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 
 // Minimal shape returned by the people-app /user-info endpoint. Matches
 // the fields we consume in the shell — the full type lives in
@@ -48,10 +48,10 @@ export function useUserInfo() {
   // Shared sub resolver — the same one useMeProfile consumes. Guarantees
   // both hooks are byte-identical on the ["user-info", sub] cache key, so
   // the cache-share promise made in the comment above actually holds.
-  const { state: subState } = useAsgardeoSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
   const userSub = subState.status === "ready" ? subState.sub : undefined;
 
-  return useQuery<UserInfoLite>({
+  const query = useQuery<UserInfoLite>({
     queryKey: ["user-info", userSub],
     enabled: isSignedIn && Boolean(peopleBackendUrl) && Boolean(userSub),
     queryFn: async () => {
@@ -61,4 +61,6 @@ export function useUserInfo() {
     staleTime: 5 * 60 * 1000,
     retry: defaultQueryRetry,
   });
+
+  return foldIdentityError(query, subState, retryIdentity);
 }

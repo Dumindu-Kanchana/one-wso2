@@ -19,7 +19,7 @@ import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, authedPost } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { expenseServiceUrls, isExpenseBackendConfigured } from "@config/apiConfig";
-import { useUserSub } from "@hooks/useAsgardeoSub";
+import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { financeRetry } from "../util/financeError";
 import type {
   ExchangeRate,
@@ -37,9 +37,10 @@ export { isExpenseBackendConfigured };
 export function useExpenseAppData(enabled = true) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isExpenseBackendConfigured();
-  return useQuery<ExpenseAppData>({
+  const query = useQuery<ExpenseAppData>({
     queryKey: ["expense-app-data", userSub],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
@@ -49,6 +50,7 @@ export function useExpenseAppData(enabled = true) {
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 // POST /search-claims — the list endpoint for History (own), Lead approvals
@@ -56,9 +58,10 @@ export function useExpenseAppData(enabled = true) {
 export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = true) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isExpenseBackendConfigured();
-  return useQuery<ExpenseClaim[]>({
+  const query = useQuery<ExpenseClaim[]>({
     // Scope per user — a claim search with no explicit email resolves the
     // caller from the token, so two users would share one cache entry.
     queryKey: ["expense-claims", userSub, payload],
@@ -75,6 +78,7 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
     staleTime: 60 * 1000,
     retry: financeRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 // GET /user-configurations/expense-types — the expense-type dropdown,
@@ -82,9 +86,10 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
 export function useExpenseTypes(travelJobNumber: string | undefined, enabled = true) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isExpenseBackendConfigured();
-  return useQuery<ExpenseTypeData[]>({
+  const query = useQuery<ExpenseTypeData[]>({
     // Country-scoped per caller — key per user like the sibling queries.
     queryKey: ["expense-types", userSub, travelJobNumber ?? null],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
@@ -95,6 +100,7 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
     staleTime: 10 * 60 * 1000,
     retry: financeRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 // GET /currencies/{base}/rates/{date} — exchange rates into the
@@ -102,9 +108,10 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
 export function useExchangeRates(baseCode: string | undefined, date: string | undefined) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isExpenseBackendConfigured();
-  return useQuery<ExchangeRate[]>({
+  const query = useQuery<ExchangeRate[]>({
     queryKey: ["expense-rates", userSub, baseCode ?? null, date ?? null],
     enabled: isSignedIn && configured && Boolean(userSub) && Boolean(baseCode) && Boolean(date),
     queryFn: async () => {
@@ -114,4 +121,5 @@ export function useExchangeRates(baseCode: string | undefined, date: string | un
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }

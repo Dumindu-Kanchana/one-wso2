@@ -19,7 +19,7 @@ import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, HttpError, defaultQueryRetry } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
-import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
+import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import type { Employee, EmployeePersonalInfo, UserInfo } from "./types";
 
 // Re-export HttpError for existing feature-scoped consumers that still
@@ -44,7 +44,6 @@ export function useMeProfile() {
   const qc = useQueryClient();
   const userSub = subState.status === "ready" ? subState.sub : undefined;
   const backendConfigured = Boolean(peopleBackendUrl);
-  const identityError = subState.status === "error" ? subState.message : null;
 
   const query = useQuery<MeProfile>({
     // userSub is part of the key so cached data is scoped per-user — no
@@ -79,41 +78,12 @@ export function useMeProfile() {
     retry: defaultQueryRetry,
   });
 
-  // Fold identity resolution failures into the query result so the page
-  // renders a real error (with a retry path) instead of getting stuck on
-  // the loading skeleton. Identity errors take precedence — if the JWT
-  // subject is unresolvable, the /user-info call would fail anyway.
-  //
-  // We override `refetch` on the synthetic result: React Query's own
-  // refetch ignores `enabled: false` and would fire the profile query
-  // with key ["me-profile", undefined], bypassing the per-user cache
-  // scoping. The right retry here re-runs identity resolution — if the
-  // decode then succeeds, `enabled` flips true and the profile query
-  // starts naturally; if it still fails, the user sees the same error
-  // with a fresh chance to retry.
-  //
-  // The synthetic result doesn't match React Query's discriminated union
-  // exactly (the four *Result variants have exclusive boolean flags), so
-  // we cast through unknown; the consumer only reads isError + error +
-  // isLoading + refetch, and this shape sets those consistently.
-  if (identityError && !query.isError) {
-    const synthetic = {
-      ...query,
-      isError: true,
-      isPending: false,
-      isLoading: false,
-      isSuccess: false,
-      isFetching: false,
-      status: "error" as const,
-      error: new Error(identityError),
-      refetch: (async () => {
-        retryIdentity();
-        return query;
-      }) as typeof query.refetch,
-    };
-    return synthetic as unknown as typeof query;
-  }
-  return query;
+  // React Query's own refetch ignores `enabled: false` and would fire the
+  // profile query with key ["me-profile", undefined], bypassing the
+  // per-user cache scoping — foldIdentityError's synthetic refetch instead
+  // re-runs identity resolution; if that then succeeds, `enabled` flips
+  // true and the profile query starts naturally.
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 export function isPeopleBackendConfigured(): boolean {

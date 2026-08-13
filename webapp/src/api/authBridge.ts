@@ -42,6 +42,20 @@ let getIdTokenAccessor: GetToken | null = null;
 let getAccessTokenAccessor: GetToken | null = null;
 let signInSilentlyAccessor: SignInSilently | null = null;
 
+// Resolves once registerAuthAccessors() has run at least once.
+// AuthBridgeMount registers accessors from a useEffect, while a sibling
+// subtree's request can kick off during the very same initial mount —
+// React gives no ordering guarantee between the two, so a request's very
+// first 401 could otherwise race ahead of registration. Awaiting this
+// below (instead of failing outright when an accessor is still null) turns
+// that race into a short wait: AuthBridgeMount always lives inside
+// <AsgardeoProvider> in AppWithConfig.tsx, so this promise is guaranteed to
+// resolve — just not necessarily before the first request lands.
+let markReady: () => void;
+const ready = new Promise<void>((resolve) => {
+  markReady = resolve;
+});
+
 export function registerAuthAccessors(accessors: {
   getIdToken: GetToken;
   getAccessToken: GetToken;
@@ -50,6 +64,7 @@ export function registerAuthAccessors(accessors: {
   getIdTokenAccessor = accessors.getIdToken;
   getAccessTokenAccessor = accessors.getAccessToken;
   signInSilentlyAccessor = accessors.signInSilently;
+  markReady();
 }
 
 // Dedup concurrent re-auth attempts — e.g. five cards all firing a request
@@ -60,15 +75,20 @@ export function registerAuthAccessors(accessors: {
 // people-app's APIService (utils/apiService.ts). Cleared as soon as the
 // attempt settles (success or failure), so a later, independent failure
 // starts a fresh attempt rather than replaying a stale result.
+//
+// inFlightRefresh is assigned synchronously (before the `await ready`
+// inside the chain below) so two concurrent callers arriving before
+// registration has happened still dedup onto the same promise, instead of
+// each awaiting `ready` separately and racing to start their own refresh.
 let inFlightRefresh: Promise<void> | null = null;
 
 function refreshSession(): Promise<void> {
   if (inFlightRefresh) return inFlightRefresh;
-  if (!signInSilentlyAccessor) {
-    return Promise.reject(new Error("Auth accessors not registered yet"));
-  }
-  const signInSilently = signInSilentlyAccessor;
-  inFlightRefresh = signInSilently()
+  inFlightRefresh = ready
+    .then(() => {
+      if (!signInSilentlyAccessor) throw new Error("Auth accessors not registered yet");
+      return signInSilentlyAccessor();
+    })
     .then(() => undefined)
     .finally(() => {
       inFlightRefresh = null;

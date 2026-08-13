@@ -19,7 +19,7 @@ import { useAsgardeo } from "@asgardeo/react";
 import { authedGet } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { isLeaveBackendConfigured, leaveServiceUrls } from "@config/apiConfig";
-import { useUserSub } from "@hooks/useAsgardeoSub";
+import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { leaveRetry } from "../util/leaveError";
 import type {
   AppConfig,
@@ -55,9 +55,10 @@ function leavesQuery(filter: LeaveFilter): string {
 export function useLeaveUserInfo() {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isLeaveBackendConfigured();
-  return useQuery<LeaveUserInfo>({
+  const query = useQuery<LeaveUserInfo>({
     queryKey: ["leave-user-info", userSub],
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
@@ -67,6 +68,7 @@ export function useLeaveUserInfo() {
     staleTime: 5 * 60 * 1000,
     retry: leaveRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 export function useLeaveAppConfig() {
@@ -90,9 +92,10 @@ export function useLeaveAppConfig() {
 export function useLeaves(filter: LeaveFilter, enabled = true) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isLeaveBackendConfigured();
-  return useQuery<FetchedLeavesRecord>({
+  const query = useQuery<FetchedLeavesRecord>({
     // Scope per user — a filter without an explicit email resolves the
     // caller from the token, so an account switch in the same tab could
     // otherwise serve the previous user's leave rows within staleTime.
@@ -108,6 +111,7 @@ export function useLeaves(filter: LeaveFilter, enabled = true) {
     staleTime: 60 * 1000,
     retry: leaveRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 export function useLeaveEmployees(enabled = true) {

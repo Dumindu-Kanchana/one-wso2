@@ -19,7 +19,7 @@ import { useAsgardeo } from "@asgardeo/react";
 import { authedGet } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls, isCcBackendConfigured } from "@config/apiConfig";
-import { useUserSub } from "@hooks/useAsgardeoSub";
+import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { financeRetry } from "../util/financeError";
 import { daysAgoIso, todayIso } from "../util/financeFormat";
 import type {
@@ -37,9 +37,10 @@ export { isCcBackendConfigured };
 export function useCcUserInfo(enabled = true) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isCcBackendConfigured();
-  return useQuery<CcEmployee>({
+  const query = useQuery<CcEmployee>({
     queryKey: ["cc-user-info", userSub],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
@@ -49,14 +50,16 @@ export function useCcUserInfo(enabled = true) {
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 export function useCreditCards(includeInactive = false) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isCcBackendConfigured();
-  return useQuery<CcCreditCard[]>({
+  const query = useQuery<CcCreditCard[]>({
     queryKey: ["cc-cards", userSub, includeInactive],
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
@@ -66,6 +69,7 @@ export function useCreditCards(includeInactive = false) {
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 // GET /transactions?dateFrom&dateTo&includeInactive — scoped server-side by
@@ -79,12 +83,13 @@ export function useCcTransactions(
 ) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isCcBackendConfigured();
   const dateFrom = opts.dateFrom ?? daysAgoIso(DEFAULT_WINDOW_DAYS);
   const dateTo = opts.dateTo ?? todayIso();
   const includeInactive = opts.includeInactive ?? false;
-  return useQuery<CcTransaction[]>({
+  const query = useQuery<CcTransaction[]>({
     queryKey: ["cc-transactions", userSub, dateFrom, dateTo, includeInactive],
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
@@ -99,6 +104,7 @@ export function useCcTransactions(
     staleTime: 30 * 1000,
     retry: financeRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 // The four dropdown sources the submission form needs. Bundled so the form
@@ -106,7 +112,8 @@ export function useCcTransactions(
 export function useCcMenus() {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
-  const userSub = useUserSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isCcBackendConfigured();
   // Scope these to the signed-in user like the other authenticated CC
   // queries: logout only calls Asgardeo signOut() and does not clear the
@@ -145,5 +152,10 @@ export function useCcMenus() {
     retry: financeRetry,
   });
 
-  return { expenseTypes, subRegions, units, jobNumbers };
+  return {
+    expenseTypes: foldIdentityError(expenseTypes, subState, retryIdentity),
+    subRegions: foldIdentityError(subRegions, subState, retryIdentity),
+    units: foldIdentityError(units, subState, retryIdentity),
+    jobNumbers: foldIdentityError(jobNumbers, subState, retryIdentity),
+  };
 }
