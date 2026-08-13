@@ -17,6 +17,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, defaultQueryRetry } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { bankingBackendUrl, bankingServiceUrls } from "@config/apiConfig";
 import type { BankAccountsResponse } from "./types";
 
@@ -25,14 +26,14 @@ import type { BankAccountsResponse } from "./types";
 // extra guard needed here. Unlike par/promotion apps, this backend does
 // NOT require x-user-timezone-offset.
 export function useBankAccounts(workEmail: string | undefined) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const backendConfigured = Boolean(bankingBackendUrl);
   return useQuery<BankAccountsResponse>({
     queryKey: ["bank-accounts", workEmail],
     enabled: isSignedIn && backendConfigured && Boolean(workEmail),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<BankAccountsResponse>(
         bankingServiceUrls.employeeAccounts(workEmail!),
         accessToken,

@@ -26,7 +26,7 @@ import {
   TableHead,
   TableRow,
 } from "@wso2/oxygen-ui";
-import { useAsgardeo } from "@asgardeo/react";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
 import { StatusChip, ccStatusMeta } from "../components/FinanceChips";
 import { ReceiptViewer } from "../components/ReceiptViewer";
@@ -51,7 +51,7 @@ export function CcTxnTable({
     isSelectable: (t: CcTransaction) => boolean;
   };
 }) {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const [load, setLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
 
   const th = {
@@ -65,7 +65,6 @@ export function CcTxnTable({
   const view = (id: number, attachmentType: CcAttachmentType) => {
     setLoad(() => async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return fetchBase64Attachment(ccServiceUrls.attachment(id, attachmentType), accessToken);
     });
   };

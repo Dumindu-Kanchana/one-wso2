@@ -17,8 +17,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, authedPost } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { expenseServiceUrls, isExpenseBackendConfigured } from "@config/apiConfig";
-import { useUserSub } from "../util/financeAuth";
+import { useUserSub } from "@hooks/useAsgardeoSub";
 import { financeRetry } from "../util/financeError";
 import type {
   ExchangeRate,
@@ -34,7 +35,8 @@ export { isExpenseBackendConfigured };
 // GET /app-data — the caller's employee record, lead/finance view flags,
 // reimbursement currency, travels and any draft. Keyed per-user.
 export function useExpenseAppData(enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseAppData>({
@@ -42,7 +44,6 @@ export function useExpenseAppData(enabled = true) {
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<ExpenseAppData>(expenseServiceUrls.appData, accessToken);
     },
     staleTime: 5 * 60 * 1000,
@@ -53,7 +54,8 @@ export function useExpenseAppData(enabled = true) {
 // POST /search-claims — the list endpoint for History (own), Lead approvals
 // (leadEmail) and Finance approvals (admin). `enabled` defers until ready.
 export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseClaim[]>({
@@ -63,7 +65,6 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const res = await authedPost<ExpenseClaimsSearchResponse>(
         expenseServiceUrls.searchClaims,
         accessToken,
@@ -79,7 +80,8 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
 // GET /user-configurations/expense-types — the expense-type dropdown,
 // scoped to the caller's country and (optionally) a travel job number.
 export function useExpenseTypes(travelJobNumber: string | undefined, enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExpenseTypeData[]>({
@@ -88,7 +90,6 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<ExpenseTypeData[]>(expenseServiceUrls.expenseTypes(travelJobNumber), accessToken);
     },
     staleTime: 10 * 60 * 1000,
@@ -99,7 +100,8 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
 // GET /currencies/{base}/rates/{date} — exchange rates into the
 // reimbursement currency for the bill date. Only fires once base+date exist.
 export function useExchangeRates(baseCode: string | undefined, date: string | undefined) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isExpenseBackendConfigured();
   return useQuery<ExchangeRate[]>({
@@ -107,7 +109,6 @@ export function useExchangeRates(baseCode: string | undefined, date: string | un
     enabled: isSignedIn && configured && Boolean(userSub) && Boolean(baseCode) && Boolean(date),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<ExchangeRate[]>(expenseServiceUrls.exchangeRates(baseCode!, date!), accessToken);
     },
     staleTime: 30 * 60 * 1000,

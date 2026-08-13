@@ -15,8 +15,8 @@
 // under the License.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAsgardeo } from "@asgardeo/react";
 import { authedDelete, authedPost } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { leaveServiceUrls } from "@config/apiConfig";
 import type { CalculatedLeave, LeavePayload } from "./leaveTypes";
 
@@ -24,11 +24,10 @@ import type { CalculatedLeave, LeavePayload } from "./leaveTypes";
 // overlap check without creating anything. The Apply form calls this on
 // every date/portion change to surface "N working days" and validity.
 export function useValidateLeave() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   return useMutation<CalculatedLeave, Error, LeavePayload>({
     mutationFn: async (payload) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const res = await authedPost<CalculatedLeave>(
         `${leaveServiceUrls.leaves}?isValidationOnlyMode=true`,
         accessToken,
@@ -44,12 +43,11 @@ export function useValidateLeave() {
 // POST /leaves — creates the leave. Invalidates the leaves cache so
 // history / reports refetch.
 export function useSubmitLeave() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, LeavePayload>({
     mutationFn: async (payload) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(
         `${leaveServiceUrls.leaves}?isValidationOnlyMode=false`,
         accessToken,
@@ -65,12 +63,11 @@ export function useSubmitLeave() {
 // DELETE /leaves/{id} — cancels a leave (backend enforces the 30-day
 // window and ownership / people-ops rules).
 export function useCancelLeave() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: async (id) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedDelete(leaveServiceUrls.leave(id), accessToken);
     },
     onSuccess: async () => {
@@ -81,12 +78,11 @@ export function useCancelLeave() {
 
 // POST /leaves/{id}/{approve|reject} — lead action on a pending sabbatical.
 export function useApproveLeave() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, { id: number; action: "approve" | "reject" }>({
     mutationFn: async ({ id, action }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(leaveServiceUrls.leaveAction(id, action), accessToken, {});
     },
     onSuccess: async () => {

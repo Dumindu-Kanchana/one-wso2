@@ -15,8 +15,8 @@
 // under the License.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAsgardeo } from "@asgardeo/react";
 import { authedPatch } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { peopleServiceUrls } from "@config/apiConfig";
 import type { UpdatePersonalInfoPayload } from "./types";
 
@@ -30,13 +30,12 @@ import type { UpdatePersonalInfoPayload } from "./types";
 // writes overlaps with UserProfileMenu's display fields) and a cheap
 // hedge against a future extension adding e.g. a thumbnail upload.
 export function useUpdatePersonalInfo(employeeId: string | undefined) {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, UpdatePersonalInfoPayload>({
     mutationFn: async (payload) => {
       if (!employeeId) throw new Error("Missing employeeId");
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPatch<void>(
         peopleServiceUrls.employeePersonalInfo(employeeId),
         accessToken,

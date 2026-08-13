@@ -79,11 +79,15 @@ function refreshSession(): Promise<void> {
 export async function refreshAccessToken(): Promise<string> {
   await refreshSession();
   if (!getAccessTokenAccessor) throw new Error("Auth accessors not registered yet");
-  return getAccessTokenAccessor();
+  const token = await getAccessTokenAccessor();
+  if (!token) throw new Error("No access_token available from Asgardeo");
+  return token;
 }
 
 export async function refreshIdToken(): Promise<string> {
   await refreshSession();
   if (!getIdTokenAccessor) throw new Error("Auth accessors not registered yet");
-  return getIdTokenAccessor();
+  const token = await getIdTokenAccessor();
+  if (!token) throw new Error("No id_token available from Asgardeo");
+  return token;
 }

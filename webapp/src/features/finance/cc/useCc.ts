@@ -17,8 +17,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls, isCcBackendConfigured } from "@config/apiConfig";
-import { useUserSub } from "../util/financeAuth";
+import { useUserSub } from "@hooks/useAsgardeoSub";
 import { financeRetry } from "../util/financeError";
 import { daysAgoIso, todayIso } from "../util/financeFormat";
 import type {
@@ -34,7 +35,8 @@ import type {
 export { isCcBackendConfigured };
 
 export function useCcUserInfo(enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   return useQuery<CcEmployee>({
@@ -42,7 +44,6 @@ export function useCcUserInfo(enabled = true) {
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<CcEmployee>(ccServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
@@ -51,7 +52,8 @@ export function useCcUserInfo(enabled = true) {
 }
 
 export function useCreditCards(includeInactive = false) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   return useQuery<CcCreditCard[]>({
@@ -59,7 +61,6 @@ export function useCreditCards(includeInactive = false) {
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<CcCreditCard[]>(ccServiceUrls.creditCards, accessToken);
     },
     staleTime: 5 * 60 * 1000,
@@ -76,7 +77,8 @@ const DEFAULT_WINDOW_DAYS = 365 * 3;
 export function useCcTransactions(
   opts: { dateFrom?: string; dateTo?: string; includeInactive?: boolean } = {},
 ) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   const dateFrom = opts.dateFrom ?? daysAgoIso(DEFAULT_WINDOW_DAYS);
@@ -87,7 +89,6 @@ export function useCcTransactions(
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       // The backend requires all three query params to be present.
       const p = new URLSearchParams();
       p.set("dateFrom", dateFrom);
@@ -103,7 +104,8 @@ export function useCcTransactions(
 // The four dropdown sources the submission form needs. Bundled so the form
 // mounts one hook.
 export function useCcMenus() {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isCcBackendConfigured();
   // Scope these to the signed-in user like the other authenticated CC
@@ -113,37 +115,32 @@ export function useCcMenus() {
   // reference data, but keying uniformly keeps the cache clean).
   const enabled = isSignedIn && configured && Boolean(userSub);
 
-  const auth = async () => {
-    const accessToken = await getAccessToken();
-    if (!accessToken) throw new Error("No access_token available from Asgardeo");
-    return accessToken;
-  };
-
   const expenseTypes = useQuery<CcExpenseTypeList>({
     queryKey: ["cc-expense-types", userSub],
     enabled,
-    queryFn: async () => authedGet<CcExpenseTypeList>(ccServiceUrls.expenseTypes, await auth()),
+    queryFn: async () => authedGet<CcExpenseTypeList>(ccServiceUrls.expenseTypes, await getAccessToken()),
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,
   });
   const subRegions = useQuery<CcSubRegionList>({
     queryKey: ["cc-sub-regions", userSub],
     enabled,
-    queryFn: async () => authedGet<CcSubRegionList>(ccServiceUrls.subRegions, await auth()),
+    queryFn: async () => authedGet<CcSubRegionList>(ccServiceUrls.subRegions, await getAccessToken()),
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,
   });
   const units = useQuery<CcProductAndBusinessUnitList>({
     queryKey: ["cc-units", userSub],
     enabled,
-    queryFn: async () => authedGet<CcProductAndBusinessUnitList>(ccServiceUrls.productAndBusinessUnits, await auth()),
+    queryFn: async () =>
+      authedGet<CcProductAndBusinessUnitList>(ccServiceUrls.productAndBusinessUnits, await getAccessToken()),
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,
   });
   const jobNumbers = useQuery<CcJobNumberList>({
     queryKey: ["cc-job-numbers", userSub],
     enabled,
-    queryFn: async () => authedGet<CcJobNumberList>(ccServiceUrls.jobNumbers, await auth()),
+    queryFn: async () => authedGet<CcJobNumberList>(ccServiceUrls.jobNumbers, await getAccessToken()),
     staleTime: 30 * 60 * 1000,
     retry: financeRetry,
   });

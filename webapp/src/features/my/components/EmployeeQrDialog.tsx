@@ -26,7 +26,7 @@ import {
   Skeleton,
   Typography,
 } from "@wso2/oxygen-ui";
-import { useAsgardeo } from "@asgardeo/react";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { fetchWithReauth, HttpError, humanizeHttpError } from "@api/http";
 import { peopleServiceUrls } from "@config/apiConfig";
 
@@ -45,7 +45,7 @@ export default function EmployeeQrDialog({
   email?: string;
   onClose: () => void;
 }) {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +71,6 @@ export default function EmployeeQrDialog({
     (async () => {
       try {
         const accessToken = await getAccessToken();
-        if (!accessToken) throw new Error("No access_token available from Asgardeo");
         const res = await fetchWithReauth(
           peopleServiceUrls.employeeQrCode(employeeId),
           { signal: controller.signal },

@@ -15,10 +15,9 @@
 // under the License.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAsgardeo } from "@asgardeo/react";
-import { authedDelete, authedPost } from "@api/http";
+import { authedDelete, authedPost, fetchWithReauth, HttpError } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
-import { HttpError } from "@api/http";
 import { fileExtension, putBinaryFile } from "../util/financeReceipts";
 import type { CcAttachmentType, CcTransaction, CcTransactionUploadGroup } from "./ccTypes";
 
@@ -32,12 +31,11 @@ function invalidate(qc: ReturnType<typeof useQueryClient>) {
 // POST /transactions/employee-submit — a CC owner submits categorised `new`
 // transactions for lead approval.
 export function useCcEmployeeSubmit() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, CcTransaction[]>({
     mutationFn: async (transactions) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(ccServiceUrls.employeeSubmit, accessToken, transactions);
     },
     onSuccess: () => invalidate(qc),
@@ -46,12 +44,11 @@ export function useCcEmployeeSubmit() {
 
 // POST /transactions/save-edit — edit categorisation while still pending.
 export function useCcSaveEdit() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, CcTransaction[]>({
     mutationFn: async (transactions) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(ccServiceUrls.saveEdit, accessToken, transactions);
     },
     onSuccess: () => invalidate(qc),
@@ -61,12 +58,11 @@ export function useCcSaveEdit() {
 // POST /transactions/lead-approve | /transactions/finance-approve — body is
 // an array of transaction ids.
 export function useCcApprove(stage: "lead" | "finance") {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, number[]>({
     mutationFn: async (ids) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const url = stage === "lead" ? ccServiceUrls.leadApprove : ccServiceUrls.financeApprove;
       await authedPost<unknown>(url, accessToken, ids);
     },
@@ -77,12 +73,11 @@ export function useCcApprove(stage: "lead" | "finance") {
 // Attachment upload (PUT raw bytes) + delete for a transaction's receipt or
 // contract. Returns the stored file name from the upload.
 export function useCcAttachment() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   const upload = useMutation<string, Error, { id: number; attachmentType: CcAttachmentType; file: File }>({
     mutationFn: async ({ id, attachmentType, file }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const url = ccServiceUrls.attachmentUpload(id, fileExtension(file), attachmentType);
       return putBinaryFile(url, accessToken, file);
     },
@@ -91,7 +86,6 @@ export function useCcAttachment() {
   const remove = useMutation<void, Error, { id: number; attachmentType: CcAttachmentType }>({
     mutationFn: async ({ id, attachmentType }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedDelete(ccServiceUrls.attachment(id, attachmentType), accessToken);
     },
     onSuccess: () => invalidate(qc),
@@ -102,17 +96,16 @@ export function useCcAttachment() {
 // POST /transactions/process-statement — finance uploads a CSV; backend
 // parses it into new/duplicate/invalid groups (raw text/csv body).
 export function useCcProcessStatement() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   return useMutation<CcTransactionUploadGroup, Error, { bankCode: string; fileName: string; file: File }>({
     mutationFn: async ({ bankCode, fileName, file }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const url = ccServiceUrls.processStatement(bankCode, fileName);
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "text/csv", Authorization: `Bearer ${accessToken}` },
-        body: file,
-      });
+      const res = await fetchWithReauth(
+        url,
+        { method: "POST", headers: { "Content-Type": "text/csv" }, body: file },
+        accessToken,
+      );
       if (!res.ok) {
         const body = await res.text().catch(() => "");
         throw new HttpError(url, res.status, body);
@@ -125,12 +118,11 @@ export function useCcProcessStatement() {
 // POST /transactions — finance saves the reviewed group, creating pending
 // transactions.
 export function useCcUploadTransactions() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, { bankCode: string; fileName: string; group: CcTransactionUploadGroup }>({
     mutationFn: async ({ bankCode, fileName, group }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(ccServiceUrls.uploadTransactions(bankCode, fileName), accessToken, group);
     },
     onSuccess: () => invalidate(qc),

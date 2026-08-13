@@ -27,7 +27,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
-import { useAsgardeo } from "@asgardeo/react";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { opdServiceUrls } from "@config/apiConfig";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { StatusChip, opdStatusMeta } from "../components/FinanceChips";
@@ -50,7 +50,7 @@ export function OpdClaimDetailsDialog({
   onClose: () => void;
   review?: boolean;
 }) {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const { showError, showSuccess } = useNotifications();
   const status = useOpdClaimStatus();
   const [rejecting, setRejecting] = useState(false);
@@ -76,7 +76,6 @@ export function OpdClaimDetailsDialog({
     // Bind the loader to this file; the ReceiptViewer runs it on open.
     setReceiptLoad(() => async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return fetchReceiptObjectUrl(opdServiceUrls.receiptFile(fileName), accessToken);
     });
   };

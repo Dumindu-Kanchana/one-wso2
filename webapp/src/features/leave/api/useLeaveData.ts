@@ -17,8 +17,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { isLeaveBackendConfigured, leaveServiceUrls } from "@config/apiConfig";
-import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
+import { useUserSub } from "@hooks/useAsgardeoSub";
 import { leaveRetry } from "../util/leaveError";
 import type {
   AppConfig,
@@ -48,20 +49,12 @@ function leavesQuery(filter: LeaveFilter): string {
   return qs ? `?${qs}` : "";
 }
 
-// Resolve the signed-in user's `sub` claim via the shared hook, so the
-// leave-user-info cache is scoped per-user (no cross-user leak on account
-// switch in the same tab) and gets the same retry-after-silent-reauth
-// resilience as every other sub-keyed query — see @hooks/useAsgardeoSub.
-function useUserSub(): string | undefined {
-  const { state } = useAsgardeoSub();
-  return state.status === "ready" ? state.sub : undefined;
-}
-
 // GET /user-info from the LEAVE backend. Distinct from people-app's — this
 // one carries isLead, subordinateCount, location, leadEmail and the leave
 // privilege scheme. Keyed per-user so an account switch can't leak.
 export function useLeaveUserInfo() {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isLeaveBackendConfigured();
   return useQuery<LeaveUserInfo>({
@@ -69,7 +62,6 @@ export function useLeaveUserInfo() {
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<LeaveUserInfo>(leaveServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
@@ -78,14 +70,14 @@ export function useLeaveUserInfo() {
 }
 
 export function useLeaveAppConfig() {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const configured = isLeaveBackendConfigured();
   return useQuery<AppConfig>({
     queryKey: ["leave-app-config"],
     enabled: isSignedIn && configured,
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<AppConfig>(leaveServiceUrls.appConfigs, accessToken);
     },
     staleTime: 30 * 60 * 1000,
@@ -96,7 +88,8 @@ export function useLeaveAppConfig() {
 // GET /leaves with an arbitrary filter. `enabled` lets callers defer until
 // the filter is ready (e.g. a report needs a date range first).
 export function useLeaves(filter: LeaveFilter, enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isLeaveBackendConfigured();
   return useQuery<FetchedLeavesRecord>({
@@ -107,7 +100,6 @@ export function useLeaves(filter: LeaveFilter, enabled = true) {
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<FetchedLeavesRecord>(
         `${leaveServiceUrls.leaves}${leavesQuery(filter)}`,
         accessToken,
@@ -119,14 +111,14 @@ export function useLeaves(filter: LeaveFilter, enabled = true) {
 }
 
 export function useLeaveEmployees(enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const configured = isLeaveBackendConfigured();
   return useQuery<MinimalEmployeeInfo[]>({
     queryKey: ["leave-employees"],
     enabled: enabled && isSignedIn && configured,
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<MinimalEmployeeInfo[]>(leaveServiceUrls.employees, accessToken);
     },
     staleTime: 10 * 60 * 1000,

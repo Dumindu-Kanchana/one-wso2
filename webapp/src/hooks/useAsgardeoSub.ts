@@ -103,3 +103,14 @@ export function useAsgardeoSub(): { state: SubState; retry: () => void } {
 
   return { state, retry };
 }
+
+// Projection of useAsgardeoSub() down to just the resolved `sub` (or
+// undefined while loading/on error) — what every sub-keyed query cache
+// (leave, finance backends, ...) actually needs, without the retry/error
+// plumbing useMeProfile and useUserInfo surface in their own UI. Shared
+// here so both features get the same retry-after-silent-reauth resilience
+// from one place instead of each keeping its own copy of this projection.
+export function useUserSub(): string | undefined {
+  const { state } = useAsgardeoSub();
+  return state.status === "ready" ? state.sub : undefined;
+}

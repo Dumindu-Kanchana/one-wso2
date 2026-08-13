@@ -17,6 +17,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, HttpError, defaultQueryRetry } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
 import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import type { Employee, EmployeePersonalInfo, UserInfo } from "./types";
@@ -37,7 +38,8 @@ export interface MeProfile {
 //      GET /employees/{id}/personal-info → contact + emergency contacts
 // Steps 2 and 3 run in parallel once employeeId is known.
 export function useMeProfile() {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const { state: subState, retry: retryIdentity } = useAsgardeoSub();
   const qc = useQueryClient();
   const userSub = subState.status === "ready" ? subState.sub : undefined;
@@ -51,7 +53,6 @@ export function useMeProfile() {
     enabled: isSignedIn && backendConfigured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
 
       // Share the ["user-info", sub] cache slot with useUserInfo (the
       // TopBar's avatar reader). Without this, both hooks would issue an

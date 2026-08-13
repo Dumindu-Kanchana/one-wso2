@@ -17,6 +17,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, HttpError, defaultQueryRetry } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { parBackendUrl, parServiceUrls } from "@config/apiConfig";
 import type { ParCycle, ParRating } from "./types";
 import { digiopsHeaders } from "../util/digiopsHeaders";
@@ -24,14 +25,14 @@ import { digiopsHeaders } from "../util/digiopsHeaders";
 // Returns the caller's currently-OPEN par cycle (if any). Non-lead/non-admin
 // callers can only query their own email; backend enforces that.
 export function useActiveParCycle(workEmail: string | undefined) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const backendConfigured = Boolean(parBackendUrl);
   return useQuery<ParCycle[]>({
     queryKey: ["par-cycles-open", workEmail],
     enabled: isSignedIn && backendConfigured && Boolean(workEmail),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<ParCycle[]>(
         parServiceUrls.parCycles(workEmail!, "OPEN"),
         accessToken,
@@ -47,7 +48,8 @@ export function useActiveParCycle(workEmail: string | undefined) {
 // once we have a cycleId. A 404 from the backend means "no rating record
 // exists yet for you in this cycle" — surface it as null, not an error.
 export function useParRating(parCycleId: number | undefined, workEmail: string | undefined) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const backendConfigured = Boolean(parBackendUrl);
   return useQuery<ParRating | null>({
     queryKey: ["par-rating", parCycleId, workEmail],
@@ -55,7 +57,6 @@ export function useParRating(parCycleId: number | undefined, workEmail: string |
       isSignedIn && backendConfigured && Boolean(parCycleId) && Boolean(workEmail),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       try {
         return await authedGet<ParRating>(
           parServiceUrls.parRating(parCycleId!, workEmail!),
@@ -78,14 +79,14 @@ export function useParRating(parCycleId: number | undefined, workEmail: string |
 // enabled (typically because the OPEN query came back empty and we want
 // to fall back to the last completed cycle).
 export function useClosedParCycles(workEmail: string | undefined, enabled: boolean) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const backendConfigured = Boolean(parBackendUrl);
   return useQuery<ParCycle[]>({
     queryKey: ["par-cycles-closed", workEmail],
     enabled: enabled && isSignedIn && backendConfigured && Boolean(workEmail),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<ParCycle[]>(
         parServiceUrls.parCycles(workEmail!, "CLOSED"),
         accessToken,

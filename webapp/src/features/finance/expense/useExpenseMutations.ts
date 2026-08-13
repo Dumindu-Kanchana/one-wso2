@@ -15,8 +15,8 @@
 // under the License.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAsgardeo } from "@asgardeo/react";
 import { authedDelete, authedPost } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { expenseServiceUrls } from "@config/apiConfig";
 import { uploadReceipt } from "../util/financeReceipts";
 import type {
@@ -27,11 +27,10 @@ import type {
 
 // POST /claims/{email}/transactions/receipts/file (raw binary) → fileName.
 export function useExpenseReceiptUpload() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   return useMutation<string, Error, { email: string; file: File }>({
     mutationFn: async ({ email, file }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return uploadReceipt(expenseServiceUrls.receiptUpload(email), accessToken, file);
     },
   });
@@ -39,12 +38,11 @@ export function useExpenseReceiptUpload() {
 
 // POST /claims — submit a new expense claim to the caller's lead.
 export function useSubmitExpenseClaim() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, ExpenseClaimPayload>({
     mutationFn: async (payload) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(expenseServiceUrls.claims, accessToken, payload);
     },
     onSuccess: async () => {
@@ -56,12 +54,11 @@ export function useSubmitExpenseClaim() {
 
 // POST /claim-drafts — autosave the in-progress claim; DELETE clears it.
 export function useExpenseDraftSync() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   const save = useMutation<void, Error, ExpenseTransactionPayload[]>({
     mutationFn: async (transactions) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(expenseServiceUrls.claimDrafts, accessToken, { transactions });
     },
     onSuccess: async () => {
@@ -71,7 +68,6 @@ export function useExpenseDraftSync() {
   const remove = useMutation<void, Error, void>({
     mutationFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedDelete(expenseServiceUrls.claimDrafts, accessToken);
     },
     onSuccess: async () => {
@@ -84,12 +80,11 @@ export function useExpenseDraftSync() {
 // POST /claims/{id}/status — lead or finance approve/reject. The backend
 // authorizes on the caller being a lead of the claim or an admin.
 export function useExpenseClaimStatus() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, { claimId: string; body: ExpenseStatusPayload }>({
     mutationFn: async ({ claimId, body }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(expenseServiceUrls.claimStatus(claimId), accessToken, body);
     },
     onSuccess: async () => {

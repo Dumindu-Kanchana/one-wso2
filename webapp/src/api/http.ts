@@ -191,6 +191,14 @@ async function throwFromError(url: string, res: Response, method: string): Promi
 // which require `x-user-timezone-offset`) add per-backend quirks without
 // polluting the core helper. The Authorization header is applied after
 // extra headers so it cannot be silently overridden.
+//
+// `accessToken` stays a required parameter on purpose — see @hooks/useAccessToken
+// for why callers fetch it via the Asgardeo hook rather than this file
+// pulling it from @api/authBridge's registered accessor itself. The bridge
+// accessor is only safe on the 401-retry path below (fetchWithReauth),
+// which by definition runs after a first request already succeeded; making
+// it the primary source too would race AuthBridgeMount's registration
+// effect on a cold load.
 export async function authedGet<T>(
   url: string,
   accessToken: string,

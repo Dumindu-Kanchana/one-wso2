@@ -17,8 +17,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, authedPost } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { isOpdBackendConfigured, opdServiceUrls } from "@config/apiConfig";
-import { useUserSub } from "../util/financeAuth";
+import { useUserSub } from "@hooks/useAsgardeoSub";
 import { financeRetry } from "../util/financeError";
 import type {
   OpdAppData,
@@ -33,7 +34,8 @@ export { isOpdBackendConfigured };
 // GET /user-info — the OPD role scheme (userRoles: 444 submitter / 555
 // finance). Keyed per-user so an account switch can't leak.
 export function useOpdUserInfo(enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdUserInfo>({
@@ -41,7 +43,6 @@ export function useOpdUserInfo(enabled = true) {
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<OpdUserInfo>(opdServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
@@ -51,7 +52,8 @@ export function useOpdUserInfo(enabled = true) {
 
 // GET /app-data — claim summary (limit/remaining) + any saved draft.
 export function useOpdAppData() {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdAppData>({
@@ -59,7 +61,6 @@ export function useOpdAppData() {
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<OpdAppData>(opdServiceUrls.appData, accessToken);
     },
     staleTime: 60 * 1000,
@@ -70,7 +71,8 @@ export function useOpdAppData() {
 // POST /search-claims — the list endpoint for both History (own claims) and
 // Approvals (all claims). `enabled` defers until a filter is ready.
 export function useOpdClaims(payload: OpdClaimSearchPayload, enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdClaim[]>({
@@ -80,7 +82,6 @@ export function useOpdClaims(payload: OpdClaimSearchPayload, enabled = true) {
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       const res = await authedPost<OpdClaim[]>(opdServiceUrls.searchClaims, accessToken, payload);
       return res ?? [];
     },
@@ -91,7 +92,8 @@ export function useOpdClaims(payload: OpdClaimSearchPayload, enabled = true) {
 
 // GET /employees — for resolving approver-view user names/avatars.
 export function useOpdEmployees(enabled = true) {
-  const { getAccessToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const userSub = useUserSub();
   const configured = isOpdBackendConfigured();
   return useQuery<OpdEmployee[]>({
@@ -99,7 +101,6 @@ export function useOpdEmployees(enabled = true) {
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return authedGet<OpdEmployee[]>(opdServiceUrls.employees, accessToken);
     },
     staleTime: 10 * 60 * 1000,

@@ -15,19 +15,18 @@
 // under the License.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAsgardeo } from "@asgardeo/react";
 import { authedDelete, authedPost } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { opdServiceUrls } from "@config/apiConfig";
 import { uploadReceipt } from "../util/financeReceipts";
 import type { OpdClaimPayload, OpdStatusPayload, OpdTransaction } from "./opdTypes";
 
 // POST /claims/{email}/transactions/receipts/file (raw binary) → fileName.
 export function useOpdReceiptUpload() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   return useMutation<string, Error, { email: string; file: File }>({
     mutationFn: async ({ email, file }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       return uploadReceipt(opdServiceUrls.receiptUpload(email), accessToken, file);
     },
   });
@@ -36,12 +35,11 @@ export function useOpdReceiptUpload() {
 // POST /claims — submit a new OPD claim. Invalidates the claims + app-data
 // caches so History and the remaining-balance summary refetch.
 export function useSubmitOpdClaim() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, OpdClaimPayload>({
     mutationFn: async (payload) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(opdServiceUrls.claims, accessToken, payload);
     },
     onSuccess: async () => {
@@ -54,12 +52,11 @@ export function useSubmitOpdClaim() {
 // POST /claim-drafts — persist the in-progress claim as a server-side draft
 // (autosaved from the New Claim page). DELETE /claim-drafts clears it.
 export function useOpdDraftSync() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   const save = useMutation<void, Error, OpdTransaction[]>({
     mutationFn: async (transactions) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(opdServiceUrls.claimDrafts, accessToken, { transactions });
     },
     onSuccess: async () => {
@@ -69,7 +66,6 @@ export function useOpdDraftSync() {
   const remove = useMutation<void, Error, void>({
     mutationFn: async () => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedDelete(opdServiceUrls.claimDrafts, accessToken);
     },
     onSuccess: async () => {
@@ -81,12 +77,11 @@ export function useOpdDraftSync() {
 
 // POST /claims/{id}/status — finance approve/reject. Reject carries a reason.
 export function useOpdClaimStatus() {
-  const { getAccessToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, { claimId: string; body: OpdStatusPayload }>({
     mutationFn: async ({ claimId, body }) => {
       const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No access_token available from Asgardeo");
       await authedPost<unknown>(opdServiceUrls.claimStatus(claimId), accessToken, body);
     },
     onSuccess: async () => {
