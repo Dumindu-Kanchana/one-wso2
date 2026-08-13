@@ -72,19 +72,17 @@ export function humanizeHttpError(err: unknown): string {
   return "Something went wrong.";
 }
 
-// Build the Header record for an authed request. Extra headers are spread
-// FIRST so Authorization always wins — an untyped caller cannot accidentally
-// overwrite the Bearer token by supplying an `Authorization` key of any
-// case. `Content-Type` is added for methods that send a JSON body.
-function buildHeaders(
-  accessToken: string,
-  extraHeaders?: Record<string, string>,
-  withJsonBody?: boolean,
-): Record<string, string> {
+// Build the non-auth headers for a request — `extraHeaders` plus
+// `Content-Type` for methods that send a JSON body. Does NOT set
+// `Authorization`: every caller of this routes through fetchWithReauth,
+// which sets that header itself (and is the only place that can, since it
+// may need to swap in a freshly-refreshed token on a 401 retry) — so
+// computing it here too would just be a value fetchWithReauth immediately
+// overwrites and throws away.
+function buildHeaders(extraHeaders?: Record<string, string>, withJsonBody?: boolean): Record<string, string> {
   return {
     ...(extraHeaders ?? {}),
     ...(withJsonBody ? { "Content-Type": "application/json" } : {}),
-    Authorization: `Bearer ${accessToken}`,
   };
 }
 
@@ -189,8 +187,9 @@ async function throwFromError(url: string, res: Response, method: string): Promi
 // and makes the request non-simple, forcing an unnecessary CORS preflight.
 // `extraHeaders` lets specific callers (e.g. promotion-app / par-app,
 // which require `x-user-timezone-offset`) add per-backend quirks without
-// polluting the core helper. The Authorization header is applied after
-// extra headers so it cannot be silently overridden.
+// polluting the core helper. Authorization isn't set here at all — see
+// buildHeaders above — fetchWithReauth applies it after extraHeaders so it
+// cannot be silently overridden.
 //
 // `accessToken` stays a required parameter on purpose — see @hooks/useAccessToken
 // for why callers fetch it via the Asgardeo hook rather than this file
@@ -204,7 +203,7 @@ export async function authedGet<T>(
   accessToken: string,
   extraHeaders?: Record<string, string>,
 ): Promise<T> {
-  const res = await fetchWithReauth(url, { headers: buildHeaders(accessToken, extraHeaders) }, accessToken);
+  const res = await fetchWithReauth(url, { headers: buildHeaders(extraHeaders) }, accessToken);
   if (!res.ok) await throwFromError(url, res, "authedGet");
   return readJsonOrThrow<T>(res, url);
 }
@@ -219,7 +218,7 @@ export async function authedPost<T>(
 ): Promise<T | null> {
   const res = await fetchWithReauth(
     url,
-    { method: "POST", headers: buildHeaders(accessToken, extraHeaders, true), body: JSON.stringify(body) },
+    { method: "POST", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
     accessToken,
   );
   if (!res.ok) await throwFromError(url, res, "authedPost");
@@ -236,7 +235,7 @@ export async function authedPatch<T>(
 ): Promise<T | null> {
   const res = await fetchWithReauth(
     url,
-    { method: "PATCH", headers: buildHeaders(accessToken, extraHeaders, true), body: JSON.stringify(body) },
+    { method: "PATCH", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
     accessToken,
   );
   if (!res.ok) await throwFromError(url, res, "authedPatch");
@@ -270,7 +269,7 @@ export async function authedDelete(
 ): Promise<void> {
   const res = await fetchWithReauth(
     url,
-    { method: "DELETE", headers: buildHeaders(accessToken, extraHeaders) },
+    { method: "DELETE", headers: buildHeaders(extraHeaders) },
     accessToken,
   );
   if (!res.ok) await throwFromError(url, res, "authedDelete");
