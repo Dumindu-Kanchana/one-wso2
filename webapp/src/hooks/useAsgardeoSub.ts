@@ -114,10 +114,18 @@ export function useAsgardeoSub(): { state: SubState; retry: () => void } {
 // this before returning it — this generalizes the pattern useMeProfile
 // introduced for its own single query.
 //
-// Identity errors take precedence over the query's own error — if the JWT
-// subject never resolved, the query itself would never even have fired.
-// Once identity resolves (`enabled` flips true), the real query state
-// takes over normally.
+// Identity errors always take precedence over whatever error state the
+// query itself happens to carry. Don't special-case query.isError here —
+// React Query's real refetch() bypasses `enabled` (see the note on
+// useMeProfile above), so a disabled query CAN end up with a real isError
+// from some earlier forced refetch attempt (a stray double-click, the
+// devtools' manual refetch, ...) even while identity is unresolved. If we
+// deferred to that instead, the page would show whatever unrelated error
+// that fetch produced, with `.refetch` pointing at React Query's real
+// refetch — which just re-fires the same doomed queryFn instead of ever
+// retrying identity, permanently shadowing the one error that's actually
+// recoverable. Once identity resolves (`enabled` flips true), the real
+// query state takes over normally.
 //
 // The synthetic result doesn't match React Query's discriminated union
 // exactly (the four *Result variants have exclusive boolean flags), so we
@@ -129,7 +137,7 @@ export function foldIdentityError<TData>(
   identityState: SubState,
   retryIdentity: () => void,
 ): UseQueryResult<TData, Error> {
-  if (identityState.status !== "error" || query.isError) return query;
+  if (identityState.status !== "error") return query;
   const synthetic = {
     ...query,
     isError: true,
