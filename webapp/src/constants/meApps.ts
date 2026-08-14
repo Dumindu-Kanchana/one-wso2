@@ -28,10 +28,12 @@ export const ME_APPS: readonly MenuApp[] = [
     emoji: "🌴",
     purpose: "Apply for and track leave; leads and people-ops approve and report.",
     items: [
-      { id: "leave-apply", label: "Apply", desc: "Request general or sabbatical leave.", path: "/me/leave/apply" },
-      { id: "leave-approve", label: "Approve", desc: "Review and approve your team's leave requests.", requires: ["lead"], path: "/me/leave/approve" },
+      { id: "leave-apply", label: "Apply", desc: "Request general leave.", path: "/me/leave/apply" },
       { id: "leave-history", label: "My History", desc: "Your past and upcoming leave.", path: "/me/leave/history" },
       { id: "leave-reports", label: "Reports", desc: "Leave usage reports across the org.", requires: ["lead", "admin"], path: "/me/leave/reports" },
+      // Sabbatical use cases (apply/approve/report) are on hold this
+      // iteration — placeholder links out to the Leave app instead.
+      { id: "leave-sabbatical", label: "Sabbatical", desc: "Coming soon — apply via the Leave app for now.", path: "/me/leave/sabbatical" },
     ],
   },
 ];

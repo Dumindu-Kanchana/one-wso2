@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAsgardeo } from "@asgardeo/react";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { refreshIdToken } from "@api/authBridge";
 
 // Resolves the current Asgardeo user's `sub` claim. Used as an identity
@@ -102,4 +103,54 @@ export function useAsgardeoSub(): { state: SubState; retry: () => void } {
   }, [isSignedIn, getDecodedIdToken, retryTick]);
 
   return { state, retry };
+}
+
+// Folds a failed identity resolution into a query's own result shape, so a
+// page sees a real error (with a retry path) instead of an indefinitely
+// disabled query — `enabled: ... && Boolean(userSub)` never flips true, so
+// the query itself never runs and never reports an error either, leaving
+// the page stuck showing an empty/loading state forever. Every sub-keyed
+// query (leave, finance backends, ...) should route its result through
+// this before returning it — this generalizes the pattern useMeProfile
+// introduced for its own single query.
+//
+// Identity errors always take precedence over whatever error state the
+// query itself happens to carry. Don't special-case query.isError here —
+// React Query's real refetch() bypasses `enabled` (see the note on
+// useMeProfile above), so a disabled query CAN end up with a real isError
+// from some earlier forced refetch attempt (a stray double-click, the
+// devtools' manual refetch, ...) even while identity is unresolved. If we
+// deferred to that instead, the page would show whatever unrelated error
+// that fetch produced, with `.refetch` pointing at React Query's real
+// refetch — which just re-fires the same doomed queryFn instead of ever
+// retrying identity, permanently shadowing the one error that's actually
+// recoverable. Once identity resolves (`enabled` flips true), the real
+// query state takes over normally.
+//
+// The synthetic result doesn't match React Query's discriminated union
+// exactly (the four *Result variants have exclusive boolean flags), so we
+// cast through unknown — callers only read isError + error + isPending +
+// isLoading + isFetching + isSuccess + refetch, and this shape sets those
+// consistently.
+export function foldIdentityError<TData>(
+  query: UseQueryResult<TData, Error>,
+  identityState: SubState,
+  retryIdentity: () => void,
+): UseQueryResult<TData, Error> {
+  if (identityState.status !== "error") return query;
+  const synthetic = {
+    ...query,
+    isError: true,
+    isPending: false,
+    isLoading: false,
+    isSuccess: false,
+    isFetching: false,
+    status: "error" as const,
+    error: new Error(identityState.message),
+    refetch: (async () => {
+      retryIdentity();
+      return query;
+    }) as typeof query.refetch,
+  };
+  return synthetic as unknown as UseQueryResult<TData, Error>;
 }

@@ -17,8 +17,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, defaultQueryRetry } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
-import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
+import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 
 // Minimal shape returned by the people-app /user-info endpoint. Matches
 // the fields we consume in the shell — the full type lives in
@@ -42,22 +43,24 @@ export interface UserInfoLite {
 // key via queryClient.fetchQuery, so the two hooks share cache — the
 // endpoint hits the network only once per (sub, staleTime) window.
 export function useUserInfo() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   // Shared sub resolver — the same one useMeProfile consumes. Guarantees
   // both hooks are byte-identical on the ["user-info", sub] cache key, so
   // the cache-share promise made in the comment above actually holds.
-  const { state: subState } = useAsgardeoSub();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
   const userSub = subState.status === "ready" ? subState.sub : undefined;
 
-  return useQuery<UserInfoLite>({
+  const query = useQuery<UserInfoLite>({
     queryKey: ["user-info", userSub],
     enabled: isSignedIn && Boolean(peopleBackendUrl) && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<UserInfoLite>(peopleServiceUrls.userInfo, idToken);
+      const accessToken = await getAccessToken();
+      return authedGet<UserInfoLite>(peopleServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
     retry: defaultQueryRetry,
   });
+
+  return foldIdentityError(query, subState, retryIdentity);
 }

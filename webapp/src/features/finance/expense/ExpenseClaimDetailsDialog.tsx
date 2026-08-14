@@ -27,7 +27,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
-import { useAsgardeo } from "@asgardeo/react";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { expenseServiceUrls } from "@config/apiConfig";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { StatusChip, expenseStatusMeta } from "../components/FinanceChips";
@@ -49,7 +49,7 @@ export function ExpenseClaimDetailsDialog({
   onClose: () => void;
   review?: ApproverView;
 }) {
-  const { getIdToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const { showError, showSuccess } = useNotifications();
   const status = useExpenseClaimStatus();
   const [rejecting, setRejecting] = useState(false);
@@ -76,9 +76,8 @@ export function ExpenseClaimDetailsDialog({
 
   const openReceipt = (fileName: string) => {
     setReceiptLoad(() => async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return fetchReceiptObjectUrl(expenseServiceUrls.receiptFile(fileName), idToken);
+      const accessToken = await getAccessToken();
+      return fetchReceiptObjectUrl(expenseServiceUrls.receiptFile(fileName), accessToken);
     });
   };
 

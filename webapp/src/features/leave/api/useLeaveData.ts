@@ -17,8 +17,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { isLeaveBackendConfigured, leaveServiceUrls } from "@config/apiConfig";
-import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
+import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { leaveRetry } from "../util/leaveError";
 import type {
   AppConfig,
@@ -48,45 +49,38 @@ function leavesQuery(filter: LeaveFilter): string {
   return qs ? `?${qs}` : "";
 }
 
-// Resolve the signed-in user's `sub` claim via the shared hook, so the
-// leave-user-info cache is scoped per-user (no cross-user leak on account
-// switch in the same tab) and gets the same retry-after-silent-reauth
-// resilience as every other sub-keyed query — see @hooks/useAsgardeoSub.
-function useUserSub(): string | undefined {
-  const { state } = useAsgardeoSub();
-  return state.status === "ready" ? state.sub : undefined;
-}
-
 // GET /user-info from the LEAVE backend. Distinct from people-app's — this
 // one carries isLead, subordinateCount, location, leadEmail and the leave
 // privilege scheme. Keyed per-user so an account switch can't leak.
 export function useLeaveUserInfo() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
-  const userSub = useUserSub();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isLeaveBackendConfigured();
-  return useQuery<LeaveUserInfo>({
+  const query = useQuery<LeaveUserInfo>({
     queryKey: ["leave-user-info", userSub],
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<LeaveUserInfo>(leaveServiceUrls.userInfo, idToken);
+      const accessToken = await getAccessToken();
+      return authedGet<LeaveUserInfo>(leaveServiceUrls.userInfo, accessToken);
     },
     staleTime: 5 * 60 * 1000,
     retry: leaveRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 export function useLeaveAppConfig() {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const configured = isLeaveBackendConfigured();
   return useQuery<AppConfig>({
     queryKey: ["leave-app-config"],
     enabled: isSignedIn && configured,
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<AppConfig>(leaveServiceUrls.appConfigs, idToken);
+      const accessToken = await getAccessToken();
+      return authedGet<AppConfig>(leaveServiceUrls.appConfigs, accessToken);
     },
     staleTime: 30 * 60 * 1000,
     retry: leaveRetry,
@@ -96,38 +90,40 @@ export function useLeaveAppConfig() {
 // GET /leaves with an arbitrary filter. `enabled` lets callers defer until
 // the filter is ready (e.g. a report needs a date range first).
 export function useLeaves(filter: LeaveFilter, enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
-  const userSub = useUserSub();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isLeaveBackendConfigured();
-  return useQuery<FetchedLeavesRecord>({
+  const query = useQuery<FetchedLeavesRecord>({
     // Scope per user — a filter without an explicit email resolves the
     // caller from the token, so an account switch in the same tab could
     // otherwise serve the previous user's leave rows within staleTime.
     queryKey: ["leaves", userSub, filter],
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
       return authedGet<FetchedLeavesRecord>(
         `${leaveServiceUrls.leaves}${leavesQuery(filter)}`,
-        idToken,
+        accessToken,
       );
     },
     staleTime: 60 * 1000,
     retry: leaveRetry,
   });
+  return foldIdentityError(query, subState, retryIdentity);
 }
 
 export function useLeaveEmployees(enabled = true) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const configured = isLeaveBackendConfigured();
   return useQuery<MinimalEmployeeInfo[]>({
     queryKey: ["leave-employees"],
     enabled: enabled && isSignedIn && configured,
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      return authedGet<MinimalEmployeeInfo[]>(leaveServiceUrls.employees, idToken);
+      const accessToken = await getAccessToken();
+      return authedGet<MinimalEmployeeInfo[]>(leaveServiceUrls.employees, accessToken);
     },
     staleTime: 10 * 60 * 1000,
     retry: leaveRetry,

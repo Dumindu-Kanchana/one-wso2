@@ -22,7 +22,7 @@
 // `HttpError.status`, so features MUST throw HttpError (or subclasses) on
 // non-2xx to get the right retry behavior.
 
-import { refreshIdToken } from "@api/authBridge";
+import { refreshAccessToken } from "@api/authBridge";
 
 // Thrown on non-2xx responses (and on unexpectedly-empty 2xx GETs). Carries
 // the HTTP status so retry logic (both per-query in features and global in
@@ -72,27 +72,25 @@ export function humanizeHttpError(err: unknown): string {
   return "Something went wrong.";
 }
 
-// Build the Header record for an authed request. Extra headers are spread
-// FIRST so Authorization always wins — an untyped caller cannot accidentally
-// overwrite the Bearer token by supplying an `Authorization` key of any
-// case. `Content-Type` is added for methods that send a JSON body.
-function buildHeaders(
-  idToken: string,
-  extraHeaders?: Record<string, string>,
-  withJsonBody?: boolean,
-): Record<string, string> {
+// Build the non-auth headers for a request — `extraHeaders` plus
+// `Content-Type` for methods that send a JSON body. Does NOT set
+// `Authorization`: every caller of this routes through fetchWithReauth,
+// which sets that header itself (and is the only place that can, since it
+// may need to swap in a freshly-refreshed token on a 401 retry) — so
+// computing it here too would just be a value fetchWithReauth immediately
+// overwrites and throws away.
+function buildHeaders(extraHeaders?: Record<string, string>, withJsonBody?: boolean): Record<string, string> {
   return {
     ...(extraHeaders ?? {}),
     ...(withJsonBody ? { "Content-Type": "application/json" } : {}),
-    Authorization: `Bearer ${idToken}`,
   };
 }
 
-// Asgardeo's id_token lives ~15min and getIdToken() never checks expiry
-// itself (it's a plain storage read), so any long-lived tab eventually
-// attaches a dead token and every backend starts 401ing at once. On a 401
-// specifically — never other statuses — try one silent re-auth (dedup'd
-// across concurrent callers in @api/authBridge).
+// The access_token eventually expires and getAccessToken() never checks
+// that itself (it's a plain storage read), so any long-lived tab
+// eventually attaches a dead token and every backend starts 401ing at
+// once. On a 401 specifically — never other statuses — try one silent
+// re-auth (dedup'd across concurrent callers in @api/authBridge).
 //
 // Only GET is safe to replay ourselves. A 401 doesn't prove a POST/PATCH/
 // DELETE never reached business logic — each backend has its own
@@ -108,18 +106,23 @@ function buildHeaders(
 // fall back to the original 401 response so the caller's normal
 // HttpError/error-banner path handles it, rather than surfacing a
 // different failure mode for this one case.
-async function fetchWithReauth(url: string, init: RequestInit, idToken: string): Promise<Response> {
+//
+// Exported so callers with a non-JSON response shape (binary/blob
+// receipts — see @features/finance/util/financeReceipts) can get the
+// same retry-on-401 behavior without going through authedGet's JSON
+// parsing.
+export async function fetchWithReauth(url: string, init: RequestInit, accessToken: string): Promise<Response> {
   const withAuth = (token: string): RequestInit => ({
     ...init,
     headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` },
   });
-  const first = await fetch(url, withAuth(idToken));
+  const first = await fetch(url, withAuth(accessToken));
   if (first.status !== 401) return first;
 
   const isReplaySafe = (init.method ?? "GET").toUpperCase() === "GET";
   let freshToken: string;
   try {
-    freshToken = await refreshIdToken();
+    freshToken = await refreshAccessToken();
   } catch {
     return first;
   }
@@ -176,7 +179,7 @@ async function throwFromError(url: string, res: Response, method: string): Promi
   throw new HttpError(url, res.status, body);
 }
 
-// Authed GET — Bearer <Asgardeo id_token>. Same header shape people-app's
+// Authed GET — Bearer <Asgardeo access_token>. Same header shape people-app's
 // axios interceptor sets (Choreo's gateway rewrites this into
 // x-jwt-assertion for the backend's JwtInterceptor).
 //
@@ -184,14 +187,23 @@ async function throwFromError(url: string, res: Response, method: string): Promi
 // and makes the request non-simple, forcing an unnecessary CORS preflight.
 // `extraHeaders` lets specific callers (e.g. promotion-app / par-app,
 // which require `x-user-timezone-offset`) add per-backend quirks without
-// polluting the core helper. The Authorization header is applied after
-// extra headers so it cannot be silently overridden.
+// polluting the core helper. Authorization isn't set here at all — see
+// buildHeaders above — fetchWithReauth applies it after extraHeaders so it
+// cannot be silently overridden.
+//
+// `accessToken` stays a required parameter on purpose — see @hooks/useAccessToken
+// for why callers fetch it via the Asgardeo hook rather than this file
+// pulling it from @api/authBridge's registered accessor itself. The bridge
+// accessor is only safe on the 401-retry path below (fetchWithReauth),
+// which by definition runs after a first request already succeeded; making
+// it the primary source too would race AuthBridgeMount's registration
+// effect on a cold load.
 export async function authedGet<T>(
   url: string,
-  idToken: string,
+  accessToken: string,
   extraHeaders?: Record<string, string>,
 ): Promise<T> {
-  const res = await fetchWithReauth(url, { headers: buildHeaders(idToken, extraHeaders) }, idToken);
+  const res = await fetchWithReauth(url, { headers: buildHeaders(extraHeaders) }, accessToken);
   if (!res.ok) await throwFromError(url, res, "authedGet");
   return readJsonOrThrow<T>(res, url);
 }
@@ -200,14 +212,14 @@ export async function authedGet<T>(
 // a body, or null on 201/204. Same error semantics as authedGet.
 export async function authedPost<T>(
   url: string,
-  idToken: string,
+  accessToken: string,
   body: unknown,
   extraHeaders?: Record<string, string>,
 ): Promise<T | null> {
   const res = await fetchWithReauth(
     url,
-    { method: "POST", headers: buildHeaders(idToken, extraHeaders, true), body: JSON.stringify(body) },
-    idToken,
+    { method: "POST", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
+    accessToken,
   );
   if (!res.ok) await throwFromError(url, res, "authedPost");
   return readJsonOrNull<T>(res, url);
@@ -217,14 +229,14 @@ export async function authedPost<T>(
 // a body, or null on 204. Same error semantics as authedPost.
 export async function authedPatch<T>(
   url: string,
-  idToken: string,
+  accessToken: string,
   body: unknown,
   extraHeaders?: Record<string, string>,
 ): Promise<T | null> {
   const res = await fetchWithReauth(
     url,
-    { method: "PATCH", headers: buildHeaders(idToken, extraHeaders, true), body: JSON.stringify(body) },
-    idToken,
+    { method: "PATCH", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
+    accessToken,
   );
   if (!res.ok) await throwFromError(url, res, "authedPatch");
   return readJsonOrNull<T>(res, url);
@@ -252,9 +264,13 @@ export function defaultQueryRetry(failureCount: number, error: unknown): boolean
 // Authed DELETE. Returns nothing; throws HttpError on non-2xx.
 export async function authedDelete(
   url: string,
-  idToken: string,
+  accessToken: string,
   extraHeaders?: Record<string, string>,
 ): Promise<void> {
-  const res = await fetchWithReauth(url, { method: "DELETE", headers: buildHeaders(idToken, extraHeaders) }, idToken);
+  const res = await fetchWithReauth(
+    url,
+    { method: "DELETE", headers: buildHeaders(extraHeaders) },
+    accessToken,
+  );
   if (!res.ok) await throwFromError(url, res, "authedDelete");
 }

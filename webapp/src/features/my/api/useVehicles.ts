@@ -17,6 +17,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedDelete, authedGet, authedPost, defaultQueryRetry } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
 import type { NewVehiclePayload, VehiclesResponse } from "./types";
 
@@ -30,18 +31,18 @@ function vehiclesKey(email: string | undefined) {
 }
 
 export function useVehicles(email: string | undefined) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const backendConfigured = Boolean(peopleBackendUrl);
   return useQuery<VehiclesResponse>({
     queryKey: vehiclesKey(email),
     enabled: isSignedIn && backendConfigured && Boolean(email),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
       // limit=100 is plenty — client-side pagination in the card is 2 at
       // a time. If a user ever has more than ~10 vehicles we can revisit.
       const url = `${peopleServiceUrls.employeeVehicles(email!)}?vehicleStatus=ACTIVE&limit=100`;
-      return authedGet<VehiclesResponse>(url, idToken);
+      return authedGet<VehiclesResponse>(url, accessToken);
     },
     staleTime: 60 * 1000,
     retry: defaultQueryRetry,
@@ -49,14 +50,13 @@ export function useVehicles(email: string | undefined) {
 }
 
 export function useAddVehicle(email: string | undefined) {
-  const { getIdToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, NewVehiclePayload>({
     mutationFn: async (payload) => {
       if (!email) throw new Error("Missing owner email");
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedPost<void>(peopleServiceUrls.employeeVehicles(email), idToken, payload);
+      const accessToken = await getAccessToken();
+      await authedPost<void>(peopleServiceUrls.employeeVehicles(email), accessToken, payload);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: vehiclesKey(email) });
@@ -65,14 +65,13 @@ export function useAddVehicle(email: string | undefined) {
 }
 
 export function useDeleteVehicle(email: string | undefined) {
-  const { getIdToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const qc = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: async (vehicleId) => {
       if (!email) throw new Error("Missing owner email");
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
-      await authedDelete(peopleServiceUrls.employeeVehicle(email, vehicleId), idToken);
+      const accessToken = await getAccessToken();
+      await authedDelete(peopleServiceUrls.employeeVehicle(email, vehicleId), accessToken);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: vehiclesKey(email) });

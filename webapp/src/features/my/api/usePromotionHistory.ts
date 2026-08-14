@@ -17,6 +17,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, defaultQueryRetry } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { promotionBackendUrl, promotionServiceUrls } from "@config/apiConfig";
 import type { PromotionHistoryResponse } from "./types";
 import { digiopsHeaders } from "../util/digiopsHeaders";
@@ -28,17 +29,17 @@ import { digiopsHeaders } from "../util/digiopsHeaders";
 // Non-lead / non-admin users can only fetch their own history — the
 // backend authorization rejects cross-user lookups with a 401/403.
 export function usePromotionHistory(workEmail: string | undefined, enabled: boolean) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const backendConfigured = Boolean(promotionBackendUrl);
   return useQuery<PromotionHistoryResponse>({
     queryKey: ["promotion-history", workEmail],
     enabled: enabled && isSignedIn && backendConfigured && Boolean(workEmail),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
       return authedGet<PromotionHistoryResponse>(
         promotionServiceUrls.promotionHistory(workEmail!),
-        idToken,
+        accessToken,
         digiopsHeaders(),
       );
     },

@@ -17,6 +17,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
 import { authedGet, defaultQueryRetry } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
 import { promotionBackendUrl, promotionServiceUrls } from "@config/apiConfig";
 import type { PromotionEmployeeInfoResponse } from "./types";
 import { digiopsHeaders } from "../util/digiopsHeaders";
@@ -28,17 +29,17 @@ import { digiopsHeaders } from "../util/digiopsHeaders";
 // Skips the request entirely when ONE_WSO2_PROMOTION_BACKEND_URL isn't
 // configured — the calling component renders a "not configured" fallback.
 export function usePromotionEmployeeInfo(workEmail: string | undefined) {
-  const { getIdToken, isSignedIn } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const backendConfigured = Boolean(promotionBackendUrl);
   return useQuery<PromotionEmployeeInfoResponse>({
     queryKey: ["promotion-employee-info", workEmail],
     enabled: isSignedIn && backendConfigured && Boolean(workEmail),
     queryFn: async () => {
-      const idToken = await getIdToken();
-      if (!idToken) throw new Error("No id_token available from Asgardeo");
+      const accessToken = await getAccessToken();
       return authedGet<PromotionEmployeeInfoResponse>(
         promotionServiceUrls.employeeInfo(workEmail!),
-        idToken,
+        accessToken,
         digiopsHeaders(),
       );
     },

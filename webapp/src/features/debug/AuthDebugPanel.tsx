@@ -31,13 +31,16 @@ import { useAsgardeo } from "@asgardeo/react";
 import { peopleBackendUrl } from "@config/apiConfig";
 
 // Dev-only debug: floating pill at bottom-right that opens a dialog with
-// the decoded id_token, so we can eyeball whether email + groups (the
-// claims people-app's backend requires) are actually being issued.
+// the decoded id_token AND access_token, so we can eyeball whether email +
+// groups (the id_token claims people-app's backend requires) are actually
+// being issued, and — separately — whether the access_token actually being
+// sent as the Bearer credential on every API call (see @api/http) is the
+// one a rejecting backend is unhappy with.
 //
 // Only mounted in dev (import.meta.env.DEV). Nothing in this component
-// makes a network request — it just decodes the JWT client-side. Payload
+// makes a network request — it just decodes each JWT client-side. Payload
 // is displayed in a monospace <pre> that scrolls, and a couple of quick
-// verdict chips call out the two claims the backend cares about.
+// verdict chips call out the two id_token claims the backend cares about.
 export default function AuthDebugPanel() {
   if (!import.meta.env.DEV) return null;
   return <AuthDebugPanelInner />;
@@ -55,20 +58,35 @@ type DecodeResult =
   | { kind: "ok"; decoded: DecodedToken }
   | { kind: "error"; message: string };
 
-function AuthDebugPanelInner() {
-  const { isSignedIn, getIdToken } = useAsgardeo();
-  const [open, setOpen] = useState(false);
+function decodeJwt(rawToken: string): DecodeResult {
+  if (!rawToken) return { kind: "empty" };
+  try {
+    const parts = rawToken.split(".");
+    if (parts.length < 2) throw new Error("Not a JWT (expected header.payload.signature)");
+    return {
+      kind: "ok",
+      decoded: {
+        header: JSON.parse(b64urlDecode(parts[0])),
+        payload: JSON.parse(b64urlDecode(parts[1])),
+      },
+    };
+  } catch (e) {
+    return { kind: "error", message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+function useDecodedToken(open: boolean, isSignedIn: boolean, getToken: () => Promise<string>) {
   const [rawToken, setRawToken] = useState<string>("");
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !isSignedIn) return;
     let cancelled = false;
-    setFetchError(null);
-    getIdToken()
+    getToken()
       .then((t) => {
         if (cancelled) return;
         setRawToken(t ?? "");
+        setFetchError(null);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -77,35 +95,30 @@ function AuthDebugPanelInner() {
     return () => {
       cancelled = true;
     };
-  }, [open, isSignedIn, getIdToken]);
+  }, [open, isSignedIn, getToken]);
 
-  const result = useMemo<DecodeResult>(() => {
-    if (!rawToken) return { kind: "empty" };
-    try {
-      const parts = rawToken.split(".");
-      if (parts.length < 2) throw new Error("Not a JWT (expected header.payload.signature)");
-      return {
-        kind: "ok",
-        decoded: {
-          header: JSON.parse(b64urlDecode(parts[0])),
-          payload: JSON.parse(b64urlDecode(parts[1])),
-        },
-      };
-    } catch (e) {
-      return { kind: "error", message: e instanceof Error ? e.message : String(e) };
-    }
-  }, [rawToken]);
-
+  const result = useMemo(() => decodeJwt(rawToken), [rawToken]);
   const decoded = result.kind === "ok" ? result.decoded : null;
   const displayError = fetchError ?? (result.kind === "error" ? result.message : null);
-  const email = decoded?.payload["email"];
-  const groups = decoded?.payload["groups"];
+
+  return { rawToken, decoded, displayError };
+}
+
+function AuthDebugPanelInner() {
+  const { isSignedIn, getIdToken, getAccessToken } = useAsgardeo();
+  const [open, setOpen] = useState(false);
+
+  const idToken = useDecodedToken(open, isSignedIn, getIdToken);
+  const accessToken = useDecodedToken(open, isSignedIn, getAccessToken);
+
+  const email = idToken.decoded?.payload["email"];
+  const groups = idToken.decoded?.payload["groups"];
   const hasEmail = typeof email === "string" && email.length > 0;
   const hasGroups = Array.isArray(groups) && groups.length > 0;
 
   return (
     <>
-      <Tooltip title="Auth debug — decode id_token">
+      <Tooltip title="Auth debug — decode id_token & access_token">
         <Button
           variant="contained"
           size="small"
@@ -129,7 +142,7 @@ function AuthDebugPanelInner() {
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <span>Auth debug — id_token</span>
+          <span>Auth debug — id_token & access_token</span>
           <Chip
             size="small"
             label={isSignedIn ? "signed in" : "signed out"}
@@ -142,7 +155,7 @@ function AuthDebugPanelInner() {
             <KVRow k="peopleBackendUrl" v={peopleBackendUrl || "(unset)"} mono />
           </Section>
 
-          <Section title="Required by people-app backend">
+          <Section title="Required claims (id_token)">
             <Stack direction="row" spacing={1}>
               <Chip
                 size="small"
@@ -167,43 +180,14 @@ function AuthDebugPanelInner() {
             </Typography>
           </Section>
 
-          {displayError && (
-            <Section title="Error">
-              <Typography sx={{ fontSize: 12.5, color: "error.main", fontFamily: "monospace" }}>{displayError}</Typography>
-            </Section>
-          )}
-
-          <Section title="Decoded header">
-            <Pre>{decoded ? pretty(decoded.header) : rawToken ? "decoding…" : "(no token yet)"}</Pre>
-          </Section>
-
-          <Section title="Decoded payload">
-            <Pre>{decoded ? pretty(decoded.payload) : rawToken ? "decoding…" : "(no token yet)"}</Pre>
-          </Section>
-
-          <Section title="Raw token">
-            <Pre wrap>{rawToken || "(no token yet — open this dialog while signed in)"}</Pre>
-          </Section>
+          <TokenSection label="ID token" token={idToken} />
+          <TokenSection
+            label="Access token"
+            token={accessToken}
+            note="This is the token actually attached as the Bearer credential on every API call — check this one first when a backend rejects a request."
+          />
         </DialogContent>
         <DialogActions>
-          <Button
-            size="small"
-            onClick={() => {
-              if (rawToken) void navigator.clipboard.writeText(rawToken);
-            }}
-            disabled={!rawToken}
-          >
-            Copy raw token
-          </Button>
-          <Button
-            size="small"
-            onClick={() => {
-              if (decoded) void navigator.clipboard.writeText(pretty(decoded.payload));
-            }}
-            disabled={!decoded}
-          >
-            Copy payload
-          </Button>
           <Box sx={{ flex: 1 }} />
           <Button size="small" variant="contained" onClick={() => setOpen(false)}>
             Close
@@ -211,6 +195,67 @@ function AuthDebugPanelInner() {
         </DialogActions>
       </Dialog>
     </>
+  );
+}
+
+function TokenSection({
+  label,
+  token,
+  note,
+}: {
+  label: string;
+  token: { rawToken: string; decoded: DecodedToken | null; displayError: string | null };
+  note?: string;
+}) {
+  const { rawToken, decoded, displayError } = token;
+  return (
+    <Section title={label}>
+      {note && (
+        <Typography sx={{ fontSize: 11.5, color: "text.disabled", mb: 1, lineHeight: 1.5 }}>{note}</Typography>
+      )}
+
+      {displayError && (
+        <Typography sx={{ fontSize: 12.5, color: "error.main", fontFamily: "monospace", mb: 1 }}>
+          {displayError}
+        </Typography>
+      )}
+
+      <Typography sx={{ fontSize: 11, fontWeight: 700, color: "text.disabled", mb: 0.5 }}>
+        Decoded header
+      </Typography>
+      <Pre>{decoded ? pretty(decoded.header) : rawToken ? "decoding…" : "(no token yet)"}</Pre>
+
+      <Typography sx={{ fontSize: 11, fontWeight: 700, color: "text.disabled", mt: 1.25, mb: 0.5 }}>
+        Decoded payload
+      </Typography>
+      <Pre>{decoded ? pretty(decoded.payload) : rawToken ? "decoding…" : "(no token yet)"}</Pre>
+
+      <Typography sx={{ fontSize: 11, fontWeight: 700, color: "text.disabled", mt: 1.25, mb: 0.5 }}>
+        Raw token
+      </Typography>
+      <Pre wrap>{rawToken || "(no token yet — open this dialog while signed in)"}</Pre>
+
+      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+        <Button
+          size="small"
+          onClick={() => {
+            if (rawToken) void navigator.clipboard.writeText(rawToken);
+          }}
+          disabled={!rawToken}
+        >
+          Copy raw
+        </Button>
+        <Button
+          size="small"
+          onClick={() => {
+            if (decoded) void navigator.clipboard.writeText(pretty(decoded.payload));
+          }}
+          disabled={!decoded}
+        >
+          Copy payload
+        </Button>
+      </Stack>
+    </Section>
   );
 }
 

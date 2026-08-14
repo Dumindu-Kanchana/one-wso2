@@ -21,9 +21,9 @@ import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import LeaveApplyPage from "@features/leave/pages/LeaveApplyPage";
-import LeaveApprovePage from "@features/leave/pages/LeaveApprovePage";
 import LeaveHistoryPage from "@features/leave/pages/LeaveHistoryPage";
 import LeaveReportsPage from "@features/leave/pages/LeaveReportsPage";
+import LeaveSabbaticalComingSoonPage from "@features/leave/pages/LeaveSabbaticalComingSoonPage";
 import OpdNewClaimPage from "@features/finance/opd/pages/OpdNewClaimPage";
 import OpdHistoryPage from "@features/finance/opd/pages/OpdHistoryPage";
 import OpdApprovalsPage from "@features/finance/opd/pages/OpdApprovalsPage";
@@ -52,9 +52,11 @@ export default function App() {
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}
           <Route path="me/leave/apply" element={<LeaveApplyPage />} />
-          <Route path="me/leave/approve" element={<LeaveApprovePage />} />
           <Route path="me/leave/history" element={<LeaveHistoryPage />} />
           <Route path="me/leave/reports" element={<LeaveReportsPage />} />
+          {/* Sabbatical use cases (apply/approve/report) are on hold this
+              iteration — placeholder links out to the Leave app instead. */}
+          <Route path="me/leave/sabbatical" element={<LeaveSabbaticalComingSoonPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
           {/* People Ops → Me: the people-app profile sections only (no
               Connected apps — that lives on the Me home). */}

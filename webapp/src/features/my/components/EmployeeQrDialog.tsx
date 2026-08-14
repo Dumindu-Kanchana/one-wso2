@@ -26,8 +26,8 @@ import {
   Skeleton,
   Typography,
 } from "@wso2/oxygen-ui";
-import { useAsgardeo } from "@asgardeo/react";
-import { HttpError, humanizeHttpError } from "@api/http";
+import { useAccessToken } from "@hooks/useAccessToken";
+import { fetchWithReauth, HttpError, humanizeHttpError } from "@api/http";
 import { peopleServiceUrls } from "@config/apiConfig";
 
 // Employee QR-code dialog. Mirrors people-app/webapp's view/me QR flow —
@@ -45,7 +45,7 @@ export default function EmployeeQrDialog({
   email?: string;
   onClose: () => void;
 }) {
-  const { getIdToken } = useAsgardeo();
+  const getAccessToken = useAccessToken();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,12 +70,12 @@ export default function EmployeeQrDialog({
     setError(null);
     (async () => {
       try {
-        const idToken = await getIdToken();
-        if (!idToken) throw new Error("No id_token available from Asgardeo");
-        const res = await fetch(peopleServiceUrls.employeeQrCode(employeeId), {
-          headers: { Authorization: `Bearer ${idToken}` },
-          signal: controller.signal,
-        });
+        const accessToken = await getAccessToken();
+        const res = await fetchWithReauth(
+          peopleServiceUrls.employeeQrCode(employeeId),
+          { signal: controller.signal },
+          accessToken,
+        );
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           throw new HttpError(res.url, res.status, text);
@@ -98,7 +98,7 @@ export default function EmployeeQrDialog({
       cancelled = true;
       controller.abort();
     };
-  }, [open, employeeId, getIdToken]);
+  }, [open, employeeId, getAccessToken]);
 
   useEffect(() => {
     if (!url) return;

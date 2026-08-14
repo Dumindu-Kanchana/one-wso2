@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { HttpError } from "@api/http";
+import { fetchWithReauth, HttpError } from "@api/http";
 
 // Receipt endpoints on the finance backends take/return RAW BINARY, not
 // JSON or multipart — so they can't go through the shared authedPost helper
@@ -52,19 +52,18 @@ function parseJsonOrThrow(text: string, url: string, status: number): Record<str
 // Upload one receipt file. Returns the server-generated file name that must
 // be stored on the claim line as `receiptUrl`. Both backends wrap the name
 // slightly differently ({fileName} vs {body:{fileName}}), so we accept both.
+//
+// Routed through fetchWithReauth so an expired access_token still refreshes
+// the session on a 401 — but it's a POST, so (per fetchWithReauth's policy)
+// the request itself is never auto-replayed, only the original response is
+// returned; the caller's own retry (re-submitting the form) goes out with
+// the now-fresh token.
 export async function uploadReceipt(
   url: string,
-  idToken: string,
+  accessToken: string,
   file: File,
 ): Promise<string> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": file.type,
-      Authorization: `Bearer ${idToken}`,
-    },
-    body: file,
-  });
+  const res = await fetchWithReauth(url, { method: "POST", headers: { "Content-Type": file.type }, body: file }, accessToken);
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
@@ -102,8 +101,10 @@ export function isPreviewable(type: string): boolean {
 }
 
 // Fetch a stored receipt (binary endpoint) as an object URL for preview.
-export async function fetchReceiptObjectUrl(url: string, idToken: string): Promise<ReceiptSource> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
+// Routed through fetchWithReauth (GET is safe to replay) so an expired
+// access_token doesn't just fail receipt viewing outright.
+export async function fetchReceiptObjectUrl(url: string, accessToken: string): Promise<ReceiptSource> {
+  const res = await fetchWithReauth(url, {}, accessToken);
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
@@ -118,8 +119,10 @@ export async function fetchReceiptObjectUrl(url: string, idToken: string): Promi
 
 // cc-expenses returns attachments as `{ body: <base64> }` (no MIME), so we
 // sniff the type from the decoded magic bytes and hand back a data URL.
-export async function fetchBase64Attachment(url: string, idToken: string): Promise<ReceiptSource> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
+// Routed through fetchWithReauth (GET is safe to replay) so an expired
+// access_token doesn't just fail attachment viewing outright.
+export async function fetchBase64Attachment(url: string, accessToken: string): Promise<ReceiptSource> {
+  const res = await fetchWithReauth(url, {}, accessToken);
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
@@ -145,12 +148,11 @@ export async function fetchBase64Attachment(url: string, idToken: string): Promi
 
 // PUT raw file bytes to an attachment endpoint (cc-expenses). Returns the
 // server-stored file name from `{ body: fileName }`.
-export async function putBinaryFile(url: string, idToken: string, file: File): Promise<string> {
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": file.type, Authorization: `Bearer ${idToken}` },
-    body: file,
-  });
+//
+// Routed through fetchWithReauth — same refresh-but-don't-replay policy as
+// uploadReceipt above (PUT isn't auto-replayed either).
+export async function putBinaryFile(url: string, accessToken: string, file: File): Promise<string> {
+  const res = await fetchWithReauth(url, { method: "PUT", headers: { "Content-Type": file.type }, body: file }, accessToken);
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
