@@ -19,6 +19,7 @@ import { useAsgardeo } from "@asgardeo/react";
 import { useUserInfo } from "@api/useUserInfo";
 import { authConfig } from "@config/authConfig";
 import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
+import { useSecureSignOut } from "@hooks/useSecureSignOut";
 
 // Top-bar profile menu. Same composition pattern as
 // customer-portal/webapp/src/components/header/UserProfile.tsx —
@@ -36,7 +37,8 @@ import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 // claims in the id_token, so the people-app lookup is what actually
 // gives us "Suhan Dharmasuriya" instead of "suhanr".
 export default function UserProfileMenu() {
-  const { isSignedIn, signOut } = useAsgardeo();
+  const { isSignedIn } = useAsgardeo();
+  const secureSignOut = useSecureSignOut();
   const user = useAsgardeoUser();
   const userInfo = useUserInfo();
 
@@ -71,7 +73,7 @@ export default function UserProfileMenu() {
     window.open(authConfig.myAccountUrl, "_blank", "noopener,noreferrer");
   };
   const handleLogout = () => {
-    void signOut();
+    secureSignOut();
   };
 
   return (

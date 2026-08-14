@@ -14,11 +14,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { AsgardeoProvider, useAsgardeo } from "@asgardeo/react";
 import { OxygenUIThemeProvider } from "@wso2/oxygen-ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { BrowserRouter } from "react-router";
 import { authConfig } from "@config/authConfig";
 import { themeConfig } from "@config/themeConfig";
@@ -40,6 +39,18 @@ function AuthBridgeMount() {
   }, [getIdToken, getAccessToken, signInSilently]);
   return null;
 }
+
+// Query devtools are a development-only aid — never ship them to production,
+// where they would expose the cached profile / finance / leave / banking data
+// to the signed-in user. Lazy + DEV-gated so the package is dead-code
+// eliminated from the production bundle entirely (not just hidden).
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import("@tanstack/react-query-devtools").then((m) => ({
+        default: m.ReactQueryDevtools,
+      })),
+    )
+  : null;
 
 // One shared QueryClient — retry only on transient upstream errors. All
 // HTTP failures the app throws are HttpError (see @features/my/api), so we
@@ -86,7 +97,11 @@ export default function AppWithConfig() {
             </BrowserRouter>
           </ThemeModeProvider>
         </OxygenUIThemeProvider>
-        <ReactQueryDevtools initialIsOpen={false} />
+        {ReactQueryDevtools && (
+          <Suspense fallback={null}>
+            <ReactQueryDevtools initialIsOpen={false} />
+          </Suspense>
+        )}
       </QueryClientProvider>
     </AsgardeoProvider>
   );
