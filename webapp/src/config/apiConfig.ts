@@ -278,9 +278,26 @@ export const marketingOpsServiceUrls = {
   // it client-side, because the group names carry an environment suffix
   // (`-stg`) that differs per deployment. Gate on `/api/me`.capabilities.
   accessMap: `${marketingOpsBackendUrl}/api/access-map`,
+  // ---- ad campaigns → analytics ---------------------------------------------
+  //
+  // Note these are POSTs even though they are READS. Each `/run` endpoint takes
+  // a report config in the body and computes the answer live from Google Ads /
+  // LinkedIn / Salesforce; nothing is persisted and nothing changes server-side.
+  // They're POSTs only because the config is too large and structured to be a
+  // query string. Consumers should therefore treat them as queries (useQuery
+  // with a POST queryFn), not mutations — see useAdAnalytics.
+  //
+  // ⚠️ `/roi/run` and `/linkedin-roi/run` can answer **HTTP 200 with
+  // `status: "failed"`** and the reason in `error_message`. A 200 is not
+  // sufficient to conclude success.
+  adAnalyticsRoiOptions: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/roi/options`,
+  adAnalyticsRoiRun: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/roi/run`,
+  adAnalyticsLinkedInRoiRun: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/linkedin-roi/run`,
+  adAnalyticsDashboardRun: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/dashboard/run`,
+
   // Remaining operation roots — /api/crm-upload, /api/email-workbench,
-  // /api/ad-campaigns, /api/events, /api/audit — get their builders added by
-  // the phase that ports them, so this object never lists a URL nothing calls.
+  // /api/events, /api/audit — get their builders added by the phase that ports
+  // them, so this object never lists a URL nothing calls.
 };
 
 // The Marketing Ops frontend itself (not its backend) — for deep-linking out to

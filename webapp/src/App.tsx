@@ -21,6 +21,7 @@ import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
+import AdCampaignsAnalyticsPage from "@features/marketing-ops/ad-campaigns/pages/AdCampaignsAnalyticsPage";
 import UtmGeneratorPage from "@features/marketing-ops/utilities/pages/UtmGeneratorPage";
 import AssetNameGeneratorPage from "@features/marketing-ops/utilities/pages/AssetNameGeneratorPage";
 import UtmSettingsPage from "@features/marketing-ops/admin/pages/UtmSettingsPage";
@@ -91,6 +92,11 @@ export default function App() {
               still live in Marketing Ops; the overview deep-links out to them
               until their phase lands. */}
           <Route path="marketing-ops" element={<MarketingOpsPage />} />
+          {/* Ad Campaigns → Analytics. Read-only reports computed on demand. */}
+          <Route
+            path="marketing-ops/ad-campaigns/analytics"
+            element={<AdCampaignsAnalyticsPage />}
+          />
           {/* Utilities — open to any authorized Marketing Ops caller. */}
           <Route path="marketing-ops/utilities/utm" element={<UtmGeneratorPage />} />
           <Route

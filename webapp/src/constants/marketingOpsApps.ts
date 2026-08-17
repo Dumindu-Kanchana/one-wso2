@@ -83,14 +83,17 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
     purpose:
       "Cross-channel paid campaign performance — spend, reach and conversion pulled from the connected ad platforms.",
     items: [
-      // Phase 2. Read-only analytics: no mutations, no draft state.
+      // Phase 2 — ported. Computed live on every view; nothing is stored, so
+      // there is no draft state and no mutation. Note the backend endpoints are
+      // POSTs despite being reads (the report config is the body) — see
+      // marketingOpsServiceUrls.adAnalytics* in @config/apiConfig.
       // Gate: marketing-ops capability `adcampaigns`.
       {
         id: "mops-ad-analytics",
         label: "Analytics",
-        desc: "Campaign performance dashboard across the connected ad platforms.",
+        desc: "Paid-ad performance across Google Ads and LinkedIn, with the Salesforce funnel and ROI for Google.",
         requires: ["admin"],
-        // path: "/marketing-ops/ad-campaigns/analytics",
+        path: "/marketing-ops/ad-campaigns/analytics",
       },
     ],
   },
