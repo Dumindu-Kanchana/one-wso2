@@ -51,8 +51,9 @@ const ITEM_CAPABILITY: Record<string, MarketingOpsCapability> = {
   // Phase 2
   "mops-ad-analytics": "adcampaigns",
   // Phase 3
-  "mops-email-library": "emailworkbench",
-  "mops-email-editor": "emailworkbench",
+  "mops-email-create": "emailworkbench",
+  "mops-email-history": "emailworkbench",
+  "mops-email-manage": "emailworkbench",
   // Phase 4 — `events` and `events-review` are siblings, not a hierarchy:
   // holding one does not imply the other.
   "mops-events-mine": "events",

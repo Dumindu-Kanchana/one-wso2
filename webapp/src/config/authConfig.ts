@@ -71,6 +71,11 @@ declare global {
       // since Marketing Ops stays live throughout the migration. Optional —
       // when absent, those links are hidden.
       ONE_WSO2_MARKETINGOPS_WEB_APP_URL?: string;
+      // Base URL of the Pardot UI, used to deep-link to an email template
+      // after Email Workbench pushes it. Not an API — a link target.
+      // Optional; defaults to https://pi.pardot.com, which is correct for
+      // every WSO2 environment today.
+      ONE_WSO2_PARDOT_BASE_URL?: string;
       // Override for the Asgardeo My Account portal URL that the top-bar
       // "Profile" menu item opens. Only set this on non-standard tenants
       // (self-hosted / custom domain); on Asgardeo Cloud we derive it from

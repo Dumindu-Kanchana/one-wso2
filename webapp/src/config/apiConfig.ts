@@ -295,10 +295,59 @@ export const marketingOpsServiceUrls = {
   adAnalyticsLinkedInRoiRun: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/linkedin-roi/run`,
   adAnalyticsDashboardRun: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/dashboard/run`,
 
-  // Remaining operation roots — /api/crm-upload, /api/email-workbench,
-  // /api/events, /api/audit — get their builders added by the phase that ports
-  // them, so this object never lists a URL nothing calls.
+  // ---- email workbench -------------------------------------------------------
+  //
+  // The template library (approved HTML + thumbnail), per-user drafts, the
+  // Advanced editor's block catalog, and the Pardot send defaults.
+  //
+  // Two things differ from every other builder here:
+  //  - `emailWorkbenchTemplateThumbnail` returns an IMAGE, not JSON. It needs the
+  //    Authorization header like everything else, so it can't be an <img src>;
+  //    fetch it as a blob (see fetchWithReauth in @api/http and the precedent in
+  //    @features/finance/util/financeReceipts).
+  //  - `emailWorkbenchStructure` is the one AI-backed endpoint in the whole
+  //    Marketing Ops migration — it maps a plain-text draft onto a template's
+  //    block structure. Everything else in this perspective is deterministic.
+  emailWorkbenchTemplates: `${marketingOpsBackendUrl}/api/email-workbench/templates`,
+  emailWorkbenchTemplate: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/templates/${encodeURIComponent(id)}`,
+  emailWorkbenchTemplateThumbnail: (id: string, version?: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/templates/${encodeURIComponent(id)}/thumbnail${
+      version ? `?v=${encodeURIComponent(version)}` : ""
+    }`,
+  emailWorkbenchCategories: `${marketingOpsBackendUrl}/api/email-workbench/categories`,
+  emailWorkbenchDrafts: `${marketingOpsBackendUrl}/api/email-workbench/drafts`,
+  emailWorkbenchDraft: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/drafts/${encodeURIComponent(id)}`,
+  // Create the template in Pardot (draft → Completed).
+  emailWorkbenchDraftPush: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/drafts/${encodeURIComponent(id)}/push`,
+  // Update an already-pushed Pardot template. 409 if the draft was never pushed.
+  emailWorkbenchDraftUpdatePardot: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/drafts/${encodeURIComponent(id)}/update-pardot`,
+  emailWorkbenchBlocks: `${marketingOpsBackendUrl}/api/email-workbench/blocks`,
+  emailWorkbenchBlock: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/blocks/${encodeURIComponent(id)}`,
+  emailWorkbenchSettings: `${marketingOpsBackendUrl}/api/email-workbench/settings`,
+  emailWorkbenchStructure: `${marketingOpsBackendUrl}/api/email-workbench/structure`,
+
+  // Remaining operation roots — /api/crm-upload, /api/events, /api/audit — get
+  // their builders added by the phase that ports them, so this object never
+  // lists a URL nothing calls.
 };
+
+// Base URL of the Pardot UI, for deep-linking to a template after it's pushed.
+// Not an API — a link target. Defaults to Pardot's own host, which is correct for
+// every WSO2 environment today; the key exists so a sandbox can point elsewhere.
+//
+// Trailing slashes are stripped so pardotTemplateUrl() can concatenate safely.
+export const pardotBaseUrl: string = (
+  window.config?.ONE_WSO2_PARDOT_BASE_URL ?? "https://pi.pardot.com"
+).replace(/\/+$/, "");
+
+export function pardotTemplateUrl(id: number | string): string {
+  return `${pardotBaseUrl}/emailTemplate/read/id/${id}`;
+}
 
 // The Marketing Ops frontend itself (not its backend) — for deep-linking out to
 // operations One WSO2 hasn't ported yet. Marketing Ops stays live throughout the

@@ -104,20 +104,32 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
     purpose:
       "Compose marketing emails from reusable blocks and sync them to Pardot with a faithful plain-text alternative.",
     items: [
-      // Phase 3. Gate: marketing-ops capability `emailworkbench`.
+      // Phase 3 — ported. Gate: marketing-ops capability `emailworkbench`.
+      //
+      // Three items rather than the two originally planned, because the source has
+      // three genuinely different jobs: composing FROM a template, revisiting your
+      // OWN drafts, and curating the templates themselves. The editor is not an item
+      // — it's an immersive workspace reached by opening a template or a draft.
       {
-        id: "mops-email-library",
-        label: "Template Library",
-        desc: "Saved email drafts and templates.",
+        id: "mops-email-create",
+        label: "Create an email",
+        desc: "Start from an approved template, edit its content, and push the finished email to Pardot.",
         requires: ["admin"],
-        // path: "/marketing-ops/email-workbench/library",
+        path: "/marketing-ops/email-workbench/create",
       },
       {
-        id: "mops-email-editor",
-        label: "Editor",
-        desc: "Build and edit an email, then export it to Pardot.",
+        id: "mops-email-history",
+        label: "My emails",
+        desc: "Your own drafts and completed emails, with their Pardot sync state.",
         requires: ["admin"],
-        // path: "/marketing-ops/email-workbench/editor",
+        path: "/marketing-ops/email-workbench/history",
+      },
+      {
+        id: "mops-email-manage",
+        label: "Manage templates",
+        desc: "Onboard, edit or remove the approved templates marketers build from.",
+        requires: ["admin"],
+        path: "/marketing-ops/email-workbench/manage",
       },
     ],
   },
@@ -207,7 +219,6 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
       // Every item here is admin-only. Gate: `isAdmin` from /api/me — the
       // Marketing Ops admin group is the only thing that grants Settings.
       //
-      // Phase 3 adds: Email Workbench Pardot send defaults.
       // Phase 4 adds: Events member statuses + per-status column definitions
       //               (the import contract, not cosmetic config).
       // Deferred:     External System Log (a compliance record) and Access
@@ -228,6 +239,22 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
         desc: "Per-generator dropdown values for the Asset Name Generator.",
         requires: ["admin"],
         path: "/marketing-ops/admin/asset-name",
+      },
+      // Phase 3 — Email Workbench's two admin surfaces. Both land here rather than
+      // inside the operation because they configure it rather than use it.
+      {
+        id: "mops-admin-pardot",
+        label: "Pardot send defaults",
+        desc: "Campaign, tracker domain, email types and sender applied to every email pushed to Pardot.",
+        requires: ["admin"],
+        path: "/marketing-ops/admin/pardot",
+      },
+      {
+        id: "mops-admin-blocks",
+        label: "Block catalog",
+        desc: "The components the email editor offers. Editing a block changes what future emails insert.",
+        requires: ["admin"],
+        path: "/marketing-ops/admin/blocks",
       },
     ],
   },

@@ -26,6 +26,13 @@ import UtmGeneratorPage from "@features/marketing-ops/utilities/pages/UtmGenerat
 import AssetNameGeneratorPage from "@features/marketing-ops/utilities/pages/AssetNameGeneratorPage";
 import UtmSettingsPage from "@features/marketing-ops/admin/pages/UtmSettingsPage";
 import AssetNameSettingsPage from "@features/marketing-ops/admin/pages/AssetNameSettingsPage";
+import EmailWorkbenchSettingsPage from "@features/marketing-ops/admin/pages/EmailWorkbenchSettingsPage";
+import BlockCatalogPage from "@features/marketing-ops/admin/pages/BlockCatalogPage";
+import {
+  EmailWorkbenchCreatePage,
+  EmailWorkbenchHistoryPage,
+  EmailWorkbenchManagePage,
+} from "@features/marketing-ops/email-workbench/pages/EmailWorkbenchPages";
 import LeaveApplyPage from "@features/leave/pages/LeaveApplyPage";
 import LeaveHistoryPage from "@features/leave/pages/LeaveHistoryPage";
 import LeaveReportsPage from "@features/leave/pages/LeaveReportsPage";
@@ -92,6 +99,20 @@ export default function App() {
               still live in Marketing Ops; the overview deep-links out to them
               until their phase lands. */}
           <Route path="marketing-ops" element={<MarketingOpsPage />} />
+          {/* Email Workbench. The editor is transient state inside these pages, not
+              a route of its own — see EmailWorkbenchPages. */}
+          <Route
+            path="marketing-ops/email-workbench/create"
+            element={<EmailWorkbenchCreatePage />}
+          />
+          <Route
+            path="marketing-ops/email-workbench/history"
+            element={<EmailWorkbenchHistoryPage />}
+          />
+          <Route
+            path="marketing-ops/email-workbench/manage"
+            element={<EmailWorkbenchManagePage />}
+          />
           {/* Ad Campaigns → Analytics. Read-only reports computed on demand. */}
           <Route
             path="marketing-ops/ad-campaigns/analytics"
@@ -111,6 +132,8 @@ export default function App() {
             path="marketing-ops/admin/asset-name"
             element={<AssetNameSettingsPage />}
           />
+          <Route path="marketing-ops/admin/pardot" element={<EmailWorkbenchSettingsPage />} />
+          <Route path="marketing-ops/admin/blocks" element={<BlockCatalogPage />} />
           {/* Legacy /my bookmarks → the Me home. */}
           <Route path="my" element={<Navigate to="/me" replace />} />
           {/* Catch-all → landing */}
