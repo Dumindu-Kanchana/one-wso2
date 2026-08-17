@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, ListItemButton, ListItemText, Typography } from "@wso2/oxygen-ui";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
@@ -58,6 +58,26 @@ export default function SideRail() {
       else next.add(id);
       return next;
     });
+
+  // Whichever group contains the current route is always shown expanded,
+  // regardless of manual toggle state — otherwise landing on e.g. Reports
+  // via a direct link, browser back/forward, or the Waffle overlay (i.e.
+  // any path that doesn't go through manually clicking the group open)
+  // renders that group collapsed while you're actively on one of its own
+  // pages, hiding both where you are and its sibling links.
+  const activeGroupIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of active.sections ?? []) {
+      if (s.children?.some((c) => c.path && c.path === location.pathname)) {
+        ids.add(s.id);
+      }
+    }
+    return ids;
+  }, [active.sections, location.pathname]);
+  const effectiveOpened = useMemo(
+    () => new Set([...opened, ...activeGroupIds]),
+    [opened, activeGroupIds],
+  );
 
   // Scroll a canvas anchor into view. If we're on a sub-route of the
   // perspective (e.g. a Leave screen) rather than its overview page, jump
@@ -160,7 +180,7 @@ export default function SideRail() {
               key={s.id}
               section={s}
               resolveVisible={resolveVisible}
-              opened={opened}
+              opened={effectiveOpened}
               onToggle={toggle}
               onScroll={scrollToSection}
             />

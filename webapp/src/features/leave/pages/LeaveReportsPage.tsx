@@ -24,6 +24,7 @@ import {
   Chip,
   Skeleton,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -36,7 +37,7 @@ import { describeError } from "../util/leaveError";
 import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
 import LeaveShell from "../components/LeaveShell";
 import { LeaveTypeChip } from "../components/LeaveChips";
-import { LEAVE_PRIVILEGE, type LeaveFilter } from "../api/leaveTypes";
+import { LEAVE_PRIVILEGE, type EmployeeStatus, type LeaveFilter } from "../api/leaveTypes";
 import { useLeaveEmployees, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
 import { formatNice, startOfYearIso, todayIso } from "../util/leaveDates";
 
@@ -45,6 +46,12 @@ const PERIOD_LABEL: Record<string, string> = {
   one: "Full day",
   half: "Half day",
 };
+
+// Matches leave-app's Toolbar.tsx EMPLOYEE_STATUS_OPTIONS — People Ops can
+// filter by all three; "Left" defaults off since most reports care about
+// current/exiting staff, not departed ones.
+const EMPLOYEE_STATUS_OPTIONS: EmployeeStatus[] = ["Active", "Marked leaver", "Left"];
+const DEFAULT_EMPLOYEE_STATUSES: EmployeeStatus[] = ["Active", "Marked leaver"];
 
 export default function LeaveReportsPage() {
   return (
@@ -72,7 +79,19 @@ function ReportsBody() {
   const [fromDate, setFromDate] = useState(startOfYearIso(new Date().getFullYear()));
   const [toDate, setToDate] = useState(todayIso());
   const [employee, setEmployee] = useState<string | null>(null);
-  const [applied, setApplied] = useState({ from: fromDate, to: toDate, email: null as string | null });
+  // People-Ops-only: default to org-wide, matching leave-app's LeadReportTab
+  // default (showAllEmployees=true for People Ops). Leads-without-People-Ops
+  // never see this toggle — they're always scoped to their subordinates,
+  // same as before.
+  const [showAllEmployees, setShowAllEmployees] = useState(true);
+  const [employeeStatuses, setEmployeeStatuses] = useState<EmployeeStatus[]>(DEFAULT_EMPLOYEE_STATUSES);
+  const [applied, setApplied] = useState({
+    from: fromDate,
+    to: toDate,
+    email: null as string | null,
+    showAllEmployees: true,
+    employeeStatuses: DEFAULT_EMPLOYEE_STATUSES,
+  });
 
   // Bound the fetch — for People Ops this is otherwise an org-wide, un-paged
   // pull rendered into a non-virtualised table. If we hit the cap the totals
@@ -89,7 +108,10 @@ function ReportsBody() {
     };
     if (isPeopleOps) {
       if (applied.email) base.email = applied.email;
-      base.employeeStatuses = ["Active", "Marked leaver"];
+      if (applied.employeeStatuses.length > 0) base.employeeStatuses = applied.employeeStatuses;
+      // Matches leave-app's "Subordinates only" toggle — People Ops default
+      // to org-wide, but can narrow to their own reports like a plain lead.
+      if (!applied.showAllEmployees) base.approverEmail = userInfo.data?.workEmail ?? undefined;
     } else {
       // Lead: scope to their subordinates via approverEmail.
       base.approverEmail = userInfo.data?.workEmail ?? undefined;
@@ -149,13 +171,48 @@ function ReportsBody() {
           )}
           <Button
             variant="contained"
-            onClick={() => setApplied({ from: fromDate, to: toDate, email: employee })}
+            onClick={() =>
+              setApplied({ from: fromDate, to: toDate, email: employee, showAllEmployees, employeeStatuses })
+            }
             disabled={leaves.isFetching}
             sx={{ fontWeight: 600 }}
           >
             {leaves.isFetching ? "Loading…" : "Fetch report"}
           </Button>
         </Box>
+
+        {isPeopleOps && (
+          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2, mt: 1.5 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Switch
+                size="small"
+                checked={!showAllEmployees}
+                onChange={(e) => setShowAllEmployees(!e.target.checked)}
+              />
+              <Typography
+                sx={{
+                  fontSize: 12.5,
+                  fontWeight: showAllEmployees ? 400 : 600,
+                  color: showAllEmployees ? "text.secondary" : "text.primary",
+                }}
+              >
+                Subordinates only
+              </Typography>
+            </Stack>
+            <Box sx={{ minWidth: 260 }}>
+              <Typography sx={{ fontSize: 11, color: "text.secondary", mb: 0.375 }}>Employee status</Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                disableCloseOnSelect
+                options={EMPLOYEE_STATUS_OPTIONS}
+                value={employeeStatuses}
+                onChange={(_e, v) => setEmployeeStatuses(v as EmployeeStatus[])}
+                renderInput={(params) => <TextField {...params} placeholder="Employee status" />}
+              />
+            </Box>
+          </Box>
+        )}
       </Card>
 
       {leaves.isLoading ? (

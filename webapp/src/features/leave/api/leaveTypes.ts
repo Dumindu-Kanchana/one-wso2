@@ -230,3 +230,80 @@ export function defaultLeaveTypeForLocation(location: string | null | undefined)
       return "casual";
   }
 }
+
+// Which of the location-specific (quota-tracked) leave types apply where,
+// plus an eligibility caveat where one exists — matches leave-app's
+// LOCATION_LEAVE_TYPES (LeaveSelection.tsx) exactly, including the two
+// India entries that are only available in a specific state. `info` is
+// eligibility policy, not a glossary note — it's rendered as always-visible
+// text under the button (see LeaveSelectionIcon.tsx), not a hover tooltip.
+// Sri Lanka (and any location we don't otherwise recognize) only gets
+// casual — matches leave-app's EmployeeLocation.LK default branch.
+const LOCATION_LEAVE_TYPES: Record<string, { type: LeaveType; info?: string }[]> = {
+  "Sri Lanka": [{ type: "casual" }],
+  India: [
+    { type: "annual" },
+    { type: "casual", info: "Maharashtra only" },
+    { type: "sick", info: "Karnataka only" },
+  ],
+  France: [{ type: "conges_payes" }, { type: "rtt" }, { type: "sick" }],
+  Spain: [{ type: "annual" }, { type: "casual" }, { type: "sick" }],
+};
+
+// Shown regardless of location — not quota-tracked, so there's nothing
+// location-specific about them.
+const COMMON_LEAVE_TYPES: LeaveType[] = ["maternity", "paternity", "lieu"];
+
+function locationEntries(location: string | null | undefined): { type: LeaveType; info?: string }[] {
+  return (location ? LOCATION_LEAVE_TYPES[location] : undefined) ?? LOCATION_LEAVE_TYPES["Sri Lanka"];
+}
+
+// The eligibility caveat for a (location, type) pair, if one exists — e.g.
+// "Maharashtra only" for India's Casual. Render this next to the type
+// button whenever it's present; undefined means no caveat.
+export function leaveTypeInfo(
+  location: string | null | undefined,
+  type: LeaveType,
+): string | undefined {
+  return locationEntries(location).find((e) => e.type === type)?.info;
+}
+
+// Locations the leave-entitlement endpoint actually has data for — matches
+// leave-app's LeaveBalanceSummary.tsx LOCATION_KEYS, which only defines
+// France/Spain (Sri Lanka/India aren't tracked there at all, even though
+// they do have location-specific *types* for Apply-form gating above).
+// Deliberately a separate, smaller list from LOCATION_LEAVE_TYPES — reusing
+// that one here would show a (meaningless/zero) balance panel for every
+// location instead of just the two the entitlement data covers.
+const BALANCE_TRACKED_LOCATIONS = new Set(["France", "Spain"]);
+
+// The quota-tracked types for a location, for the balance panel — matches
+// leave-app's LeaveBalanceSummary, which only ever renders for France/Spain.
+export function quotaTrackedTypesForLocation(location: string | null | undefined): LeaveType[] {
+  if (!location || !BALANCE_TRACKED_LOCATIONS.has(location)) return [];
+  return (LOCATION_LEAVE_TYPES[location] ?? []).map((e) => e.type);
+}
+
+// The Apply form's selectable leave types for a given location — matches
+// leave-app's LeaveSelection.tsx (location-specific + common), rather than
+// offering every general type to everyone regardless of where they are.
+export function leaveTypesForLocation(location: string | null | undefined): LeaveType[] {
+  return [...locationEntries(location).map((e) => e.type), ...COMMON_LEAVE_TYPES];
+}
+
+// A short explainer for types whose name alone doesn't say what they are —
+// matches leave-app's LeaveTooltip.
+export const LEAVE_TYPE_TOOLTIP: Partial<Record<LeaveType, string>> = {
+  conges_payes: "Paid Annual Leave",
+  rtt: "Réduction du Temps de Travail",
+};
+
+// Maps a leave type to its LeavePolicy/LeaveEntitlement field — undefined
+// for types that aren't quota-tracked (maternity/paternity/lieu/sabbatical).
+export const LEAVE_TYPE_POLICY_KEY: Partial<Record<LeaveType, keyof LeavePolicy>> = {
+  casual: "casual",
+  annual: "annual",
+  sick: "sick",
+  conges_payes: "congesPayes",
+  rtt: "rtt",
+};
