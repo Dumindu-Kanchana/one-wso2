@@ -20,6 +20,11 @@ import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import FinancePage from "@features/finance/pages/FinancePage";
+import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
+import UtmGeneratorPage from "@features/marketing-ops/utilities/pages/UtmGeneratorPage";
+import AssetNameGeneratorPage from "@features/marketing-ops/utilities/pages/AssetNameGeneratorPage";
+import UtmSettingsPage from "@features/marketing-ops/admin/pages/UtmSettingsPage";
+import AssetNameSettingsPage from "@features/marketing-ops/admin/pages/AssetNameSettingsPage";
 import LeaveApplyPage from "@features/leave/pages/LeaveApplyPage";
 import LeaveHistoryPage from "@features/leave/pages/LeaveHistoryPage";
 import LeaveReportsPage from "@features/leave/pages/LeaveReportsPage";
@@ -80,6 +85,26 @@ export default function App() {
           <Route path="finance/expense/history" element={<ExpenseHistoryPage />} />
           <Route path="finance/expense/lead-approvals" element={<ExpenseLeadApprovalsPage />} />
           <Route path="finance/expense/finance-approvals" element={<ExpenseFinanceApprovalsPage />} />
+          {/* Marketing Ops perspective — overview + the Phase 1 Utilities
+              screens, ported from the Marketing Ops frontend. The remaining
+              operations (Ad Campaigns, Email Workbench, Events, CRM Upload)
+              still live in Marketing Ops; the overview deep-links out to them
+              until their phase lands. */}
+          <Route path="marketing-ops" element={<MarketingOpsPage />} />
+          {/* Utilities — open to any authorized Marketing Ops caller. */}
+          <Route path="marketing-ops/utilities/utm" element={<UtmGeneratorPage />} />
+          <Route
+            path="marketing-ops/utilities/asset-name"
+            element={<AssetNameGeneratorPage />}
+          />
+          {/* Marketing Admin — each operation's configuration lands with the
+              operation, so this grows one panel per phase. Admin-gated by the
+              rail and by MarketingOpsShell; the backend enforces it too. */}
+          <Route path="marketing-ops/admin/utm" element={<UtmSettingsPage />} />
+          <Route
+            path="marketing-ops/admin/asset-name"
+            element={<AssetNameSettingsPage />}
+          />
           {/* Legacy /my bookmarks → the Me home. */}
           <Route path="my" element={<Navigate to="/me" replace />} />
           {/* Catch-all → landing */}

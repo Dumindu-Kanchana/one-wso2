@@ -20,6 +20,7 @@
 import type { Capability, MenuApp } from "@constants/appMenu";
 import { PEOPLE_OPS_APPS } from "@constants/peopleOpsApps";
 import { FINANCE_APPS } from "@constants/financeApps";
+import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 import { ME_APPS } from "@constants/meApps";
 
 export type PerspectiveGroup = "functional" | "cross";
@@ -63,6 +64,17 @@ const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
 ];
 
 const FINANCE_SECTIONS: PerspectiveSection[] = appsToSections(FINANCE_APPS);
+
+// Marketing Ops. Built from the registry now so the rail is ready, but the
+// perspective itself stays locked (`access: false` below) until Phase 1
+// (Utilities) lands — see "My Findings Marketing Ops.md" in the repo root.
+//
+// Note the two-layer gating here, which differs from every other perspective:
+// the `requires` values these sections carry speak One WSO2's capability
+// vocabulary, but the real decision is made by useMarketingOpsGate against the
+// Marketing Ops backend's own /api/me. Whatever renders these sections must ask
+// that gate, not just read `requires`.
+const MARKETING_OPS_SECTIONS: PerspectiveSection[] = appsToSections(MARKETING_OPS_APPS);
 
 // The Me home landing — leaf scroll-anchors matching the SectionHeader ids
 // on the profile page (see features/my/pages/MyProfilePage), followed by
@@ -110,7 +122,32 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   { key: "csm", label: "CSM", emoji: "🛟", group: "functional", access: false },
   { key: "revops", label: "Rev Ops", emoji: "⚙️", group: "functional", access: false },
   { key: "legal", label: "Legal", emoji: "⚖️", group: "functional", access: false },
-  { key: "marketing", label: "Marketing Ops", emoji: "📣", group: "functional", access: false },
+  // UNLOCKED as of Phase 1 (Utilities): the UTM and Asset Name generators plus
+  // their two Marketing Admin panels are native here now, so there's something
+  // real to land on.
+  //
+  // The remaining operations (Ad Campaigns, Email Workbench, Events, CRM Upload)
+  // still live in Marketing Ops. They appear on the overview as outbound cards
+  // rather than being hidden, so the perspective is honest about what it hosts
+  // and nobody hits a dead end mid-migration.
+  //
+  // Two non-obvious things about this entry:
+  //  - `access` controls whether the WAFFLE offers the perspective; `path` is
+  //    what lets PerspectiveProvider recognise the route and give it its own
+  //    rail. Both are needed for a working perspective — `access` alone yields a
+  //    tile that looks clickable and does nothing (see WaffleOverlay).
+  //  - Its rail gates on the MARKETING OPS backend's own Asgardeo groups, not on
+  //    people-app privileges — see useMarketingOpsGate and the wiring in
+  //    SideRail. The `requires` on these sections is a coarse hint only.
+  {
+    key: "marketing",
+    label: "Marketing Ops",
+    emoji: "📣",
+    group: "functional",
+    access: true,
+    path: "/marketing-ops",
+    sections: MARKETING_OPS_SECTIONS,
+  },
   { key: "business", label: "Business", emoji: "💼", group: "functional", access: false },
   { key: "customer", label: "Customer", emoji: "🤝", group: "functional", access: false },
 

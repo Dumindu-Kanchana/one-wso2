@@ -1,0 +1,231 @@
+// Copyright (c) 2026 WSO2 LLC. (https://www.wso2.com).
+//
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+// Registry of the Marketing Ops operations and their top-level menu items,
+// surfaced inside the One WSO2 Marketing Ops perspective. Same model as
+// FINANCE_APPS — one MenuApp per operation, its sub-screens as items — and for
+// the same reason: the left rail (via appsToSections in @constants/perspectives),
+// the waffle and the overview page all derive from this one array, so they
+// cannot drift apart.
+//
+// Transcribed from the Marketing Ops frontend's own operation registry and
+// routes (digiops-marketing/agents/marketing-ops/frontend), which already
+// splits operations into sub-routes the same way (/operations/events/mine,
+// /operations/events/review).
+//
+// ---- on `requires` -------------------------------------------------------
+//
+// `requires` takes One WSO2 capabilities (employee/lead/serviceDesk/admin),
+// which are derived from people-app privilege numbers and have NOTHING to do
+// with Marketing Ops' Asgardeo groups. That mismatch is deliberate and matches
+// how Finance handles its three backends: the value here is a coarse hint for
+// anything that renders the registry generically, while the REAL decision is
+// made by useMarketingOpsGate against this backend's own /api/me capabilities.
+//
+// So: `requires: ["admin"]` here means "restricted", and the gate decides who
+// actually sees it. An item that declares `requires` but is missing from the
+// gate's explicit mapping is HIDDEN, never shown — see RESTRICTED_IDS there.
+//
+// ---- paths ---------------------------------------------------------------
+//
+// Every item below is commented out until the phase that ports it lands. An
+// item with a `path` tells the rail there's a route to navigate to, so adding
+// one before the route exists produces a rail entry that leads to a blank page.
+// Uncomment an operation's items in the phase that builds them — Phase 1 is
+// Utilities, then Ad Campaigns, Email Workbench, Events, CRM Upload (see §8 of
+// "My Findings Marketing Ops.md" in the repo root).
+
+import type { MenuApp } from "@constants/appMenu";
+
+export const MARKETING_OPS_APPS: readonly MenuApp[] = [
+  {
+    key: "utilities",
+    name: "Utilities",
+    emoji: "🧰",
+    purpose:
+      "Everyday marketing generators — build consistent UTM links and asset names from the admin-maintained parameter lists.",
+    items: [
+      // Phase 1. No `requires`: Marketing Ops grants utilities to anyone who can
+      // log in at all (the marketing baseline group is documented as "login +
+      // all utilities, nothing else"), so these are open to any authorized
+      // caller rather than capability-gated.
+      {
+        id: "mops-utm",
+        label: "UTM Link Generator",
+        desc: "Build a tagged campaign URL from the approved source, medium, region and business-unit values.",
+        path: "/marketing-ops/utilities/utm",
+      },
+      {
+        id: "mops-asset-name",
+        label: "Asset Name Generator",
+        desc: "Compose a consistent asset name from the per-asset-type naming lists.",
+        path: "/marketing-ops/utilities/asset-name",
+      },
+    ],
+  },
+  {
+    key: "ad-campaigns",
+    name: "Ad Campaigns",
+    emoji: "📊",
+    purpose:
+      "Cross-channel paid campaign performance — spend, reach and conversion pulled from the connected ad platforms.",
+    items: [
+      // Phase 2. Read-only analytics: no mutations, no draft state.
+      // Gate: marketing-ops capability `adcampaigns`.
+      {
+        id: "mops-ad-analytics",
+        label: "Analytics",
+        desc: "Campaign performance dashboard across the connected ad platforms.",
+        requires: ["admin"],
+        // path: "/marketing-ops/ad-campaigns/analytics",
+      },
+    ],
+  },
+  {
+    key: "email-workbench",
+    name: "Email Workbench",
+    emoji: "📣",
+    purpose:
+      "Compose marketing emails from reusable blocks and sync them to Pardot with a faithful plain-text alternative.",
+    items: [
+      // Phase 3. Gate: marketing-ops capability `emailworkbench`.
+      {
+        id: "mops-email-library",
+        label: "Template Library",
+        desc: "Saved email drafts and templates.",
+        requires: ["admin"],
+        // path: "/marketing-ops/email-workbench/library",
+      },
+      {
+        id: "mops-email-editor",
+        label: "Editor",
+        desc: "Build and edit an email, then export it to Pardot.",
+        requires: ["admin"],
+        // path: "/marketing-ops/email-workbench/editor",
+      },
+    ],
+  },
+  {
+    key: "events",
+    name: "Events",
+    emoji: "🎪",
+    purpose:
+      "Turn event attendee workbooks into validated, reviewable lists ready for Pardot import.",
+    items: [
+      // Phase 4. Two SIBLING capabilities, not a hierarchy: `events` covers
+      // submitting your own lists, `events-review` covers reviewing others'.
+      // Neither implies the other — a reviewer holds both groups because the
+      // operation's router is gated on `events`. See access_map.yaml.
+      {
+        id: "mops-events-mine",
+        label: "My Submissions",
+        desc: "Upload an attendee workbook and track your submitted lists.",
+        requires: ["admin"],
+        // path: "/marketing-ops/events/mine",
+      },
+      {
+        id: "mops-events-review",
+        label: "Review Queue",
+        desc: "Review submitted attendee lists, approve or send back, and export for Pardot.",
+        requires: ["admin"],
+        // path: "/marketing-ops/events/review",
+      },
+    ],
+  },
+  {
+    key: "crm-upload",
+    name: "CRM Upload",
+    emoji: "🔄",
+    purpose:
+      "Ingest lead and contact records into the CRM through validated pipelines with a duplicate review step.",
+    items: [
+      // Phase 5. Gate: marketing-ops capability `crmupload`.
+      {
+        id: "mops-crm-pipelines",
+        label: "Pipelines",
+        desc: "Configured upload pipelines and their current state.",
+        requires: ["admin"],
+        // path: "/marketing-ops/crm-upload/pipelines",
+      },
+      {
+        id: "mops-crm-review",
+        label: "Review Queue",
+        desc: "Resolve duplicate and conflicting records before they reach the CRM.",
+        requires: ["admin"],
+        // path: "/marketing-ops/crm-upload/review",
+      },
+      {
+        id: "mops-crm-records",
+        label: "Records",
+        desc: "Records ingested through the upload pipelines.",
+        requires: ["admin"],
+        // path: "/marketing-ops/crm-upload/records",
+      },
+      {
+        id: "mops-crm-runs",
+        label: "Run Log",
+        desc: "History of pipeline runs and their outcomes.",
+        requires: ["admin"],
+        // path: "/marketing-ops/crm-upload/runs",
+      },
+    ],
+  },
+  {
+    key: "admin",
+    name: "Marketing Admin",
+    emoji: "⚙️",
+    purpose:
+      "Administer the parameter lists, send defaults and import contracts the Marketing Ops operations run on.",
+    items: [
+      // Named "Marketing Admin" rather than "Settings" or "Administration
+      // Panel" on purpose: One WSO2's own Settings section is a separate,
+      // undecided question, and "Administration Panel" would read as though it
+      // administers One WSO2 itself. This name states its scope and won't need
+      // renaming when the platform-wide Settings arrives.
+      //
+      // This app's item list grows by one line per phase — each operation's
+      // configuration panel lands WITH that operation, never as a deferred
+      // settings phase, so no phase ever ships an operation whose configuration
+      // can't be edited.
+      //
+      // Every item here is admin-only. Gate: `isAdmin` from /api/me — the
+      // Marketing Ops admin group is the only thing that grants Settings.
+      //
+      // Phase 3 adds: Email Workbench Pardot send defaults.
+      // Phase 4 adds: Events member statuses + per-status column definitions
+      //               (the import contract, not cosmetic config).
+      // Deferred:     External System Log (a compliance record) and Access
+      //               Reference (a which-group-do-I-need diagnostic). Neither
+      //               is marketing configuration; both are candidates for
+      //               whatever One WSO2 Settings becomes, and stay reachable in
+      //               Marketing Ops meanwhile.
+      {
+        id: "mops-admin-utm",
+        label: "UTM Generator lists",
+        desc: "Source, Medium, Region and Business Unit values offered by the UTM Link Generator.",
+        requires: ["admin"],
+        path: "/marketing-ops/admin/utm",
+      },
+      {
+        id: "mops-admin-asset-name",
+        label: "Asset Name lists",
+        desc: "Per-generator dropdown values for the Asset Name Generator.",
+        requires: ["admin"],
+        path: "/marketing-ops/admin/asset-name",
+      },
+    ],
+  },
+];

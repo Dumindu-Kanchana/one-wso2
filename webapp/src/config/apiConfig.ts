@@ -221,6 +221,82 @@ export const expenseServiceUrls = {
     `${expenseBackendUrl}/claims/transactions/receipts/file/${encodeURIComponent(fileName)}`,
 };
 
+// ---- marketing-ops backend -------------------------------------------------
+//
+// The Marketing Ops backend (digiops-marketing/agents/marketing-ops) is a
+// Python/FastAPI service — the first non-Ballerina backend this app talks to —
+// and it stays exactly as it is: this perspective is a frontend migration only.
+//
+// Two things differ from every sibling above, both worth knowing before adding
+// an endpoint:
+//
+//  1. Its routes are namespaced under `/api/*`, and the Choreo proxy PRESERVES
+//     that prefix, so every URL here carries it. Verified 2026-08-17 against
+//     staging: `/api/me` → 200, `/me` → 404.
+//  2. It authenticates purely from the gateway's `x-jwt-assertion` header and
+//     never inspects the Asgardeo token itself, so the standard authedGet /
+//     authedPost helpers work unmodified — no per-backend header quirk like
+//     par-app's `x-user-timezone-offset`.
+//
+// A router with no root route 404s on its own prefix (`/api/settings` and
+// `/api/events` both do) — always name the sub-path.
+//
+// Empty string = not configured; MarketingOpsShell renders a "not connected"
+// state rather than firing broken requests.
+export const marketingOpsBackendUrl: string =
+  window.config?.ONE_WSO2_MARKETINGOPS_BACKEND_URL ?? "";
+
+export function isMarketingOpsBackendConfigured(): boolean {
+  return Boolean(marketingOpsBackendUrl);
+}
+
+export const marketingOpsServiceUrls = {
+  // GET /api/me — identity + the authorization decision. Authenticated but
+  // NOT gated: an authenticated non-member still gets a 200 with
+  // `authorized: false`, which is what lets the SPA render an honest
+  // "you don't have access" state instead of a bare 403.
+  me: `${marketingOpsBackendUrl}/api/me`,
+  // ---- settings: the admin-maintained dropdown values the utilities run on ----
+  //
+  // Reads return the FULL lists (including disabled values, ids and sort order).
+  // Consumers filter to enabled-only themselves; the admin panels need the rest.
+  //
+  // Writes are PUT with the COMPLETE `{ entries: [...] }` array — a replace, not
+  // a patch. That's the backend's contract and it's the right one: these are
+  // ordered lists where the order is meaningful, so there's no coherent partial
+  // update. It also means a stale client can't silently drop a value another
+  // admin just added — it overwrites with what it last read, which the panel's
+  // review-before-save dialog makes visible.
+  settingsUtm: `${marketingOpsBackendUrl}/api/settings/utm`,
+  settingsAssetName: `${marketingOpsBackendUrl}/api/settings/asset-name`,
+  settingsUtmParameter: (parameter: string) =>
+    `${marketingOpsBackendUrl}/api/settings/utm/${encodeURIComponent(parameter)}`,
+  settingsAssetNameField: (assetType: string, field: string) =>
+    `${marketingOpsBackendUrl}/api/settings/asset-name/${encodeURIComponent(assetType)}/${encodeURIComponent(field)}`,
+  // GET /api/access-map — admin-only. Which Asgardeo group each capability
+  // requires, for THIS environment. Diagnostic only: never derive a gate from
+  // it client-side, because the group names carry an environment suffix
+  // (`-stg`) that differs per deployment. Gate on `/api/me`.capabilities.
+  accessMap: `${marketingOpsBackendUrl}/api/access-map`,
+  // Remaining operation roots — /api/crm-upload, /api/email-workbench,
+  // /api/ad-campaigns, /api/events, /api/audit — get their builders added by
+  // the phase that ports them, so this object never lists a URL nothing calls.
+};
+
+// The Marketing Ops frontend itself (not its backend) — for deep-linking out to
+// operations One WSO2 hasn't ported yet. Marketing Ops stays live throughout the
+// migration, so an un-ported operation should send the user to the real thing
+// rather than showing a dead end. Same precedent as leaveWebAppUrl above and
+// the LeaveSabbaticalComingSoonPage that consumes it.
+//
+// Empty string = not configured; hide the link rather than render a broken URL.
+export const marketingOpsWebAppUrl: string =
+  window.config?.ONE_WSO2_MARKETINGOPS_WEB_APP_URL ?? "";
+
+export function isMarketingOpsWebAppConfigured(): boolean {
+  return Boolean(marketingOpsWebAppUrl);
+}
+
 export const promotionServiceUrls = {
   // GET /employee-info?employeeWorkEmail=<email> — returns the caller's
   // EmployeeInfoWithLead (startDate, jobBand, lastPromotedDate, reportingLead,

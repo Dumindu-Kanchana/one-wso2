@@ -61,6 +61,16 @@ declare global {
       // used to deep-link into flows this webapp doesn't replicate, like
       // sabbatical requests. Optional — when absent, that link is hidden.
       ONE_WSO2_LEAVE_WEB_APP_URL?: string;
+      // Base URL for the digiops-marketing marketing-ops backend — the
+      // Marketing Ops perspective. A Python/FastAPI service (not Ballerina
+      // like the others) whose routes live under /api/*. Optional — when
+      // absent, MarketingOpsShell shows a "not connected" state.
+      ONE_WSO2_MARKETINGOPS_BACKEND_URL?: string;
+      // Base URL of the Marketing Ops frontend itself (not its backend) —
+      // for deep-linking out to operations this webapp hasn't ported yet,
+      // since Marketing Ops stays live throughout the migration. Optional —
+      // when absent, those links are hidden.
+      ONE_WSO2_MARKETINGOPS_WEB_APP_URL?: string;
       // Override for the Asgardeo My Account portal URL that the top-bar
       // "Profile" menu item opens. Only set this on non-standard tenants
       // (self-hosted / custom domain); on Asgardeo Cloud we derive it from

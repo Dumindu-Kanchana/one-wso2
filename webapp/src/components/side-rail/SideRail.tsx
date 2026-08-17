@@ -22,6 +22,7 @@ import { CROSS_PERSPECTIVES, FUNCTIONAL_PERSPECTIVES, type PerspectiveSection } 
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
+import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
 
 // Context-sensitive left rail. Header = the active perspective; body =
 // its sections (jump-anchor to canvas ids); footer = For you (My +
@@ -46,8 +47,22 @@ export default function SideRail() {
   // "Approve Submissions". Only fetch those roles while Finance is active.
   const isFinance = active.key === "finance";
   const financeGate = useFinanceGate(isFinance);
-  const resolveVisible = (s: PerspectiveSection): boolean =>
-    isFinance ? financeGate.canSee(s.id) : sectionAllowed(s.requires, caps);
+
+  // Marketing Ops needs the same treatment for the same reason, against its own
+  // backend: its access comes from Asgardeo group membership
+  // (app-marketingops-*), which has no relationship to the people-app privilege
+  // numbers `caps` is built from. Gating its items on `caps` would show a
+  // people-app admin every marketing screen — including ones the marketing
+  // backend will 403 — and hide them from an actual Marketing Ops admin who
+  // happens not to be a people-app admin.
+  const isMarketingOps = active.key === "marketing";
+  const marketingOpsGate = useMarketingOpsGate(isMarketingOps);
+
+  const resolveVisible = (s: PerspectiveSection): boolean => {
+    if (isFinance) return financeGate.canSee(s.id);
+    if (isMarketingOps) return marketingOpsGate.canSee(s.id);
+    return sectionAllowed(s.requires, caps);
+  };
 
   // App groups start collapsed; a group id in this set is expanded.
   const [opened, setOpened] = useState<Set<string>>(new Set());
