@@ -122,20 +122,25 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   { key: "csm", label: "CSM", emoji: "🛟", group: "functional", access: false },
   { key: "revops", label: "Rev Ops", emoji: "⚙️", group: "functional", access: false },
   { key: "legal", label: "Legal", emoji: "⚖️", group: "functional", access: false },
-  // UNLOCKED as of Phase 1 (Utilities): the UTM and Asset Name generators plus
-  // their two Marketing Admin panels are native here now, so there's something
-  // real to land on.
+  // Deliberately LOCKED (`access: false`) until EVERY Marketing Ops operation
+  // has been ported. This perspective is only shown to users once it can replace
+  // Marketing Ops outright — not incrementally as each phase lands.
   //
-  // The remaining operations (Ad Campaigns, Email Workbench, Events, CRM Upload)
-  // still live in Marketing Ops. They appear on the overview as outbound cards
-  // rather than being hidden, so the perspective is honest about what it hosts
-  // and nobody hits a dead end mid-migration.
+  // So the flip happens at the END of the migration, not at the end of Phase 1.
+  // Until then the screens that are finished are reachable by direct URL for
+  // testing and review, and the waffle stays quiet about the whole perspective.
+  //
+  // Ported so far: Utilities (UTM + Asset Name) and their Marketing Admin
+  // panels; Ad Campaigns analytics. Still in Marketing Ops: Email Workbench,
+  // Events, CRM Upload.
   //
   // Two non-obvious things about this entry:
   //  - `access` controls whether the WAFFLE offers the perspective; `path` is
   //    what lets PerspectiveProvider recognise the route and give it its own
-  //    rail. Both are needed for a working perspective — `access` alone yields a
-  //    tile that looks clickable and does nothing (see WaffleOverlay).
+  //    rail. Keeping `path` set while `access` is false is what makes the
+  //    direct-URL-but-unadvertised state work. `access` alone (without `path`)
+  //    would yield a tile that looks clickable and does nothing — see
+  //    WaffleOverlay.
   //  - Its rail gates on the MARKETING OPS backend's own Asgardeo groups, not on
   //    people-app privileges — see useMarketingOpsGate and the wiring in
   //    SideRail. The `requires` on these sections is a coarse hint only.
@@ -144,7 +149,7 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     label: "Marketing Ops",
     emoji: "📣",
     group: "functional",
-    access: true,
+    access: false,
     path: "/marketing-ops",
     sections: MARKETING_OPS_SECTIONS,
   },
