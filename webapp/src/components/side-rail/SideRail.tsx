@@ -16,7 +16,7 @@
 
 import { useMemo, useState } from "react";
 import { Box, ListItemButton, ListItemText, Typography } from "@wso2/oxygen-ui";
-import { NavLink, useLocation, useNavigate } from "react-router";
+import { matchPath, NavLink, useLocation, useNavigate } from "react-router";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
 import { CROSS_PERSPECTIVES, FUNCTIONAL_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
@@ -68,7 +68,9 @@ export default function SideRail() {
   const activeGroupIds = useMemo(() => {
     const ids = new Set<string>();
     for (const s of active.sections ?? []) {
-      if (s.children?.some((c) => c.path && c.path === location.pathname)) {
+      // matchPath (rather than a raw string ===) so a trailing slash on the
+      // URL (e.g. "/me/leave/reports/") still matches its exact route.
+      if (s.children?.some((c) => c.path && matchPath(c.path, location.pathname))) {
         ids.add(s.id);
       }
     }

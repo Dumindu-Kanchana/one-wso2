@@ -22,6 +22,7 @@ import {
   Button,
   Card,
   Chip,
+  FormControlLabel,
   Skeleton,
   Stack,
   Switch,
@@ -31,6 +32,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@wso2/oxygen-ui";
 import { describeError } from "../util/leaveError";
@@ -98,6 +100,16 @@ function ReportsBody() {
   // below only cover what came back, so the UI says so.
   const REPORT_LIMIT = 1000;
 
+  const workEmail = userInfo.data?.workEmail ?? null;
+  // Whether *this* applied filter needs approverEmail scoping — plain leads
+  // always do; People Ops only once they've narrowed to "Subordinates only".
+  const needsApproverScope = isPeopleOps ? !applied.showAllEmployees : true;
+  // If scoping is needed but workEmail is unavailable, the request must NOT
+  // silently fall through to an unscoped (org-wide) report — that would
+  // show far more than the user asked for. Block the query entirely
+  // instead of ever letting approverEmail end up undefined.
+  const canScopeToApprover = !needsApproverScope || Boolean(workEmail);
+
   const filter: LeaveFilter = useMemo(() => {
     const base: LeaveFilter = {
       startDate: applied.from,
@@ -111,16 +123,16 @@ function ReportsBody() {
       if (applied.employeeStatuses.length > 0) base.employeeStatuses = applied.employeeStatuses;
       // Matches leave-app's "Subordinates only" toggle — People Ops default
       // to org-wide, but can narrow to their own reports like a plain lead.
-      if (!applied.showAllEmployees) base.approverEmail = userInfo.data?.workEmail ?? undefined;
-    } else {
+      if (!applied.showAllEmployees && workEmail) base.approverEmail = workEmail;
+    } else if (workEmail) {
       // Lead: scope to their subordinates via approverEmail.
-      base.approverEmail = userInfo.data?.workEmail ?? undefined;
+      base.approverEmail = workEmail;
     }
     return base;
-  }, [applied, isPeopleOps, userInfo.data?.workEmail]);
+  }, [applied, isPeopleOps, workEmail]);
 
   const allowed = isPeopleOps || isLead;
-  const leaves = useLeaves(filter, Boolean(userInfo.data) && allowed);
+  const leaves = useLeaves(filter, Boolean(userInfo.data) && allowed && canScopeToApprover);
 
   const employeeOptions = useMemo(
     () => (employees.data ?? []).map((e) => e.workEmail).filter(Boolean),
@@ -135,6 +147,13 @@ function ReportsBody() {
   }
   if (!allowed) {
     return <Alert severity="info">Leave reports are available to leads and People Ops.</Alert>;
+  }
+  if (!canScopeToApprover) {
+    return (
+      <Alert severity="error">
+        Couldn't resolve your work email, please try again later.
+      </Alert>
+    );
   }
 
   const rows = leaves.data?.leaves ?? [];
@@ -183,24 +202,33 @@ function ReportsBody() {
 
         {isPeopleOps && (
           <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2, mt: 1.5 }}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Switch
-                size="small"
-                checked={!showAllEmployees}
-                onChange={(e) => setShowAllEmployees(!e.target.checked)}
-              />
-              <Typography
-                sx={{
-                  fontSize: 12.5,
-                  fontWeight: showAllEmployees ? 400 : 600,
-                  color: showAllEmployees ? "text.secondary" : "text.primary",
-                }}
-              >
-                Subordinates only
-              </Typography>
-            </Stack>
+            <Tooltip title={workEmail ? "" : "Your work email couldn't be resolved."}>
+              {/* span wrapper so the tooltip still fires when the control is disabled */}
+              <span>
+                <FormControlLabel
+                  disabled={!workEmail}
+                  control={
+                    <Switch
+                      size="small"
+                      checked={!showAllEmployees}
+                      onChange={(e) => setShowAllEmployees(!e.target.checked)}
+                    />
+                  }
+                  label={
+                    <Typography
+                      sx={{
+                        fontSize: 12.5,
+                        fontWeight: showAllEmployees ? 400 : 600,
+                        color: showAllEmployees ? "text.secondary" : "text.primary",
+                      }}
+                    >
+                      Subordinates only
+                    </Typography>
+                  }
+                />
+              </span>
+            </Tooltip>
             <Box sx={{ minWidth: 260 }}>
-              <Typography sx={{ fontSize: 11, color: "text.secondary", mb: 0.375 }}>Employee status</Typography>
               <Autocomplete
                 multiple
                 size="small"
@@ -208,7 +236,7 @@ function ReportsBody() {
                 options={EMPLOYEE_STATUS_OPTIONS}
                 value={employeeStatuses}
                 onChange={(_e, v) => setEmployeeStatuses(v as EmployeeStatus[])}
-                renderInput={(params) => <TextField {...params} placeholder="Employee status" />}
+                renderInput={(params) => <TextField {...params} label="Employee status" />}
               />
             </Box>
           </Box>
