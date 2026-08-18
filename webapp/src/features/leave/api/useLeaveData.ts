@@ -24,6 +24,7 @@ import { leaveRetry } from "../util/leaveError";
 import type {
   AppConfig,
   FetchedLeavesRecord,
+  LeaveEntitlement,
   LeaveFilter,
   LeaveUserInfo,
   MinimalEmployeeInfo,
@@ -112,6 +113,28 @@ export function useLeaves(filter: LeaveFilter, enabled = true) {
     retry: leaveRetry,
   });
   return foldIdentityError(query, subState, retryIdentity);
+}
+
+// GET /employees/{email}/leave-entitlement — location-specific quota data
+// (leavePolicy = entitled, policyAdjustedLeave = consumed). Only meaningful
+// for France/Spain today (see leaveTypesForLocation's LOCATION_LEAVE_TYPES);
+// callers gate `enabled` on that. Matches leave-app's getLeaveEntitlement,
+// minus its second FR-only current-year RTT fetch — a simplification, not
+// a behavior we're trying to avoid.
+export function useLeaveEntitlement(email: string | undefined, enabled = true) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isLeaveBackendConfigured();
+  return useQuery<LeaveEntitlement[]>({
+    queryKey: ["leave-entitlement", email],
+    enabled: enabled && isSignedIn && configured && Boolean(email),
+    queryFn: async () => {
+      const accessToken = await getAccessToken();
+      return authedGet<LeaveEntitlement[]>(leaveServiceUrls.leaveEntitlement(email!), accessToken);
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: leaveRetry,
+  });
 }
 
 export function useLeaveEmployees(enabled = true) {

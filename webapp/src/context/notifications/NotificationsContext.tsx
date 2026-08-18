@@ -40,6 +40,7 @@ const AUTO_DISMISS_MS = 3500;
 interface NotificationsContextValue {
   showSuccess: (message: string) => void;
   showError: (message: string) => void;
+  showWarning: (message: string) => void;
 }
 
 interface Notification {
@@ -75,6 +76,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const showSuccess = useMemo(() => enqueue("success"), [enqueue]);
   const showError = useMemo(() => enqueue("error"), [enqueue]);
+  const showWarning = useMemo(() => enqueue("warning"), [enqueue]);
 
   // `expectedKey` prevents a stale close callback — a manual X-click on
   // an earlier banner racing an error preemption, or an auto-dismiss
@@ -100,7 +102,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [head?.key, dismiss]);
 
-  const value = useMemo(() => ({ showSuccess, showError }), [showSuccess, showError]);
+  const value = useMemo(
+    () => ({ showSuccess, showError, showWarning }),
+    [showSuccess, showError, showWarning],
+  );
 
   return (
     <NotificationsContext.Provider value={value}>
