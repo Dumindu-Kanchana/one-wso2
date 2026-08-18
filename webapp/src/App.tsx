@@ -34,6 +34,12 @@ import {
   EventsReviewPage,
 } from "@features/marketing-ops/events/pages/EventsPages";
 import {
+  CrmUploadPipelinesPage,
+  CrmUploadRecordsPage,
+  CrmUploadReviewPage,
+  CrmUploadRunLogPage,
+} from "@features/marketing-ops/crm-upload/pages/CrmUploadPages";
+import {
   EmailWorkbenchCreatePage,
   EmailWorkbenchHistoryPage,
   EmailWorkbenchManagePage,
@@ -142,6 +148,13 @@ export default function App() {
           <Route path="marketing-ops/admin/events" element={<EventsSettingsPage />} />
           <Route path="marketing-ops/events/mine" element={<EventsMinePage />} />
           <Route path="marketing-ops/events/review" element={<EventsReviewPage />} />
+          <Route
+            path="marketing-ops/crm-upload/pipelines"
+            element={<CrmUploadPipelinesPage />}
+          />
+          <Route path="marketing-ops/crm-upload/runs" element={<CrmUploadRunLogPage />} />
+          <Route path="marketing-ops/crm-upload/records" element={<CrmUploadRecordsPage />} />
+          <Route path="marketing-ops/crm-upload/review" element={<CrmUploadReviewPage />} />
           {/* Legacy /my bookmarks → the Me home. */}
           <Route path="my" element={<Navigate to="/me" replace />} />
           {/* Catch-all → landing */}

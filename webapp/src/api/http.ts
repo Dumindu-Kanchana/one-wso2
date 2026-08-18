@@ -284,6 +284,25 @@ export function defaultQueryRetry(failureCount: number, error: unknown): boolean
   return failureCount < 1;
 }
 
+// Authed DELETE that carries a JSON body, for the rare endpoint whose delete needs
+// arguments — CRM Upload's record delete requires a reason, which is written to the
+// audit log. Kept separate from `authedDelete` rather than added as a parameter so
+// the plain form's signature (and its dozen call sites) stays as it is.
+export async function authedDeleteJson<T>(
+  url: string,
+  accessToken: string,
+  body: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<T | null> {
+  const res = await fetchWithReauth(
+    url,
+    { method: "DELETE", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
+    accessToken,
+  );
+  if (!res.ok) await throwFromError(url, res, "authedDeleteJson");
+  return readJsonOrNull<T>(res, url);
+}
+
 // Authed DELETE. Returns nothing; throws HttpError on non-2xx.
 export async function authedDelete(
   url: string,

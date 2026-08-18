@@ -167,34 +167,42 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
     purpose:
       "Ingest lead and contact records into the CRM through validated pipelines with a duplicate review step.",
     items: [
-      // Phase 5. Gate: marketing-ops capability `crmupload`.
+      // Phase 5. Gate: marketing-ops capability `crmupload` — one capability for all
+      // four screens. This is the marketing team's own tooling; unlike Events there
+      // is nobody submitting into it, so there is no submitter/reviewer split.
+      //
+      // Marketing Ops shipped these as four tabs on one page, and had the first two
+      // named the other way round: its "Last Run" tab is the state of the two
+      // pipelines, and its "Pipelines" tab is a history of runs. These four items
+      // were scaffolded with the accurate names before the port, so the port follows
+      // them rather than the source's labels.
       {
         id: "mops-crm-pipelines",
         label: "Pipelines",
-        desc: "Configured upload pipelines and their current state.",
+        desc: "The lead and account schedulers, where each one stands, and a manual trigger.",
         requires: ["admin"],
-        // path: "/marketing-ops/crm-upload/pipelines",
+        path: "/marketing-ops/crm-upload/pipelines",
       },
       {
         id: "mops-crm-review",
         label: "Review Queue",
         desc: "Resolve duplicate and conflicting records before they reach the CRM.",
         requires: ["admin"],
-        // path: "/marketing-ops/crm-upload/review",
+        path: "/marketing-ops/crm-upload/review",
       },
       {
         id: "mops-crm-records",
         label: "Records",
         desc: "Records ingested through the upload pipelines.",
         requires: ["admin"],
-        // path: "/marketing-ops/crm-upload/records",
+        path: "/marketing-ops/crm-upload/records",
       },
       {
         id: "mops-crm-runs",
         label: "Run Log",
         desc: "History of pipeline runs and their outcomes.",
         requires: ["admin"],
-        // path: "/marketing-ops/crm-upload/runs",
+        path: "/marketing-ops/crm-upload/runs",
       },
     ],
   },

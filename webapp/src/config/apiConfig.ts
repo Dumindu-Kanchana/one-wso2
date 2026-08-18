@@ -385,9 +385,47 @@ export const marketingOpsServiceUrls = {
   eventsReviewExportAll: (id: string) =>
     `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/export`,
 
-  // Remaining operation roots — /api/crm-upload and /api/audit — get their builders
-  // added by the phase that ports them, so this object never lists a URL nothing calls.
+  // ---- crm-upload ----------------------------------------------------------------
+  //
+  // Two schedulers (leads, accounts) ingest enriched records into Salesforce through
+  // the Entity Service. Everything here is either a paged list, a trigger, or the
+  // resolution of one duplicate — the pipeline itself runs server side on a schedule.
+  //
+  // The list endpoints all take their filters as query params (page, limit, status,
+  // record_type, source_system, search, batch_id, run_id, from_date), so the builders
+  // take a ready-made URLSearchParams rather than enumerating a dozen optional
+  // arguments each.
+  crmUploadRuns: (params?: URLSearchParams) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/runs${query(params)}`,
+  crmUploadRun: (id: string) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/runs/${encodeURIComponent(id)}`,
+  crmUploadRecords: (params?: URLSearchParams) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/records${query(params)}`,
+  // Deleting one ingested record. Hard delete with a required reason — it exists for
+  // data-subject erasure requests, and removes the row from this platform only.
+  crmUploadRecord: (recordType: "lead" | "account", id: string) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/records/${recordType}/${encodeURIComponent(id)}`,
+  crmUploadDuplicates: (params?: URLSearchParams) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/duplicates${query(params)}`,
+  // The Salesforce record an incoming one collided with. A separate call because it
+  // reaches the Entity Service rather than this backend's own tables.
+  crmUploadDuplicateExisting: (id: string) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/duplicates/${encodeURIComponent(id)}/existing`,
+  crmUploadDuplicateResolve: (id: string) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/duplicates/${encodeURIComponent(id)}/resolve`,
+  crmUploadTrigger: (kind: "leads" | "accounts") =>
+    `${marketingOpsBackendUrl}/api/crm-upload/triggers/${kind}`,
+
+  // The remaining operation root — /api/audit — gets its builders added by the phase
+  // that ports it, so this object never lists a URL nothing calls.
 };
+
+// `?a=b` when there is anything to append, otherwise nothing — a bare trailing "?"
+// is harmless but ends up in query keys and logs, and reads as a bug.
+function query(params?: URLSearchParams): string {
+  const s = params?.toString();
+  return s ? `?${s}` : "";
+}
 
 // Base URL of the Pardot UI, for deep-linking to a template after it's pushed.
 // Not an API — a link target. Defaults to Pardot's own host, which is correct for
@@ -400,6 +438,23 @@ export const pardotBaseUrl: string = (
 
 export function pardotTemplateUrl(id: number | string): string {
   return `${pardotBaseUrl}/emailTemplate/read/id/${id}`;
+}
+
+// Base URL of the Salesforce Lightning UI, for deep-linking to the record an
+// incoming one collided with. Not an API — a link target, opened in a new tab from
+// the CRM Upload review queue.
+//
+// Marketing Ops read this from a build-time `VITE_SF_BASE_URL` and rendered a dead
+// "#" href when it was unset. One WSO2 resolves backend URLs at runtime, so it moves
+// to window.config — and it carries WSO2's own Lightning host as the default, since
+// an unset key producing a link that goes nowhere is worse than one that works
+// everywhere but a sandbox.
+export const salesforceBaseUrl: string = (
+  window.config?.ONE_WSO2_SALESFORCE_BASE_URL ?? "https://wso2.lightning.force.com"
+).replace(/\/+$/, "");
+
+export function salesforceRecordUrl(object: "Lead" | "Account", id: string): string {
+  return `${salesforceBaseUrl}/lightning/r/${object}/${encodeURIComponent(id)}/view`;
 }
 
 // The Marketing Ops frontend itself (not its backend) — for deep-linking out to

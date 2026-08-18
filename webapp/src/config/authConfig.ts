@@ -76,6 +76,12 @@ declare global {
       // Optional; defaults to https://pi.pardot.com, which is correct for
       // every WSO2 environment today.
       ONE_WSO2_PARDOT_BASE_URL?: string;
+      // Base URL of the Salesforce Lightning UI, used to deep-link to the
+      // record an incoming one collided with from the CRM Upload review
+      // queue. Not an API — a link target. Optional; defaults to
+      // https://wso2.lightning.force.com, correct for every WSO2
+      // environment today. Set it only for a sandbox org.
+      ONE_WSO2_SALESFORCE_BASE_URL?: string;
       // Override for the Asgardeo My Account portal URL that the top-bar
       // "Profile" menu item opens. Only set this on non-standard tenants
       // (self-hosted / custom domain); on Asgardeo Cloud we derive it from
