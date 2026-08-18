@@ -16,7 +16,7 @@
 
 // Registry of apps surfaced under the "Me" perspective — things every
 // employee does for themselves, as opposed to People Ops' HR-team tools.
-// Same App → items shape as @constants/peopleOpsApps / financeApps; see
+// Same App → items shape as @constants/financeApps / workspaceApps; see
 // that file's header for the general rationale.
 
 import type { MenuApp } from "@constants/appMenu";

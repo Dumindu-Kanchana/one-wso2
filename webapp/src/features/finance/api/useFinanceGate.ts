@@ -31,16 +31,16 @@ const RESTRICTED_IDS = new Set(
     .map((it) => it.id),
 );
 
-// Role-gates the Finance menu items against each app's OWN backend roles —
-// not the coarse One WSO2 capabilities derived from people-app. The rail
-// and the overview both use this so a menu item is only shown to someone
+// Role-gates the Finance menu items (surfaced under Me) against each app's
+// OWN backend roles — not the coarse One WSO2 capabilities derived from
+// people-app. The rail uses this so a menu item is only shown to someone
 // who can actually use its page (e.g. cc "Approve Submissions" needs a
 // cc-expenses lead/finance role, exactly like the page enforces).
 //
 // Only the restricted items are listed; anything not named here is a
 // per-user view (New / Pending / History) and stays visible to everyone.
 // `enabled` lets the caller avoid firing the finance /user-info calls when
-// the Finance perspective isn't active (e.g. while on People Ops).
+// the Me perspective isn't active (e.g. while on People Ops).
 export interface FinanceGate {
   canSee: (itemId: string) => boolean;
   isResolving: boolean;

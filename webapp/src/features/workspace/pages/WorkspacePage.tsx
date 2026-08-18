@@ -14,31 +14,30 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Card, Chip, Typography } from "@wso2/oxygen-ui";
+import { Box, Chip, Typography } from "@wso2/oxygen-ui";
+import AppMenuBoard from "@components/app-menu/AppMenuBoard";
+import { WORKSPACE_APPS } from "@constants/workspaceApps";
 
-// Skeleton for the Finance perspective — the OPD/credit-card/expense claim
-// apps that used to live here moved under Me (an employee submits/tracks
-// these for themself, same rationale as Leave). This is just a placeholder
-// until something new is designed for this spot.
-export default function FinancePage() {
+// Workspace perspective overview — office-amenity apps that aren't HR-team
+// tools (split out of People Ops, starting with the cafeteria Menu app).
+// More apps land here over time.
+export default function WorkspacePage() {
   return (
     <Box>
       <Chip
-        label="✦ Finance perspective"
+        label="✦ Workspace perspective"
         color="primary"
         size="small"
         sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
       />
       <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
-        Finance
+        Workspace
       </Typography>
       <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
-        This perspective is being rebuilt.
+        Everyday office apps in one place — jump to any app's section from the left rail.
       </Typography>
 
-      <Card variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
-        <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>
-      </Card>
+      <AppMenuBoard apps={WORKSPACE_APPS} />
     </Box>
   );
 }

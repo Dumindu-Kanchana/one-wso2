@@ -14,30 +14,45 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Card, Chip, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Card, Chip, Skeleton, Typography } from "@wso2/oxygen-ui";
+import { useUserInfo } from "@api/useUserInfo";
+import { capabilitiesFromPrivileges } from "@constants/appMenu";
 
-// Skeleton for the Finance perspective — the OPD/credit-card/expense claim
-// apps that used to live here moved under Me (an employee submits/tracks
-// these for themself, same rationale as Leave). This is just a placeholder
-// until something new is designed for this spot.
-export default function FinancePage() {
+// Placeholder for My Team — mirrors people-app's lead-only "My Team" nav
+// item (direct + indirect reports). The real subordinates view is on hold
+// for this iteration; this just reserves the spot in the Me rail.
+export default function MyTeamComingSoonPage() {
+  const userInfo = useUserInfo();
+
+  if (userInfo.isLoading) {
+    return <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 1.5 }} />;
+  }
+
+  const caps = capabilitiesFromPrivileges(userInfo.data?.privileges);
+  if (!caps.has("lead")) {
+    return <Alert severity="info">My Team is available to leads.</Alert>;
+  }
+
   return (
     <Box>
       <Chip
-        label="✦ Finance perspective"
+        label="✦ My Team"
         color="primary"
         size="small"
         sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
       />
       <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
-        Finance
+        My Team
       </Typography>
       <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
-        This perspective is being rebuilt.
+        Your direct and indirect reports.
       </Typography>
 
       <Card variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
         <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>
+        <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+          Your team roster isn't available here yet — check back once it ships.
+        </Typography>
       </Card>
     </Box>
   );

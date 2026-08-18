@@ -15,10 +15,10 @@
 // under the License.
 
 // Registry of the digiops-finance apps and their top-level menu items,
-// surfaced inside the One WSO2 Finance perspective. Every item is now a
-// native route (built under src/features/finance/*), so each carries a
-// `path` — the left rail navigates straight to it and the Finance overview
-// links to it (same as People Ops → Leave).
+// surfaced inside the Me perspective — claims/expenses are something an
+// employee submits and tracks for themself, same rationale as Leave. Every
+// item is a native route (built under src/features/finance/*), so each
+// carries a `path` — the left rail navigates straight to it.
 //
 // Transcribed from each app's own webapp nav (routes.tsx / route.ts /
 // Sidebar). Finance app roles (USER / EMPLOYEE / LEAD / FINANCE) map onto
@@ -36,9 +36,9 @@ export const FINANCE_APPS: readonly MenuApp[] = [
     emoji: "🏥",
     purpose: "Outpatient (OPD) medical expense claims — submit and track reimbursements.",
     items: [
-      { id: "opd-new", label: "New Claim", desc: "Submit an OPD medical expense claim.", path: "/finance/opd/new" },
-      { id: "opd-history", label: "Claim History", desc: "Your submitted OPD claims and their status.", path: "/finance/opd/history" },
-      { id: "opd-approvals", label: "Approvals", desc: "Finance review and approval of OPD claims.", requires: ["admin"], path: "/finance/opd/approvals" },
+      { id: "opd-new", label: "New Claim", desc: "Submit an OPD medical expense claim.", path: "/me/opd/new" },
+      { id: "opd-history", label: "Claim History", desc: "Your submitted OPD claims and their status.", path: "/me/opd/history" },
+      { id: "opd-approvals", label: "Approvals", desc: "Finance review and approval of OPD claims.", requires: ["admin"], path: "/me/opd/approvals" },
     ],
   },
   {
@@ -47,11 +47,11 @@ export const FINANCE_APPS: readonly MenuApp[] = [
     emoji: "💳",
     purpose: "Reconcile and submit corporate credit-card transactions for approval.",
     items: [
-      { id: "cc-new", label: "New Transactions", desc: "Unsubmitted card transactions to categorise and submit.", path: "/finance/cc/new" },
-      { id: "cc-pending", label: "Pending Submissions", desc: "Submissions awaiting approval.", path: "/finance/cc/pending" },
-      { id: "cc-approve", label: "Approve Submissions", desc: "Review and approve your team's submitted card transactions.", requires: ["lead", "admin"], path: "/finance/cc/approve" },
-      { id: "cc-history", label: "History", desc: "Your submitted past card transactions.", path: "/finance/cc/history" },
-      { id: "cc-settings", label: "Statement ingestion", desc: "Upload and reconcile bank statements (finance).", requires: ["admin"], path: "/finance/cc/settings" },
+      { id: "cc-new", label: "New Transactions", desc: "Unsubmitted card transactions to categorise and submit.", path: "/me/cc/new" },
+      { id: "cc-pending", label: "Pending Submissions", desc: "Submissions awaiting approval.", path: "/me/cc/pending" },
+      { id: "cc-approve", label: "Approve Submissions", desc: "Review and approve your team's submitted card transactions.", requires: ["lead", "admin"], path: "/me/cc/approve" },
+      { id: "cc-history", label: "History", desc: "Your submitted past card transactions.", path: "/me/cc/history" },
+      { id: "cc-settings", label: "Statement ingestion", desc: "Upload and reconcile bank statements (finance).", requires: ["admin"], path: "/me/cc/settings" },
     ],
   },
   {
@@ -60,10 +60,18 @@ export const FINANCE_APPS: readonly MenuApp[] = [
     emoji: "🧾",
     purpose: "Submit and track out-of-pocket expense claims and reimbursements.",
     items: [
-      { id: "expense-new", label: "New Claim", desc: "Submit an expense claim / reimbursement.", path: "/finance/expense/new" },
-      { id: "expense-history", label: "Claim History", desc: "Your submitted expense claims and their status.", path: "/finance/expense/history" },
-      { id: "expense-lead", label: "Lead Approvals", desc: "Approve your team's expense claims.", requires: ["lead"], path: "/finance/expense/lead-approvals" },
-      { id: "expense-finance", label: "Finance Approvals", desc: "Finance review and approval of expense claims.", requires: ["admin"], path: "/finance/expense/finance-approvals" },
+      { id: "expense-new", label: "New Claim", desc: "Submit an expense claim / reimbursement.", path: "/me/expense/new" },
+      { id: "expense-history", label: "Claim History", desc: "Your submitted expense claims and their status.", path: "/me/expense/history" },
+      { id: "expense-lead", label: "Lead Approvals", desc: "Approve your team's expense claims.", requires: ["lead"], path: "/me/expense/lead-approvals" },
+      { id: "expense-finance", label: "Finance Approvals", desc: "Finance review and approval of expense claims.", requires: ["admin"], path: "/me/expense/finance-approvals" },
     ],
   },
 ];
+
+// Every item id across the three apps — lets the rail dispatch gating to
+// useFinanceGate (each app's OWN backend roles) instead of the coarse
+// people-app capabilities, regardless of which perspective section it's
+// rendered under.
+export const FINANCE_ITEM_IDS: ReadonlySet<string> = new Set(
+  FINANCE_APPS.flatMap((app) => app.items.map((it) => it.id)),
+);

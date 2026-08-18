@@ -18,7 +18,7 @@
 // from this — one edit here changes every entry point.
 
 import type { Capability, MenuApp } from "@constants/appMenu";
-import { PEOPLE_OPS_APPS } from "@constants/peopleOpsApps";
+import { WORKSPACE_APPS } from "@constants/workspaceApps";
 import { FINANCE_APPS } from "@constants/financeApps";
 import { ME_APPS } from "@constants/meApps";
 
@@ -27,12 +27,13 @@ export type PerspectiveGroup = "functional" | "cross";
 export interface PerspectiveSection {
   id: string; // anchor id on the perspective's page (leaf sections)
   label: string;
-  // App groups (People Ops) carry an emoji + nested children. A section
-  // with `children` renders as a collapsible group in the rail; a leaf
-  // section scrolls to its `id`.
+  // App groups (Leave, Finance, Workspace) carry an emoji + nested children.
+  // A section with `children` renders as a collapsible group in the rail; a
+  // leaf section scrolls to its `id`.
   emoji?: string;
   // Visible when the caller has ANY of these capabilities (OR semantics).
-  // Omitted = visible to everyone. Only the People Ops app menu uses this.
+  // Omitted = visible to everyone. Only app-menu registries (Leave, Finance,
+  // Workspace) use this.
   requires?: Capability[];
   children?: PerspectiveSection[];
   // When set, a leaf item is a route (rail navigates) rather than a
@@ -58,22 +59,31 @@ function appsToSections(apps: readonly MenuApp[]): PerspectiveSection[] {
   }));
 }
 
+// People Ops's prior app menu (People/Visitor/Careers) was retired per
+// restructuring feedback. These three leaf anchors are the reports planned
+// to onboard next — each a "coming soon" card on the overview page (see
+// PeopleOpsPage) until its backend lands.
 const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
-  ...appsToSections(PEOPLE_OPS_APPS),
+  { id: "people-active-employee-report", label: "Active employee report", emoji: "🧍" },
+  { id: "people-resignation-report", label: "Resignation report", emoji: "📤" },
+  { id: "people-master-data", label: "Master data", emoji: "🗂️" },
 ];
 
-const FINANCE_SECTIONS: PerspectiveSection[] = appsToSections(FINANCE_APPS);
+const WORKSPACE_SECTIONS: PerspectiveSection[] = appsToSections(WORKSPACE_APPS);
 
-// The Me home landing — leaf scroll-anchors matching the SectionHeader ids
-// on the profile page (see features/my/pages/MyProfilePage), followed by
-// the apps that live here (Leave — things an employee does for themself,
-// as opposed to People Ops' HR-team tools).
+// The Me home landing. The landing page itself already is the ported
+// people-app "Me" profile view (General/Personal/Emergency/Connected, see
+// features/my/pages/MyProfilePage) — no separate "Profile" rail entry
+// needed for it. My Team mirrors people-app's lead-only nav item; it's a
+// placeholder page for now (see MyTeamComingSoonPage). Then the apps that
+// live here — things an employee does (and, for a lead/finance-approver
+// subset of items, approves) for themself or their team, as opposed to
+// People Ops' HR-team tools: Leave, then the digiops-finance claim apps
+// (OPD/credit-card/expense — moved in from the retired Finance persona).
 const ME_SECTIONS: PerspectiveSection[] = [
-  { id: "my-general", label: "General information", emoji: "🧾" },
-  { id: "my-personal", label: "Personal information", emoji: "👤" },
-  { id: "my-emergency", label: "Emergency contacts", emoji: "🆘" },
-  { id: "my-connected", label: "Connected apps", emoji: "🔗" },
+  { id: "me-my-team", label: "My Team", emoji: "🧑‍🤝‍🧑", path: "/me/my-team", requires: ["lead"] },
   ...appsToSections(ME_APPS),
+  ...appsToSections(FINANCE_APPS),
 ];
 
 export interface PerspectiveDef {
@@ -98,6 +108,10 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     path: "/people-ops",
     sections: PEOPLE_OPS_SECTIONS,
   },
+  // Skeleton tile — clickable, lands on a "coming soon" page (see
+  // FinancePage). The actual OPD/credit-card/expense claim apps live under
+  // Me now (see ME_SECTIONS above); this just reserves the Finance spot in
+  // the waffle/rail for whatever surfaces here next.
   {
     key: "finance",
     label: "Finance",
@@ -105,7 +119,18 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     group: "functional",
     access: true,
     path: "/finance",
-    sections: FINANCE_SECTIONS,
+  },
+  // Cafeteria menu, feedback, dinner orders — split out of People Ops since
+  // it's an office-amenity tool, not an HR-team one. More non-HR office
+  // apps land here over time.
+  {
+    key: "workspace",
+    label: "Workspace",
+    emoji: "🧰",
+    group: "functional",
+    access: true,
+    path: "/workspace",
+    sections: WORKSPACE_SECTIONS,
   },
   { key: "csm", label: "CSM", emoji: "🛟", group: "functional", access: false },
   { key: "revops", label: "Rev Ops", emoji: "⚙️", group: "functional", access: false },
@@ -117,9 +142,7 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   // Cross-cutting (available to everyone).
   //
   // "Me" is the Home landing: the person's own profile plus the cross-app
-  // aggregation (Connected apps). The people-app profile sections are also
-  // surfaced inside People Ops as People → Me, but slimmed (no Connected
-  // apps) — see MyProfilePage's `variant`.
+  // aggregation (Connected apps).
   {
     key: "me",
     label: "Me",

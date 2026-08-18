@@ -61,6 +61,7 @@ export interface Employee {
   resignationReason: string | null;
   employmentType: string;
   designation: string;
+  externalDesignation: string | null;
   company: string;
   office: string | null;
   businessUnit: string;
