@@ -41,62 +41,22 @@
 //
 // ---- paths ---------------------------------------------------------------
 //
-// Every item below is commented out until the phase that ports it lands. An
-// item with a `path` tells the rail there's a route to navigate to, so adding
-// one before the route exists produces a rail entry that leads to a blank page.
-// Uncomment an operation's items in the phase that builds them — Phase 1 is
-// Utilities, then Ad Campaigns, Email Workbench, Events, CRM Upload (see §8 of
-// "My Findings Marketing Ops.md" in the repo root).
+// An item with a `path` tells the rail there's a route to navigate to, so
+// adding one before the route exists produces a rail entry that leads to a
+// blank page. Every item now has one — all five operations are ported — but a
+// future item should stay path-less until its route lands.
+//
+// ---- order ---------------------------------------------------------------
+//
+// THIS ARRAY'S ORDER IS THE DISPLAY ORDER, in the left rail, the waffle and the
+// overview page alike. It is Sarindu's, chosen by how much the operations are
+// used rather than by name or by the order they were ported in: Email
+// Workbench, Ad Campaigns, Events, CRM Upload, then Utilities, with Marketing
+// Admin last because it configures the rest. Don't sort it.
 
 import type { MenuApp } from "@constants/appMenu";
 
 export const MARKETING_OPS_APPS: readonly MenuApp[] = [
-  {
-    key: "utilities",
-    name: "Utilities",
-    emoji: "🧰",
-    purpose:
-      "Everyday marketing generators — build consistent UTM links and asset names from the admin-maintained parameter lists.",
-    items: [
-      // Phase 1. No `requires`: Marketing Ops grants utilities to anyone who can
-      // log in at all (the marketing baseline group is documented as "login +
-      // all utilities, nothing else"), so these are open to any authorized
-      // caller rather than capability-gated.
-      {
-        id: "mops-utm",
-        label: "UTM Link Generator",
-        desc: "Build a tagged campaign URL from the approved source, medium, region and business-unit values.",
-        path: "/marketing-ops/utilities/utm",
-      },
-      {
-        id: "mops-asset-name",
-        label: "Asset Name Generator",
-        desc: "Compose a consistent asset name from the per-asset-type naming lists.",
-        path: "/marketing-ops/utilities/asset-name",
-      },
-    ],
-  },
-  {
-    key: "ad-campaigns",
-    name: "Ad Campaigns",
-    emoji: "📊",
-    purpose:
-      "Cross-channel paid campaign performance — spend, reach and conversion pulled from the connected ad platforms.",
-    items: [
-      // Phase 2 — ported. Computed live on every view; nothing is stored, so
-      // there is no draft state and no mutation. Note the backend endpoints are
-      // POSTs despite being reads (the report config is the body) — see
-      // marketingOpsServiceUrls.adAnalytics* in @config/apiConfig.
-      // Gate: marketing-ops capability `adcampaigns`.
-      {
-        id: "mops-ad-analytics",
-        label: "Analytics",
-        desc: "Paid-ad performance across Google Ads and LinkedIn, with the Salesforce funnel and ROI for Google.",
-        requires: ["admin"],
-        path: "/marketing-ops/ad-campaigns/analytics",
-      },
-    ],
-  },
   {
     key: "email-workbench",
     name: "Email Workbench",
@@ -130,6 +90,27 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
         desc: "Onboard, edit or remove the approved templates marketers build from.",
         requires: ["admin"],
         path: "/marketing-ops/email-workbench/manage",
+      },
+    ],
+  },
+  {
+    key: "ad-campaigns",
+    name: "Ad Campaigns",
+    emoji: "📊",
+    purpose:
+      "Cross-channel paid campaign performance — spend, reach and conversion pulled from the connected ad platforms.",
+    items: [
+      // Phase 2 — ported. Computed live on every view; nothing is stored, so
+      // there is no draft state and no mutation. Note the backend endpoints are
+      // POSTs despite being reads (the report config is the body) — see
+      // marketingOpsServiceUrls.adAnalytics* in @config/apiConfig.
+      // Gate: marketing-ops capability `adcampaigns`.
+      {
+        id: "mops-ad-analytics",
+        label: "Analytics",
+        desc: "Paid-ad performance across Google Ads and LinkedIn, with the Salesforce funnel and ROI for Google.",
+        requires: ["admin"],
+        path: "/marketing-ops/ad-campaigns/analytics",
       },
     ],
   },
@@ -203,6 +184,31 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
         desc: "History of pipeline runs and their outcomes.",
         requires: ["admin"],
         path: "/marketing-ops/crm-upload/runs",
+      },
+    ],
+  },
+  {
+    key: "utilities",
+    name: "Utilities",
+    emoji: "🧰",
+    purpose:
+      "Everyday marketing generators — build consistent UTM links and asset names from the admin-maintained parameter lists.",
+    items: [
+      // Phase 1. No `requires`: Marketing Ops grants utilities to anyone who can
+      // log in at all (the marketing baseline group is documented as "login +
+      // all utilities, nothing else"), so these are open to any authorized
+      // caller rather than capability-gated.
+      {
+        id: "mops-utm",
+        label: "UTM Link Generator",
+        desc: "Build a tagged campaign URL from the approved source, medium, region and business-unit values.",
+        path: "/marketing-ops/utilities/utm",
+      },
+      {
+        id: "mops-asset-name",
+        label: "Asset Name Generator",
+        desc: "Compose a consistent asset name from the per-asset-type naming lists.",
+        path: "/marketing-ops/utilities/asset-name",
       },
     ],
   },
