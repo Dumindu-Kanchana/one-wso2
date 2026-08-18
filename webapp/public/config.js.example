@@ -65,13 +65,6 @@ window.config = {
   // when absent, the Marketing Ops screens show a "not connected" state.
   // ONE_WSO2_MARKETINGOPS_BACKEND_URL: "<your-marketing-ops-backend-url>",
 
-  // Marketing Ops frontend base URL (not its backend) — used to deep-link out
-  // to operations One WSO2 hasn't ported yet. Marketing Ops stays live for the
-  // duration of the migration, so an un-ported operation links to the real
-  // thing instead of showing a dead end. Optional — when absent, those links
-  // are hidden.
-  // ONE_WSO2_MARKETINGOPS_WEB_APP_URL: "<your-marketing-ops-frontend-url>",
-
   // ISAC base URL — a separate marketing application, linked to from the top of
   // the Marketing Ops rail and opened in a new tab. Nothing here calls it as an
   // API. Optional — when absent, the rail item is omitted entirely rather than

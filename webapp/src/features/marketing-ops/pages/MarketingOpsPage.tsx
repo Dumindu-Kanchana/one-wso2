@@ -14,273 +14,281 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Card, Chip, Divider, Stack, Typography } from "@wso2/oxygen-ui";
+import { Box, Card, Typography } from "@wso2/oxygen-ui";
 import { NavLink } from "react-router";
 import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
-import {
-  isMarketingOpsWebAppConfigured,
-  marketingOpsWebAppUrl,
-} from "@config/apiConfig";
+import { isIsacConfigured, isacUrl } from "@config/apiConfig";
 import MarketingOpsShell from "../components/MarketingOpsShell";
 import { useMarketingOpsGate } from "../api/useMarketingOpsGate";
-import { useMarketingOpsMe } from "../api/useMarketingOpsMe";
 
-// Marketing Ops perspective overview.
+// Marketing Ops perspective landing page: one tile per operation, and nothing else.
 //
-// Right now this is the perspective's ONLY page, and it does double duty:
+// It used to be a page of prose — 285 words across 17 item cards, each carrying a
+// full sentence, under an operation-level "purpose" line that mostly repeated them.
+// That reads as documentation, and a landing page's first job is to get you out of
+// it. So the descriptions are gone and the tile is the unit: an operation, its
+// screens as links, no explanation. The labels already say what the screens are.
 //
-//  1. It is the landing route the rail and (eventually) the waffle point at.
-//  2. It is the walking skeleton that proves the whole vertical actually works
-//     in a browser — config key → access token → Choreo gateway →
-//     x-jwt-assertion → /api/me → capability gate → rendered menu. Every one of
-//     those hops was verified individually by curl before this existed; this is
-//     where they're verified together, end to end, as the app really runs them.
+// What else went, and why:
 //
-// The "Your access" block below exists for (2) and should stay: when a Marketing
-// Ops screen misbehaves for one person and not another, the first question is
-// always "what does the backend think you can do?", and this answers it without
-// anyone needing a terminal.
+//   - The "Your access" card. It showed the caller's own email address and their
+//     Asgardeo group COUNT, which is diagnostic rather than useful — it existed to
+//     prove the gateway hop worked when this was the perspective's only page. The
+//     access states now come from MarketingOpsShell, which already distinguishes
+//     all four (unconfigured / resolving / request failed / not authorized) and
+//     says the same thing about Asgardeo groups in the denial case.
 //
-// The operation cards are deliberately rendered for operations that DON'T exist
-// yet — an operation with no `path` in the registry is one this webapp hasn't
-// ported, and its card links out to Marketing Ops proper instead of nowhere.
-// That's what makes the strangler migration honest: the perspective is complete
-// from day one, it just doesn't host everything yet.
+//   - `requireAuthorized={false}`. Its whole purpose was to let an unauthorized
+//     visitor land here and be pointed at Marketing Ops proper instead of hitting a
+//     wall. There is nothing left to point at — every operation is ported — so the
+//     shell's warning is now the honest answer, and it is better written than the
+//     block this page kept alongside it.
+//
+//   - ItemCard's "Not here yet" / "In Marketing Ops ↗" states, which could no
+//     longer render for the same reason.
 export default function MarketingOpsPage() {
   const gate = useMarketingOpsGate();
-  // requireAuthorized={false} on the shell — see below. That means this page can
-  // render for someone the backend hasn't authorized, so it reads `me` directly
-  // rather than assuming a successful gate.
-  const me = useMarketingOpsMe();
+
+  // Marketing Admin is pulled out of the grid: it configures the other operations
+  // rather than being one, and it holds more items than any of them. As a tile it
+  // was the biggest thing on a page it should be the quietest thing on.
+  const operations = MARKETING_OPS_APPS.filter((app) => app.key !== "admin");
+  const admin = MARKETING_OPS_APPS.find((app) => app.key === "admin");
+  const adminItems = (admin?.items ?? []).filter((it) => gate.canSee(it.id));
 
   return (
     <MarketingOpsShell
       eyebrow="✦ Marketing Ops perspective"
       title="Marketing Ops"
-      subtitle="Campaign operations, event lists and CRM ingestion. What you see is scoped to your Marketing Ops group membership."
-      // Deliberately false: someone without Marketing Ops access should still
-      // land here and be told where the real app is, rather than hitting a wall.
-      // The access state is surfaced in the block below instead.
-      requireAuthorized={false}
+      subtitle="Campaign operations, event lists and CRM ingestion."
     >
-      <AccessSummary gate={gate} email={me.data?.email} groupCount={me.data?.groups.length} />
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(214px, 1fr))",
+          gap: 1.75,
+        }}
+      >
+        {operations.map((app) => {
+          // An operation whose every screen is hidden by the gate is hidden
+          // entirely — an empty tile is worse than no tile, because it advertises
+          // something and then refuses to open it.
+          const items = app.items.filter((it) => gate.canSee(it.id));
+          if (items.length === 0) return null;
+          return (
+            <OperationTile
+              key={app.key}
+              emoji={app.emoji}
+              name={app.name}
+              items={items}
+            />
+          );
+        })}
 
-      {MARKETING_OPS_APPS.map((app) => {
-        // An app whose every item is hidden by the gate is hidden entirely —
-        // no empty headings. Marketing Admin has no items until Phase 1 adds
-        // its first panel, so it drops out here on length alone.
-        const items = app.items.filter((it) => gate.canSee(it.id));
-        if (items.length === 0) return null;
-        return <AppSection key={app.key} app={app} items={items} />;
-      })}
+        {/* ISAC is a separate application, so it gets a tile rather than a route —
+            same reasoning as its place at the top of the rail. Omitted entirely
+            when unconfigured. */}
+        {isIsacConfigured() && <IsacTile />}
+      </Box>
+
+      {adminItems.length > 0 && <AdminStrip items={adminItems} />}
     </MarketingOpsShell>
   );
 }
 
-// What the backend says this caller can do. Reads as a sentence rather than a
-// debug dump, because it's shown to real users on a real page — the raw claim
-// echo belongs in the dev-only AuthDebugPanel, not here.
-function AccessSummary({
-  gate,
-  email,
-  groupCount,
+// ---- one operation ---------------------------------------------------------
+
+const glyphSx = {
+  width: 34,
+  height: 34,
+  flexShrink: 0,
+  borderRadius: 1.25,
+  display: "grid",
+  placeItems: "center",
+  fontSize: 17,
+  lineHeight: 1,
+  bgcolor: "background.default",
+  border: 1,
+  borderColor: "divider",
+} as const;
+
+const countSx = { fontSize: 11, color: "text.disabled" } as const;
+
+// A screen link. The chevron is a ::before rather than a character in the label so
+// it can't be selected or read out — it's a bullet, not content.
+const linkSx = {
+  display: "flex",
+  alignItems: "center",
+  gap: 0.9,
+  mx: -0.75,
+  px: 0.75,
+  py: 0.75,
+  borderRadius: 0.75,
+  fontSize: 13,
+  color: "text.secondary",
+  textDecoration: "none",
+  "&::before": { content: '"\\203A"', color: "text.disabled", fontSize: 13, lineHeight: 1 },
+  "&:hover": { bgcolor: "background.default", color: "primary.main" },
+  "&:hover::before": { color: "primary.main" },
+  // The rail navigates straight to these routes, so the tile's link for the
+  // screen you're already on should say so.
+  "&.active": { color: "primary.main", fontWeight: 600 },
+} as const;
+
+function OperationTile({
+  emoji,
+  name,
+  items,
 }: {
-  gate: ReturnType<typeof useMarketingOpsGate>;
-  email?: string;
-  groupCount?: number;
+  emoji: string;
+  name: string;
+  items: (typeof MARKETING_OPS_APPS)[number]["items"];
 }) {
   return (
-    <Card variant="outlined" sx={{ p: 1.75, mb: 1 }}>
-      <Typography
-        sx={{
-          fontSize: 10.5,
-          textTransform: "uppercase",
-          letterSpacing: "0.07em",
-          color: "text.disabled",
-          fontWeight: 700,
-          mb: 1,
-        }}
-      >
-        Your access
-      </Typography>
+    <Card
+      variant="outlined"
+      sx={{
+        p: 2,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.4,
+        transition: "border-color .12s, box-shadow .12s",
+        "&:hover": { borderColor: "text.disabled", boxShadow: 1 },
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box sx={glyphSx} aria-hidden="true">
+          {emoji}
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography component="h2" sx={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.015em" }}>
+            {name}
+          </Typography>
+          {/* A count is worth showing when it tells you how much is in here; for a
+              single-screen operation the link below already says everything. */}
+          {items.length > 1 && (
+            <Typography sx={countSx}>{items.length} screens</Typography>
+          )}
+        </Box>
+      </Box>
 
-      {gate.isResolving ? (
-        <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>
-          Checking with the Marketing Ops backend…
-        </Typography>
-      ) : (
-        <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", gap: 0.75 }}>
-          <Chip
-            size="small"
-            label={gate.isAuthorized ? "Authorized" : "No Marketing Ops access"}
-            color={gate.isAuthorized ? "success" : "warning"}
-            sx={{ height: 22, fontSize: 11, fontWeight: 600 }}
-          />
-          {gate.isAdmin && (
-            <Chip
-              size="small"
-              label="Marketing Ops admin"
-              color="primary"
-              sx={{ height: 22, fontSize: 11, fontWeight: 600 }}
-            />
-          )}
-          {email && (
-            <Chip
-              size="small"
-              variant="outlined"
-              label={email}
-              sx={{ height: 22, fontSize: 11 }}
-            />
-          )}
-          {typeof groupCount === "number" && (
-            <Chip
-              size="small"
-              variant="outlined"
-              label={`${groupCount} Asgardeo group${groupCount === 1 ? "" : "s"}`}
-              sx={{ height: 22, fontSize: 11 }}
-            />
-          )}
-        </Stack>
-      )}
-
-      {!gate.isResolving && !gate.isAuthorized && !gate.isError && (
-        <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 1.25, lineHeight: 1.5 }}>
-          Access to Marketing Ops is granted through Asgardeo group membership.
-          Ask the Marketing Ops admins to add you to the group for the operation
-          you need.
-        </Typography>
-      )}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: "1px", mb: -0.5 }}>
+        {items.map((it) => (
+          // The registry id stays on the anchor: appsToSections treats an item
+          // without a `path` as a scroll target on this page, and though every item
+          // has one today, keeping the id means a future path-less item still works.
+          <Box key={it.id} id={it.id} component={NavLink} to={it.path!} sx={linkSx}>
+            {it.label}
+          </Box>
+        ))}
+      </Box>
     </Card>
   );
 }
 
-function AppSection({
-  app,
-  items,
-}: {
-  app: (typeof MARKETING_OPS_APPS)[number];
-  items: (typeof MARKETING_OPS_APPS)[number]["items"];
-}) {
+// ---- ISAC ------------------------------------------------------------------
+
+function IsacTile() {
   return (
-    <Box>
-      <Typography
-        component="h2"
-        sx={{
-          fontSize: 11,
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          color: "text.disabled",
-          fontWeight: 700,
-          mt: 3,
-          mb: 1.25,
-          display: "flex",
-          alignItems: "center",
-          gap: 1.25,
-          "&::after": { content: '""', flex: 1, height: "1px", bgcolor: "divider" },
-        }}
-      >
-        <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
-          <span style={{ fontSize: 14 }}>{app.emoji}</span>
-          {app.name}
+    <Card
+      variant="outlined"
+      sx={{
+        p: 2,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.4,
+        transition: "border-color .12s, box-shadow .12s",
+        "&:hover": { borderColor: "text.disabled", boxShadow: 1 },
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        {/* Tinted rather than neutral: the one tile that leaves One WSO2 is worth
+            being able to spot without reading it. */}
+        <Box sx={{ ...glyphSx, bgcolor: "primary.light", borderColor: "transparent" }} aria-hidden="true">
+          🛰️
         </Box>
-      </Typography>
-      <Typography sx={{ fontSize: 12.5, color: "text.secondary", mb: 1.5, mt: -0.5 }}>
-        {app.purpose}
-      </Typography>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
-          gap: 1.5,
-        }}
-      >
-        {items.map((it) => (
-          <ItemCard key={it.id} id={it.id} label={it.label} desc={it.desc} path={it.path} />
-        ))}
+        <Box sx={{ minWidth: 0 }}>
+          <Typography component="h2" sx={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.015em" }}>
+            ISAC
+          </Typography>
+          <Typography sx={countSx}>Separate application</Typography>
+        </Box>
       </Box>
-    </Box>
+
+      <Box sx={{ display: "flex", flexDirection: "column", gap: "1px", mb: -0.5 }}>
+        <Box
+          component="a"
+          href={isacUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={linkSx}
+        >
+          Open ISAC
+          <Box component="span" sx={{ ml: "auto", fontSize: 11, color: "text.disabled" }}>
+            ↗
+          </Box>
+        </Box>
+      </Box>
+    </Card>
   );
 }
 
-// One operation screen. Three shapes, decided by whether the screen exists here
-// yet and whether we know where the old app lives:
-//
-//   ported            → a NavLink card into this webapp
-//   not ported, URL   → an outbound link to Marketing Ops, marked as such
-//   not ported, no URL→ an inert card saying it's not available here yet
-//
-// The third case is what you get with ONE_WSO2_MARKETINGOPS_WEB_APP_URL unset:
-// still honest, just less helpful. Never render a link we can't complete.
-function ItemCard({
-  id,
-  label,
-  desc,
-  path,
-}: {
-  id: string;
-  label: string;
-  desc: string;
-  path?: string;
-}) {
-  const ported = Boolean(path);
-  const canLinkOut = !ported && isMarketingOpsWebAppConfigured();
+// ---- Marketing Admin -------------------------------------------------------
 
-  const cardSx = {
-    p: 1.75,
-    display: "flex",
-    flexDirection: "column",
-    gap: 0.5,
-    textDecoration: "none",
-    color: "inherit",
-    ...(ported || canLinkOut
-      ? {
-          transition: "border-color .12s, box-shadow .12s",
-          "&:hover": { borderColor: "primary.main", boxShadow: 1 },
-        }
-      : { opacity: 0.72 }),
-  } as const;
-
-  // The rail scrolls to section ids on the overview, so each card carries its
-  // registry id as an anchor — that's the contract appsToSections assumes for
-  // any item without a `path`.
-  const linkProps = ported
-    ? { component: NavLink, to: path! }
-    : canLinkOut
-      ? {
-          component: "a" as const,
-          href: marketingOpsWebAppUrl,
-          target: "_blank",
-          rel: "noopener noreferrer",
-        }
-      : {};
-
+// A strip rather than a tile. Its five panels are pills because they're a set you
+// pick one from rather than a list you read — and because at tile size, five rows of
+// panel names outweighed every operation above them.
+function AdminStrip({ items }: { items: (typeof MARKETING_OPS_APPS)[number]["items"] }) {
   return (
-    <Card id={id} variant="outlined" sx={cardSx} {...linkProps}>
-      <Stack direction="row" alignItems="center" spacing={0.75}>
-        <Typography sx={{ fontSize: 13.5, fontWeight: 600, flex: 1, minWidth: 0 }}>
-          {label}
-        </Typography>
-        {!ported && (
-          <Chip
-            label={canLinkOut ? "In Marketing Ops ↗" : "Not here yet"}
-            size="small"
-            variant="outlined"
-            sx={{ height: 20, fontSize: 10, fontWeight: 600, borderWidth: 1.5 }}
-          />
-        )}
-      </Stack>
-      <Typography sx={{ fontSize: 12, color: "text.secondary", lineHeight: 1.45 }}>
-        {desc}
-      </Typography>
-      {!ported && !canLinkOut && (
-        <>
-          <Divider sx={{ my: 0.5 }} />
-          <Typography sx={{ fontSize: 11, color: "text.disabled", lineHeight: 1.45 }}>
-            Still in Marketing Ops. Set{" "}
-            <code>ONE_WSO2_MARKETINGOPS_WEB_APP_URL</code> to link there.
+    <Card
+      variant="outlined"
+      sx={{
+        mt: 1.75,
+        p: 2,
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        flexWrap: "wrap",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box sx={glyphSx} aria-hidden="true">
+          ⚙️
+        </Box>
+        <Box>
+          <Typography component="h2" sx={{ fontSize: 14, fontWeight: 700 }}>
+            Marketing Admin
           </Typography>
-        </>
-      )}
+          <Typography sx={countSx}>
+            {items.length} panel{items.length === 1 ? "" : "s"}
+          </Typography>
+        </Box>
+      </Box>
+
+      <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", ml: { sm: "auto" } }}>
+        {items.map((it) => (
+          <Box
+            key={it.id}
+            id={it.id}
+            component={NavLink}
+            to={it.path!}
+            sx={{
+              fontSize: 12,
+              color: "text.secondary",
+              textDecoration: "none",
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 999,
+              px: 1.4,
+              py: 0.5,
+              "&:hover": { borderColor: "primary.main", color: "primary.main" },
+              "&.active": { borderColor: "primary.main", color: "primary.main", fontWeight: 600 },
+            }}
+          >
+            {it.label}
+          </Box>
+        ))}
+      </Box>
     </Card>
   );
 }

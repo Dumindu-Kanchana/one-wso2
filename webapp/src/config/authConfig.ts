@@ -66,11 +66,6 @@ declare global {
       // like the others) whose routes live under /api/*. Optional — when
       // absent, MarketingOpsShell shows a "not connected" state.
       ONE_WSO2_MARKETINGOPS_BACKEND_URL?: string;
-      // Base URL of the Marketing Ops frontend itself (not its backend) —
-      // for deep-linking out to operations this webapp hasn't ported yet,
-      // since Marketing Ops stays live throughout the migration. Optional —
-      // when absent, those links are hidden.
-      ONE_WSO2_MARKETINGOPS_WEB_APP_URL?: string;
       // ISAC's own base URL — a separate marketing application, linked to
       // from the top of the Marketing Ops rail and opened in a new tab.
       // Nothing here calls it as an API. Optional — when absent, the rail

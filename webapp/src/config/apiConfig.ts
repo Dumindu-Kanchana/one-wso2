@@ -457,20 +457,6 @@ export function salesforceRecordUrl(object: "Lead" | "Account", id: string): str
   return `${salesforceBaseUrl}/lightning/r/${object}/${encodeURIComponent(id)}/view`;
 }
 
-// The Marketing Ops frontend itself (not its backend) — for deep-linking out to
-// operations One WSO2 hasn't ported yet. Marketing Ops stays live throughout the
-// migration, so an un-ported operation should send the user to the real thing
-// rather than showing a dead end. Same precedent as leaveWebAppUrl above and
-// the LeaveSabbaticalComingSoonPage that consumes it.
-//
-// Empty string = not configured; hide the link rather than render a broken URL.
-export const marketingOpsWebAppUrl: string =
-  window.config?.ONE_WSO2_MARKETINGOPS_WEB_APP_URL ?? "";
-
-export function isMarketingOpsWebAppConfigured(): boolean {
-  return Boolean(marketingOpsWebAppUrl);
-}
-
 // ISAC — a separate marketing application, not part of this webapp and not a
 // Marketing Ops operation. It appears at the top of the Marketing Ops rail as an
 // outbound link because that is where the people who use it look for it, not
