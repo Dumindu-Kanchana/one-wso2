@@ -15,9 +15,10 @@
 // under the License.
 
 // The One WSO2 brand layer over Oxygen's AcrylicOrangeTheme: palette, type
-// discipline, and surface treatment. Split out of themeConfig.ts (which is now
-// just a preset picker, mirroring csm-portal) so there is exactly one place to
-// look for "what do we change about the shipped theme, and why".
+// discipline, selected-state tint, and surface treatment. Split out of
+// themeConfig.ts (which is now just a preset picker, mirroring csm-portal) so
+// there is exactly one place to look for "what do we change about the shipped
+// theme, and why".
 //
 // PALETTE — kept deliberately, not inherited. Measured against white:
 //   primary.main       #F14E23  3.59:1   (AcrylicOrange's #fa7b3f is 2.63:1)
@@ -34,24 +35,37 @@ import { AcrylicOrangeTheme } from "@wso2/oxygen-ui";
 import { extendTheme } from "@mui/material/styles";
 
 /**
- * Surface treatment. `true` keeps One WSO2's solid cards on a flat canvas;
- * `false` falls through to Oxygen's acrylic look (translucent paper, backdrop
- * blur, radial gradient body wash) as csm-portal renders it.
+ * Surface treatment — two independent axes, because the interesting combination
+ * is one of each rather than an all-or-nothing "acrylic" switch.
  *
- * This is the single switch for that decision — flip it to compare the two on
- * real screens without touching anything else.
+ * - `solidCards`: opaque `Paper`/`Card`/inputs (One WSO2), or Oxygen's
+ *   translucent acrylic paper with a backdrop blur (csm-portal).
+ * - `canvas`: what the `<body>` behind them looks like.
+ *     `"flat"`   a single colour, the original One WSO2 look
+ *     `"brand"`  two soft One WSO2 orange pools
+ *     `"oxygen"` AcrylicOrange's own wash — orange + violet + a white vignette
+ *
+ * Current pick: solid cards on a brand wash. Solid cards keep text on a crisp
+ * opaque surface (the reason the flat look was chosen originally), while the
+ * wash gives the canvas some depth. `"oxygen"` is left reachable because it is
+ * exactly what csm-portal renders, which makes A/B-ing the two apps easy.
+ *
+ * NOTE: a canvas wash is only visible if nothing paints over the body. The
+ * content scroller in AppLayout.tsx deliberately sets no background for this
+ * reason — see the comment there before adding one back.
  */
-export const SOLID_SURFACES = true;
+export const SURFACES = {
+  solidCards: true,
+  canvas: "brand" as "flat" | "brand" | "oxygen",
+};
 
 const ORANGE_MAIN = "#F14E23";
 const ORANGE_LIGHT_LIGHT_MODE = "#FDEDE8";
 const ORANGE_LIGHT_DARK_MODE = "rgba(241,78,35,0.18)";
 const ORANGE_DARK = "#B93816";
 
-// AcrylicBase gives every Paper a translucent acrylic fill and a backdrop blur,
-// and AcrylicOrange paints two radial oranges + a radial purple across the body.
-// On a flat neutral canvas that reads washed out, so we replace it with solid
-// paper and a flat ground.
+// AcrylicBase gives every Paper a translucent acrylic fill and a backdrop blur.
+// On a flat neutral canvas that reads washed out, so we force opaque paper.
 //
 // NOTE — the palette values here MUST be CSS variables, not
 // theme.palette.background.paper. Under CssVarsProvider / extendTheme the plain
@@ -65,19 +79,7 @@ const flatSurface = {
   WebkitBackdropFilter: "none",
 } as const;
 
-const flatCanvas = {
-  backgroundAttachment: "initial",
-  backgroundImage: "none",
-  backgroundColor: "var(--oxygen-palette-background-default)",
-} as const;
-
-const solidSurfaceOverrides = {
-  MuiCssBaseline: {
-    styleOverrides: {
-      "html[data-color-scheme='light'] body": flatCanvas,
-      "html[data-color-scheme='dark'] body": flatCanvas,
-    },
-  },
+const solidCardOverrides = {
   MuiPaper: { styleOverrides: { root: flatSurface } },
   MuiCard: { styleOverrides: { root: flatSurface } },
   // Text fields shouldn't pick up the acrylic tint on top of a solid card.
@@ -87,6 +89,79 @@ const solidSurfaceOverrides = {
     },
   },
 };
+
+// ---- canvas treatments -----------------------------------------------------
+// Each is a full `body` rule, since it has to override AcrylicOrange's own
+// background-image rather than merge with it.
+
+const flatCanvas = {
+  backgroundAttachment: "initial",
+  backgroundImage: "none",
+  backgroundColor: "var(--oxygen-palette-background-default)",
+} as const;
+
+// Two soft pools of the brand orange. Deliberately not a copy of Oxygen's wash:
+// that one includes a violet at 15%/50% (`rgba(74,41,165,0.1)`) which belongs to
+// AcrylicPurple's palette and reads as a different product's accent on an
+// orange-branded app. Alphas stay at or below ~0.10 in light / ~0.17 in dark —
+// past roughly 12% the radials start to band visibly on wide displays.
+const brandCanvasLight = {
+  backgroundAttachment: "fixed",
+  backgroundColor: "var(--oxygen-palette-background-default)",
+  backgroundImage: [
+    "radial-gradient(circle at 68% 22%, rgba(241,78,35,0.10) 0%, rgba(241,78,35,0) 46%)",
+    "radial-gradient(circle at 12% 64%, rgba(241,78,35,0.05) 0%, rgba(241,78,35,0) 42%)",
+  ].join(","),
+} as const;
+
+const brandCanvasDark = {
+  backgroundAttachment: "fixed",
+  backgroundColor: "var(--oxygen-palette-background-default)",
+  backgroundImage: [
+    "radial-gradient(circle at 68% 22%, rgba(241,78,35,0.17) 0%, rgba(241,78,35,0) 52%)",
+    "radial-gradient(circle at 12% 64%, rgba(241,78,35,0.09) 0%, rgba(241,78,35,0) 46%)",
+  ].join(","),
+} as const;
+
+function canvasOverrides() {
+  // "oxygen" = inherit AcrylicOrange's own MuiCssBaseline rule untouched.
+  if (SURFACES.canvas === "oxygen") return {};
+  const light = SURFACES.canvas === "flat" ? flatCanvas : brandCanvasLight;
+  const dark = SURFACES.canvas === "flat" ? flatCanvas : brandCanvasDark;
+  return {
+    MuiCssBaseline: {
+      styleOverrides: {
+        "html[data-color-scheme='light'] body": light,
+        "html[data-color-scheme='dark'] body": dark,
+      },
+    },
+  };
+}
+
+// Selected/hover wash, tinted to the brand orange.
+//
+// Oxygen's Sidebar paints its selected row with `action.selected`, and
+// AcrylicOrange doesn't override it — so it inherits MUI's neutral grey
+// (`rgba(0,0,0,0.08)`). Tinting this token is a first-class customisation, not a
+// workaround: four of the nine shipped Oxygen themes do exactly the same thing
+// toward their own primary (AcrylicPurple, Choreo, PaleGray, PaleIndigo).
+//
+// It's a background wash under text that stays `text.primary`, so it costs no
+// contrast — unlike colouring the label itself, which is why the old rail's
+// `color: primary.main` on active rows failed AA at 13.5px.
+const selectionLight = {
+  selected: "rgba(241,78,35,0.10)",
+  selectedOpacity: 0.1,
+  hover: "rgba(241,78,35,0.05)",
+  hoverOpacity: 0.05,
+} as const;
+
+const selectionDark = {
+  selected: "rgba(241,78,35,0.22)",
+  selectedOpacity: 0.22,
+  hover: "rgba(241,78,35,0.10)",
+  hoverOpacity: 0.1,
+} as const;
 
 export const OneWso2Theme = extendTheme(AcrylicOrangeTheme, {
   colorSchemes: {
@@ -108,6 +183,7 @@ export const OneWso2Theme = extendTheme(AcrylicOrangeTheme, {
           secondary: "#5B5B61",
         },
         divider: "#E7E7EA",
+        action: selectionLight,
       },
     },
     dark: {
@@ -128,6 +204,7 @@ export const OneWso2Theme = extendTheme(AcrylicOrangeTheme, {
           secondary: "#9A9AA0",
         },
         divider: "#26262B",
+        action: selectionDark,
       },
     },
   },
@@ -157,5 +234,8 @@ export const OneWso2Theme = extendTheme(AcrylicOrangeTheme, {
     },
   },
 
-  components: SOLID_SURFACES ? solidSurfaceOverrides : {},
+  components: {
+    ...canvasOverrides(),
+    ...(SURFACES.solidCards ? solidCardOverrides : {}),
+  },
 });
