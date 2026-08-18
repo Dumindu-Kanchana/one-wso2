@@ -418,7 +418,12 @@ function BlockForm({
               component="iframe"
               title="Block preview"
               srcDoc={previewDoc(b.html)}
-              sandbox="allow-same-origin"
+              // Fully restricted. `allow-same-origin` would put admin-authored
+              // block HTML in this app's origin; it isn't exploitable while
+              // `allow-scripts` is absent, but the two tokens together would hand
+              // that HTML our storage and tokens, and a static structure preview
+              // needs neither.
+              sandbox=""
               sx={{ width: "100%", height: "100%", border: 0 }}
             />
           </Box>

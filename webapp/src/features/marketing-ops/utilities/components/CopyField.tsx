@@ -51,8 +51,12 @@ export default function CopyField({
       ta.value = value;
       document.body.appendChild(ta);
       ta.select();
-      document.execCommand("copy");
+      // execCommand returns false when the browser refuses the copy. Reporting
+      // "Copied" anyway is the worst outcome available: the string isn't on the
+      // clipboard and the button has stopped offering to put it there.
+      const ok = document.execCommand("copy");
       ta.remove();
+      if (!ok) return;
     }
     setCopied(true);
     window.clearTimeout(timer.current);

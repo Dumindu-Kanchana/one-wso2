@@ -1604,15 +1604,22 @@ export default function AdvancedEditor({
           onClose={() => setGlobalUtmOpen(false)}
         />
       )}
-      <ExportDialog
-        open={exportOpen}
-        html={exportHtml}
-        name={name}
-        draftId={draftId}
-        pardotTemplateId={pardotId}
-        onSynced={({ pardotTemplateId }) => setPardotId(pardotTemplateId)}
-        onClose={() => setExportOpen(false)}
-      />
+      {/* Mounted per open, like GlobalUtmDialog above. Kept mounted, its four
+          pieces of local state survived a close: a stale `textOverride` masked the
+          text version recomputed from the new HTML, so a reopened dialog could push
+          the PREVIOUS body's plain-text half, and the last success alert was still
+          sitting there. A remount is the reset. */}
+      {exportOpen && (
+        <ExportDialog
+          open
+          html={exportHtml}
+          name={name}
+          draftId={draftId}
+          pardotTemplateId={pardotId}
+          onSynced={({ pardotTemplateId }) => setPardotId(pardotTemplateId)}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
       <Snackbar
         open={Boolean(snack)}
         autoHideDuration={2500}

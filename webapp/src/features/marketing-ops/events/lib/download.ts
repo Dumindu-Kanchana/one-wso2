@@ -42,7 +42,10 @@ export async function downloadAuthed(
   document.body.appendChild(a);
   a.click();
   a.remove();
-  // Safe to revoke immediately: the click has already handed the blob to the browser's
-  // download manager, which holds its own reference.
-  URL.revokeObjectURL(objectUrl);
+  // Revoked on the next macrotask rather than synchronously. The claim that the click
+  // has already handed the blob over holds in Chrome, but Safari has been observed to
+  // start reading after the current task finishes — revoking in the same tick produced
+  // a silently empty file, and a CSV export that writes 0 bytes without an error is a
+  // bad way to find that out.
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
 }

@@ -137,7 +137,12 @@ export function useMarketingOpsGate(enabled = true): MarketingOpsGate {
     canSee,
     isAuthorized,
     isAdmin,
-    isResolving: enabled && me.isLoading,
+    // `isPending` rather than `isLoading`, so the window in which the Asgardeo sub
+    // hasn't resolved yet counts as resolving too. With `isLoading` the query was
+    // merely "not fetching" during that window, which read as a finished check with
+    // no capabilities — a flash of "you don't have access" on a cold load, at every
+    // caller that trusts this flag.
+    isResolving: enabled && me.isPending,
     isError: me.isError,
     // describeError never surfaces the raw response body — see @api/errors.
     errorMessage: me.isError ? describeError(me.error) : undefined,

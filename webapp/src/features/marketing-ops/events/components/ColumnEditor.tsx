@@ -34,7 +34,7 @@ import {
   Plus,
   Trash2,
 } from "@wso2/oxygen-ui-icons-react";
-import { COMPUTED_LABEL, MAPPABLE_COMPUTED } from "../rules/schema";
+import { COMPUTED_LABEL, MAPPABLE_COMPUTED, slug } from "../rules/schema";
 import type { FieldDef } from "../eventsTypes";
 import { fieldHint, fieldInput, fieldLabel, primaryBtn, quietBtn } from "./eventsStyles";
 
@@ -67,14 +67,37 @@ const blank = (): FieldDef => ({
   computed: false,
 });
 
-/** Does this compile, and does it say anything? An invalid pattern stored unchecked
- *  would reject every value on every upload with no clue why. */
+/** Longer than any real column rule, short enough that a pathological pattern can't
+ *  hide in the noise. The email shortcut above is 34 characters. */
+const MAX_PATTERN_LENGTH = 200;
+
+// A quantifier applied to an already-quantified group — (a+)+, (x*)*, (\d+)* — is the
+// shape that makes a regex engine backtrack exponentially. This does not attempt to
+// detect every such pattern; it catches the classic nesting cheaply.
+const NESTED_QUANTIFIER = /\([^()]*[+*][^()]*\)\s*[+*{]/;
+
+/** Does this compile, is it a sane size, and can it be run without hanging the tab?
+ *
+ *  Compiling was the only check here, so `(a+)+$` was accepted and saved. Every row of
+ *  every future upload is then tested against it — in the browser, on the main thread —
+ *  and catastrophic backtracking turns a short non-matching value into seconds of
+ *  frozen UI. This is the persistence boundary, so it is the place to refuse: an admin
+ *  gets an explanation now instead of every uploader getting a hung page later.
+ *
+ *  A stored pattern that predates this check still can't be re-saved without fixing it,
+ *  which is the useful half of enforcing it here. */
 function patternError(pattern: string | null | undefined): string | null {
   if (!pattern) return null;
   try {
     new RegExp(pattern);
   } catch (e) {
     return e instanceof Error ? e.message : "invalid";
+  }
+  if (pattern.length > MAX_PATTERN_LENGTH) {
+    return `too long — keep it under ${MAX_PATTERN_LENGTH} characters`;
+  }
+  if (NESTED_QUANTIFIER.test(pattern)) {
+    return "a repeat inside a repeat, like (a+)+, can take seconds per row — rewrite it without the nested + or *";
   }
   return null;
 }
@@ -112,7 +135,7 @@ export default function ColumnEditor({
   const issues = useMemo(() => {
     const out: string[] = [];
     const headers = new Map<string, string>();
-    const names = new Map<string, string>();
+    const names = new Map<string, { name: string; header: string }>();
     const key = (s: string) => s.trim().split(/\s+/).join(" ").toLowerCase();
 
     for (const f of fields) {
@@ -135,15 +158,25 @@ export default function ColumnEditor({
       }
       headers.set(hk, name);
 
-      const nk = name.toLowerCase();
+      // Compared by SLUG, not by lowercased name. `slug` collapses every run of
+      // non-alphanumerics to one underscore, so "Job title", "Job-Title" and
+      // "job_title" are all the same field key to MOP — but only the same string to a
+      // case-fold. Two such columns passed this check, then arrived at the grid as one
+      // key for two definitions: a duplicate React key, and one column silently
+      // standing in for the other. The message names both spellings, because
+      // "both called Job title" is baffling when the two headings visibly differ.
+      const nk = f.computed ? name.toLowerCase() : slug(name);
       if (names.has(nk)) {
+        const other = names.get(nk)!;
         out.push(
           f.computed
             ? `Two headings both stand for “${name}”. MOP fills it in once.`
-            : `Two columns are both called “${name}”.`,
+            : other.name === name
+              ? `Two columns are both called “${name}”.`
+              : `“${other.name}” and “${name}” are the same field to MOP (both become “${nk}”). Give one of them a different name.`,
         );
       }
-      names.set(nk, header);
+      names.set(nk, { name, header });
 
       // A computed row carries no type, so there is nothing further to check.
       if (f.computed) continue;

@@ -70,9 +70,22 @@ export function sanitizeCampaign(raw: string): string {
   return raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
-// Strip % (breaks URL routing/tracking) and trim; otherwise leave the URL intact.
+// Strip STRAY percent signs and trim; otherwise leave the URL intact.
+//
+// Marketing Ops removed every `%`, which is right for the case it was written for —
+// someone pastes a URL carrying a literal percent and the tracking link breaks — but
+// wrong for a legitimately encoded one: `/a%20b` became `/a20b`, a different
+// resource, and the page cheerfully reported that a character had been "removed".
+//
+// A `%` followed by two hex digits is valid percent-encoding and is left alone. Only
+// a `%` that cannot be part of an escape is dropped.
 export function cleanPageUrl(raw: string): string {
-  return raw.replace(/%/g, "").trim();
+  return raw.replace(/%(?![0-9a-fA-F]{2})/g, "").trim();
+}
+
+/** Whether cleanPageUrl would actually drop something — for an honest warning. */
+export function hasStrayPercent(raw: string): boolean {
+  return /%(?![0-9a-fA-F]{2})/.test(raw);
 }
 
 // YYYY-MM-DD → MMDDYY
@@ -115,8 +128,21 @@ export function buildUtmUrl(i: UtmInput): UtmResult {
   // Params must go BEFORE any #fragment, otherwise they become part of the
   // fragment and are ignored by the server. Split the URL, append, re-attach.
   const hashIdx = clean.indexOf("#");
-  const base = hashIdx === -1 ? clean : clean.slice(0, hashIdx);
+  const beforeHash = hashIdx === -1 ? clean : clean.slice(0, hashIdx);
   const fragment = hashIdx === -1 ? "" : clean.slice(hashIdx);
+
+  // REPLACE any utm_* the input already carries rather than appending beside it.
+  // Tagging an already-tagged URL used to produce two utm_source and two
+  // utm_campaign params, and which one a given analytics tool honours is not
+  // something to leave to chance. Other query params are kept — they're usually
+  // functional (a product id, a locale) and dropping them would break the link.
+  //
+  // rebuildLinkUtm in the email editor already strips utm_* before calling this, so
+  // this is a no-op on that path rather than a change to it.
+  const [path, query = ""] = beforeHash.split("?");
+  const kept = query.split("&").filter((p) => p && !/^utm_/i.test(p));
+  const base = kept.length ? `${path}?${kept.join("&")}` : path;
+
   const joiner = base.includes("?") ? "&" : "?";
   const url = `${base}${joiner}utm_source=${i.source}&utm_medium=${i.medium}&utm_campaign=${utmCampaign}${fragment}`;
   return { url, segments };

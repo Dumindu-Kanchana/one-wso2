@@ -56,6 +56,15 @@ const KEY = {
   categories: ["marketing-ops", "ew", "categories"] as const,
   drafts: (sub?: string) => ["marketing-ops", "ew", "drafts", sub] as const,
   draft: (id: string, sub?: string) => ["marketing-ops", "ew", "draft", id, sub] as const,
+  // Both prefixes, because "drafts" is NOT a prefix of "draft" — invalidating the
+  // list leaves an open draft's own cache untouched. That gap had teeth: after a
+  // push, a stale cached draft still reads pardot_template_id: null, so
+  // ExportDialog offers a fresh push and Pardot gets a SECOND template — the exact
+  // failure the export path exists to prevent. Every draft mutation uses this.
+  allDrafts: [
+    ["marketing-ops", "ew", "drafts"],
+    ["marketing-ops", "ew", "draft"],
+  ] as const,
   blocks: ["marketing-ops", "ew", "blocks"] as const,
   settings: ["marketing-ops", "ew", "settings"] as const,
 };
@@ -138,10 +147,14 @@ export function useDeleteTemplate() {
   return useMutation({
     mutationFn: async (id: string) =>
       authedDelete(urls.emailWorkbenchTemplate(id), await getAccessToken()),
-    onSuccess: () =>
+    onSuccess: (_res, id) =>
       Promise.all([
         qc.invalidateQueries({ queryKey: KEY.templates }),
         qc.invalidateQueries({ queryKey: KEY.categories }),
+        // And the deleted template's own cache, which useSaveTemplate above
+        // already knows to drop. Left behind, a stale entry let "Create an email"
+        // open a template that no longer exists.
+        qc.removeQueries({ queryKey: KEY.template(id) }),
       ]),
   });
 }
@@ -190,7 +203,8 @@ export function useSaveDraft() {
     // Broad invalidation on the drafts subtree rather than naming the user's key:
     // the editor autosaves, and matching the exact per-user key at every call site
     // is the kind of detail that silently rots.
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["marketing-ops", "ew", "drafts"] }),
+    onSuccess: () =>
+      Promise.all(KEY.allDrafts.map((queryKey) => qc.invalidateQueries({ queryKey }))),
   });
 }
 
@@ -200,7 +214,8 @@ export function useDeleteDraft() {
   return useMutation({
     mutationFn: async (id: string) =>
       authedDelete(urls.emailWorkbenchDraft(id), await getAccessToken()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["marketing-ops", "ew", "drafts"] }),
+    onSuccess: () =>
+      Promise.all(KEY.allDrafts.map((queryKey) => qc.invalidateQueries({ queryKey }))),
   });
 }
 
@@ -231,7 +246,8 @@ export function usePushDraft() {
         await getAccessToken(),
         body,
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["marketing-ops", "ew", "drafts"] }),
+    onSuccess: () =>
+      Promise.all(KEY.allDrafts.map((queryKey) => qc.invalidateQueries({ queryKey }))),
   });
 }
 

@@ -44,10 +44,16 @@ const labelSx = {
 // keeping other query params the link already carries — those are usually
 // functional (a product id, a locale) and dropping them would break the link.
 function baseUrl(u: string): string {
-  const [path, query] = u.split("?");
+  // Split the FRAGMENT off first. `u.split("?")` leaves "#pricing" attached to the
+  // last query param, so dropping every utm_* param dropped the fragment with it —
+  // https://wso2.com/p?utm_source=a#pricing came back as https://wso2.com/p.
+  // rebuildLinkUtm in ../lib/advancedEditorCore.ts already does it in this order.
+  const hash = u.indexOf("#");
+  const fragment = hash >= 0 ? u.slice(hash) : "";
+  const [path, query] = (hash >= 0 ? u.slice(0, hash) : u).split("?");
   if (!query) return u;
-  const kept = query.split("&").filter((p) => !/^utm_/i.test(p));
-  return kept.length ? `${path}?${kept.join("&")}` : path;
+  const kept = query.split("&").filter((p) => p && !/^utm_/i.test(p));
+  return (kept.length ? `${path}?${kept.join("&")}` : path) + fragment;
 }
 
 export default function UtmDialog({

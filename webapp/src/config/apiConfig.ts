@@ -243,8 +243,12 @@ export const expenseServiceUrls = {
 //
 // Empty string = not configured; MarketingOpsShell renders a "not connected"
 // state rather than firing broken requests.
-export const marketingOpsBackendUrl: string =
-  window.config?.ONE_WSO2_MARKETINGOPS_BACKEND_URL ?? "";
+// Trailing slashes stripped, because every builder below concatenates "/api/..."
+// onto this — a configured value ending in "/" produced "//api/..." on all 52 of
+// them, and whether that 404s depends on the gateway.
+export const marketingOpsBackendUrl: string = (
+  window.config?.ONE_WSO2_MARKETINGOPS_BACKEND_URL ?? ""
+).replace(/\/+$/, "");
 
 export function isMarketingOpsBackendConfigured(): boolean {
   return Boolean(marketingOpsBackendUrl);
@@ -437,7 +441,7 @@ export const pardotBaseUrl: string = (
 ).replace(/\/+$/, "");
 
 export function pardotTemplateUrl(id: number | string): string {
-  return `${pardotBaseUrl}/emailTemplate/read/id/${id}`;
+  return `${pardotBaseUrl}/emailTemplate/read/id/${encodeURIComponent(String(id))}`;
 }
 
 // Base URL of the Salesforce Lightning UI, for deep-linking to the record an

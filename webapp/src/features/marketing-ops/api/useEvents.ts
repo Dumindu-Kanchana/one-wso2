@@ -196,8 +196,17 @@ export function useUpdateSubmissionMeta() {
   return useMutation({
     mutationFn: async ({ id, body }: { id: string; body: EventMeta }) =>
       authedPatch<SubmissionFull>(urls.eventsSubmission(id), await getAccessToken(), body),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["marketing-ops", "events", "submissions"] }),
+    // Both the list AND the open submission. Unlike useSaveSubmission below — which
+    // deliberately leaves the open payload alone so a refetch can't stomp in-flight
+    // grid edits — this changes the submission's METADATA (event name, date, campaign
+    // URL, lead state), none of which the grid is editing. Leaving it stale meant the
+    // workspace header kept showing the old event name until a reload, and lead_state
+    // is written onto every exported row.
+    onSuccess: (_res, { id }) =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ["marketing-ops", "events", "submissions"] }),
+        qc.invalidateQueries({ queryKey: ["marketing-ops", "events", "submission", id] }),
+      ]),
   });
 }
 

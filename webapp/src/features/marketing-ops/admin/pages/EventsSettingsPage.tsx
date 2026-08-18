@@ -36,6 +36,7 @@ import {
   useSaveFields,
   useUpdateStatus,
 } from "../../api/useEvents";
+import type { FieldDef } from "../../events/eventsTypes";
 import NewStatusDialog from "../../events/components/NewStatusDialog";
 import StatusEditor from "../../events/components/StatusEditor";
 import { primaryBtn, quietBtn } from "../../events/components/eventsStyles";
@@ -55,6 +56,14 @@ import { primaryBtn, quietBtn } from "../../events/components/eventsStyles";
 // What it replaces: two tables of spellings carried in code, each guessing at meaning.
 // A tab called "Event attendees" matched nothing and 166 people were dropped in silence.
 
+// A cheap identity for one status' column list, used as part of StatusEditor's key.
+// Serializing the definitions is honest about what "the same columns" means — a
+// reorder, or a single renamed heading, is a different list, and an editor open on
+// the old one should restart rather than keep editing something that moved.
+function fieldsRevision(defs: FieldDef[] | undefined): string {
+  return defs ? JSON.stringify(defs) : "none";
+}
+
 export default function EventsSettingsPage() {
   // `true` — retired statuses are listed here, because this is where one is brought
   // back into use. The operation's own screens ask for live ones only.
@@ -72,7 +81,10 @@ export default function EventsSettingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const statuses = statusesQuery.data;
-  const fields = fieldsQuery.data ?? {};
+  // No `?? {}` default. An absent field map is NOT an empty one: StatusEditor seeds
+  // its editable draft from this prop, so rendering before it arrived let the column
+  // editor start from [] — and saving that overwrote every real column with nothing.
+  const fields = fieldsQuery.data;
 
   // Selection is DERIVED from the list rather than synced into it. A rename, a delete
   // or a duplicate changes which names exist, and the two invalidate together — so
@@ -109,7 +121,7 @@ export default function EventsSettingsPage() {
           Could not load the Events settings.{" "}
           {describeError(statusesQuery.error ?? fieldsQuery.error)}
         </Alert>
-      ) : !statuses ? (
+      ) : !statuses || !fields ? (
         <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", py: 3 }}>
           <CircularProgress size={16} />
           <Typography sx={{ fontSize: 13, color: "text.secondary" }}>Loading settings…</Typography>
@@ -160,7 +172,13 @@ export default function EventsSettingsPage() {
                 // draft of the columns is seeded from props, and a remount is what makes
                 // that seeding correct without an effect.
                 <StatusEditor
-                  key={current.name}
+                  // Keyed on the columns as well as the name. `fields` lives under a
+                  // stable query key, so a background refetch can replace it while
+                  // the editor is open: `draft` was seeded once on mount but
+                  // `baseline` read the new prop, which showed the editor as dirty
+                  // and let a save push the pre-refetch columns back over the
+                  // current ones. A changed revision is a different editor.
+                  key={`${current.name}:${fieldsRevision(fields[current.name])}`}
                   status={current}
                   fields={fields[current.name] ?? []}
                   onSaveStatus={async (patch) => {

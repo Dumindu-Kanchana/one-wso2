@@ -66,7 +66,12 @@ export default function MarketingOpsShell({
         size="small"
         sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
+      {/* An h1, not a styled div: it is the page's heading, and a screen-reader
+          user navigating by headings had nothing to land on. */}
+      <Typography
+        component="h1"
+        sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5, mt: 0 }}
+      >
         {title}
       </Typography>
       {subtitle && (

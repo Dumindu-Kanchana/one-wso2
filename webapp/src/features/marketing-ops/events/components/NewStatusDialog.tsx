@@ -48,7 +48,12 @@ export default function NewStatusDialog({
   const [error, setError] = useState<string | null>(null);
 
   async function create() {
-    if (!name.trim()) return;
+    // `busy` guards re-entry, not just the button's disabled state: Enter in the name
+    // field calls this directly, and holding it down fired several creates before the
+    // first response came back — the server refuses the duplicate name, so the second
+    // reply overwrote the success with an error about a status that had just been
+    // created successfully.
+    if (busy || !name.trim()) return;
     setBusy(true);
     setError(null);
     try {

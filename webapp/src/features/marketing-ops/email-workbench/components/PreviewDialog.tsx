@@ -28,6 +28,32 @@ import { renderPreviewHtml } from "../lib/advancedEditorCore";
 
 const MOBILE_W = 380;
 
+// A preview must look EXACTLY like the email, so nothing here rewrites the markup —
+// but a blob: URL inherits this app's origin, which means a <script> or an inline
+// on* handler in a template would run with access to our storage and tokens. The
+// in-dialog iframe is sandboxed; "Open in new tab" is a top-level document and
+// cannot be.
+//
+// So the document carries its own restrictive CSP instead. It blocks script
+// execution outright while leaving every presentational capability an email needs —
+// inline styles, remote and data: images, webfonts — so the preview is unchanged to
+// look at. Injected here rather than in renderPreviewHtml, which is a verbatim
+// parity-checked port.
+const PREVIEW_CSP =
+  "default-src 'none'; " +
+  "img-src data: https: http:; " +
+  "style-src 'unsafe-inline' https:; " +
+  "font-src data: https:; " +
+  "script-src 'none'; " +
+  "object-src 'none'; " +
+  "form-action 'none'";
+
+function withPreviewCsp(doc: string): string {
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">`;
+  if (/<head[^>]*>/i.test(doc)) return doc.replace(/<head[^>]*>/i, (h) => `${h}${meta}`);
+  return meta + doc;
+}
+
 export default function PreviewDialog({
   open,
   html,
@@ -42,7 +68,7 @@ export default function PreviewDialog({
   const shown = renderPreviewHtml(html, dark ? "dark" : "light");
 
   function openInNewTab() {
-    const blob = new Blob([shown], { type: "text/html" });
+    const blob = new Blob([withPreviewCsp(shown)], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank", "noopener");
     // The new tab has already read the blob by the time this runs; revoking on a
@@ -141,7 +167,9 @@ export default function PreviewDialog({
           srcDoc={shown}
           // allow-same-origin only: the email must render, but must not be able to
           // run scripts or navigate the parent.
-          sandbox="allow-same-origin"
+          // Fully restricted: `allow-same-origin` would put template HTML in this
+          // app's origin, and a preview needs no origin at all.
+          sandbox=""
           sx={{
             width: device === "mobile" ? MOBILE_W : "100%",
             height: "100%",

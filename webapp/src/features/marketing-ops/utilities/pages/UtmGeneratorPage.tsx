@@ -20,7 +20,7 @@ import { TriangleAlert } from "@wso2/oxygen-ui-icons-react";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import CopyField from "../components/CopyField";
 import { useUtmSchema } from "../../api/useMarketingOpsSettings";
-import { DEFAULTS, buildUtmUrl, type Pair } from "../utm";
+import { DEFAULTS, buildUtmUrl, hasStrayPercent, type Pair } from "../utm";
 
 const labelSx = {
   fontSize: 11,
@@ -61,19 +61,46 @@ export default function UtmGeneratorPage() {
   const [region, setRegion] = useState(DEFAULTS.region);
   const [bu, setBu] = useState(DEFAULTS.bu);
 
-  const hasPercent = pageUrl.includes("%") || campaignName.includes("%");
+  // Only warn when something will actually be dropped. A valid escape like %20 now
+  // survives, so flagging every "%" would be telling the user about a removal that
+  // didn't happen.
+  const hasPercent = hasStrayPercent(pageUrl) || campaignName.includes("%");
 
+  // Each selection starts from DEFAULTS, which are coded constants — so an admin who
+  // retires the default value leaves this page holding a code the live schema no
+  // longer offers. The Select then renders blank while the state still carries the
+  // retired code, and the generated link ships it. `offered` resolves that during
+  // render: a selection still in the list is kept, anything else becomes the first
+  // value the schema actually offers.
+  const offered = (value: string, opts: Pair[]) =>
+    opts.some(([, code]) => code === value) ? value : (opts[0]?.[1] ?? "");
+
+  const selects: Array<{ label: string; value: string; set: (v: string) => void; opts: Pair[] }> =
+    useMemo(
+      () => [
+        { label: "Source", value: offered(source, schema.source), set: setSource, opts: schema.source },
+        { label: "Medium", value: offered(medium, schema.medium), set: setMedium, opts: schema.medium },
+        { label: "Region", value: offered(region, schema.region), set: setRegion, opts: schema.region },
+        { label: "Business Unit", value: offered(bu, schema.bu), set: setBu, opts: schema.bu },
+      ],
+      [source, medium, region, bu, schema],
+    );
+
+  // The URL is built from the RESOLVED selections, not the raw state, so a link can
+  // never carry a code the schema has retired.
   const { url, segments } = useMemo(
-    () => buildUtmUrl({ pageUrl, campaign: campaignName, startDate, source, medium, region, bu }),
-    [pageUrl, campaignName, startDate, source, medium, region, bu],
+    () =>
+      buildUtmUrl({
+        pageUrl,
+        campaign: campaignName,
+        startDate,
+        source: selects[0].value,
+        medium: selects[1].value,
+        region: selects[2].value,
+        bu: selects[3].value,
+      }),
+    [pageUrl, campaignName, startDate, selects],
   );
-
-  const selects: Array<{ label: string; value: string; set: (v: string) => void; opts: Pair[] }> = [
-    { label: "Source", value: source, set: setSource, opts: schema.source },
-    { label: "Medium", value: medium, set: setMedium, opts: schema.medium },
-    { label: "Region", value: region, set: setRegion, opts: schema.region },
-    { label: "Business Unit", value: bu, set: setBu, opts: schema.bu },
-  ];
 
   return (
     <MarketingOpsShell

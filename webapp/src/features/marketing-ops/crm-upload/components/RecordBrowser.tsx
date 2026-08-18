@@ -183,7 +183,14 @@ export default function RecordBrowser({
 
   // Sources are discovered from what came back — there is no endpoint listing them,
   // and one source is not a choice worth showing a control for.
-  const sources = [...new Set(records.map((r) => r.source_system))];
+  //
+  // The selected source is folded in explicitly, because filtering by one makes every
+  // returned row carry it: the derived list collapsed to a single entry, the control
+  // unmounted, and the filter stayed applied in the query with nothing left on screen
+  // to clear it.
+  const sources = [
+    ...new Set([...records.map((r) => r.source_system), sourceFilter].filter(Boolean)),
+  ];
 
   return (
     <Box>
@@ -203,7 +210,7 @@ export default function RecordBrowser({
           }
           sx={{ height: 36, fontSize: 13, bgcolor: "background.default", flex: 1, maxWidth: 360 }}
         />
-        {sources.length > 1 && (
+        {(sources.length > 1 || sourceFilter) && (
           <Select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(String(e.target.value))}

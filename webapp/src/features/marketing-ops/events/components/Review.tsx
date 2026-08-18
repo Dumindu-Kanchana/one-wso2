@@ -280,12 +280,18 @@ export function ReviewDetail({ id, onBack }: { id: string; onBack: () => void })
   const busy =
     approve.isPending || sendBack.isPending || markImported.isPending;
 
-  async function act(fn: () => Promise<unknown>) {
+  // Returns whether it worked. It swallows the error into `error` state rather than
+  // rethrowing, so without this flag every caller's `.then` ran on failure too —
+  // which closed the send-back dialog and discarded the comment the reviewer had
+  // just typed, leaving the error alert behind a dialog that was no longer there.
+  async function act(fn: () => Promise<unknown>): Promise<boolean> {
     setError(null);
     try {
       await fn();
+      return true;
     } catch (e) {
       setError(describeError(e));
+      return false;
     }
   }
 
@@ -506,7 +512,8 @@ export function ReviewDetail({ id, onBack }: { id: string; onBack: () => void })
             disabled={!rejectText.trim() || busy}
             sx={primaryBtn}
             onClick={() =>
-              void act(() => sendBack.mutateAsync({ id, comment: rejectText.trim() })).then(() => {
+              void act(() => sendBack.mutateAsync({ id, comment: rejectText.trim() })).then((ok) => {
+                if (!ok) return;
                 setRejecting(false);
                 setRejectText("");
               })

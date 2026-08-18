@@ -34,6 +34,18 @@
 
 import { COMPUTED_FIELDS, defsOf, keyOf, type EventsConfig, type Field, type Tab } from './schema'
 
+// ONE WSO2 DIVERGENCE from the Marketing Ops original (the rest of rules/ is a
+// byte-identical port). The story above closed one source of duplicate keys — appending
+// COMPUTED_FIELDS to a list that already held them — but not the other: `keyOf` runs the
+// heading through `slug`, which collapses every run of non-alphanumerics, so two
+// separately configured columns named "Job title" and "Job-Title" both key as
+// `job_title`. That is the same wrong-cells-under-wrong-headings failure from a second
+// direction, so it is closed here too.
+//
+// ColumnEditor now refuses to SAVE a colliding pair, which is the real fix; this keeps
+// an already-stored pair from breaking the grid. Worth porting back to Marketing Ops.
+const dedupe = (keys: Field[]): Field[] => [...new Set(keys)]
+
 /** The columns of a tab, from the configuration alone.
  *
  *  Order: what an admin configured — computed columns included, where they mapped a
@@ -41,7 +53,7 @@ import { COMPUTED_FIELDS, defsOf, keyOf, type EventsConfig, type Field, type Tab
  *  second group: it is chosen once per submission, so there is no heading for it.
  */
 export function baseColumns(config: EventsConfig, tab: Tab): Field[] {
-  const configured = defsOf(config, tab).map(keyOf)
+  const configured = dedupe(defsOf(config, tab).map(keyOf))
   const placed = new Set(configured)
   return [...configured, ...COMPUTED_FIELDS.filter(f => !placed.has(f))]
 }
@@ -57,7 +69,7 @@ export function baseColumns(config: EventsConfig, tab: Tab): Field[] {
  */
 export function columnsFor(rows: { data: Record<string, string> }[], tab: Tab,
                            config: EventsConfig): Field[] {
-  const configured = defsOf(config, tab).map(keyOf)
+  const configured = dedupe(defsOf(config, tab).map(keyOf))
   const placed = new Set(configured)
   const tail = COMPUTED_FIELDS.filter(f => !placed.has(f))
 

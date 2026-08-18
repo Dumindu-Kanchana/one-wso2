@@ -133,17 +133,23 @@ export function useAssetNameLists() {
 // API lists → the SCHEMA shape the UTM builder expects, enabled values only.
 function mapUtm(lists: UtmListDTO[]): UtmSchema {
   const out: UtmSchema = { source: [], medium: [], region: [], bu: [] };
+  // Which parameters the response actually CARRIED, as opposed to which came back
+  // with values. The fallback used to trigger on an empty list, which conflated two
+  // different things: "the API didn't send this parameter" and "an admin retired
+  // every value in it". The second is a decision, and reviving the hardcoded list
+  // silently overrode it — while `isFallback` still reported false, so the page
+  // didn't even say the values were stale.
+  const present = new Set<keyof UtmSchema>();
   for (const l of lists) {
     if (l.parameter in out) {
-      out[l.parameter as keyof UtmSchema] = l.values
-        .filter((v) => v.enabled)
-        .map((v) => [v.label, v.code] as Pair);
+      const k = l.parameter as keyof UtmSchema;
+      present.add(k);
+      out[k] = l.values.filter((v) => v.enabled).map((v) => [v.label, v.code] as Pair);
     }
   }
-  // A parameter the API didn't return (shouldn't happen) falls back to the
-  // hardcoded list rather than rendering an empty dropdown.
+  // Only a parameter the API didn't return at all falls back to the hardcoded list.
   (Object.keys(FALLBACK_SCHEMA) as (keyof UtmSchema)[]).forEach((k) => {
-    if (!out[k].length) out[k] = FALLBACK_SCHEMA[k];
+    if (!present.has(k)) out[k] = FALLBACK_SCHEMA[k];
   });
   return out;
 }
@@ -164,8 +170,11 @@ function mapGenerators(lists: AssetListDTO[]): Generator[] {
     ...g,
     fields: g.fields.map((f) => {
       if (f.kind !== "select") return f;
-      const live = opts.get(`${g.id}.${f.key}`);
-      return live && live.length ? { ...f, options: live } : f;
+      // Presence, not length — same reasoning as mapUtm above. A field whose live
+      // list exists but is empty means every value was retired, and the coded
+      // options must not come back to contradict that.
+      const key = `${g.id}.${f.key}`;
+      return opts.has(key) ? { ...f, options: opts.get(key)! } : f;
     }),
   }));
 }

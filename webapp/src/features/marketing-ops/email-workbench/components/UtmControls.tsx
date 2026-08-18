@@ -37,6 +37,11 @@ const labelSx = {
 };
 const inputSx = { height: 38, fontSize: 13, bgcolor: "background.default" } as const;
 
+/** Keep a selection that the schema still offers; otherwise fall back to its first. */
+function offered(value: string, opts: Pair[]): string {
+  return opts.some(([, code]) => code === value) ? value : (opts[0]?.[1] ?? "");
+}
+
 export function UtmControls({
   state,
   onChange,
@@ -90,7 +95,11 @@ export function UtmControls({
             <Select
               fullWidth
               size="small"
-              value={state[s.key]}
+              // Resolved against the live options, the same way the standalone UTM
+              // page does it: these default to coded constants, so an admin who
+              // retires the default leaves the Select rendering blank while the
+              // state still holds the retired code — and the built link ships it.
+              value={offered(state[s.key], s.opts)}
               onChange={(e) => onChange({ [s.key]: String(e.target.value) } as Partial<UtmState>)}
               sx={inputSx}
             >

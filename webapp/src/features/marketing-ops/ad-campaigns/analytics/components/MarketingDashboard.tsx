@@ -132,21 +132,32 @@ function GoogleDashboard({ s }: { s: Dashboard["sections"] }) {
   // one should degrade to a note rather than crash the page — this component
   // renders numbers people make budget decisions from, and a blank screen is
   // worse than a partial one.
-  if (!s.funnel) {
-    return (
-      <Alert severity="warning">
-        This dashboard is missing its Salesforce funnel data. The ad-spend figures below are
-        still accurate; the funnel, conversion and opportunity sections need a re-run.
-      </Alert>
-    );
-  }
-
+  // The note said "the ad-spend figures below are still accurate" and then returned,
+  // so there was nothing below it — a warning on an empty page, which is the blank
+  // screen the comment above set out to avoid. It now renders alongside the sections
+  // that don't depend on the funnel, which is what it always claimed to do.
+  //
+  // Overview needs funnel counts (it reconciles its numbers against the funnel
+  // chart), so the funnel-less path borrows PerfOverview — the same header the
+  // LinkedIn dashboard uses, which is exactly the "performance without Salesforce"
+  // case this degrades to.
   return (
     <Box>
-      <Overview o={s.overview} funnel={s.funnel} />
+      {!s.funnel && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          This dashboard is missing its Salesforce funnel data. The ad-spend figures below are
+          still accurate; the funnel, conversion and opportunity sections need a re-run.
+        </Alert>
+      )}
 
-      <SectionTitle>Conversion funnel</SectionTitle>
-      <FunnelView data={s.funnel} />
+      {s.funnel ? <Overview o={s.overview} funnel={s.funnel} /> : <PerfOverview o={s.overview} />}
+
+      {s.funnel && (
+        <>
+          <SectionTitle>Conversion funnel</SectionTitle>
+          <FunnelView data={s.funnel} />
+        </>
+      )}
 
       <SectionTitle>Spend breakdown</SectionTitle>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
