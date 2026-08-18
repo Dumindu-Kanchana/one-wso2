@@ -72,6 +72,7 @@ export default defineConfig({
       "@features": path.resolve(__dirname, "./src/features"),
       "@hooks": path.resolve(__dirname, "./src/hooks"),
       "@layouts": path.resolve(__dirname, "./src/layouts"),
+      "@utils": path.resolve(__dirname, "./src/utils"),
     },
   },
   envPrefix: ["ONE_WSO2_"],

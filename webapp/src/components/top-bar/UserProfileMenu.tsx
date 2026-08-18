@@ -87,9 +87,16 @@ export default function UserProfileMenu() {
   );
 }
 
-// Inline SVGs — oxygen-ui-icons-react in this version only ships brand
-// icons (Facebook / GitHub / Google / WSO2), so we bring our own like the
-// rest of TopBar does.
+// TODO(icons): replace these with UserRoundIcon / LogOutIcon from
+// @wso2/oxygen-ui-icons-react.
+//
+// A previous comment here claimed that package "only ships brand icons
+// (Facebook / GitHub / Google / WSO2)". That is not correct: its entrypoint is
+// `export * from "lucide-react"`, so all ~1,863 Lucide icons are available and
+// typed. That mistaken belief is why this app hand-rolls inline SVGs and uses
+// emoji as its icon set. The icons are usable today with no dependency change —
+// the swap is tracked as its own change so it lands with the rest of the
+// emoji-to-icon migration rather than piecemeal.
 function UserIcon() {
   return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
