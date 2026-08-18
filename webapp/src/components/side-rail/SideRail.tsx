@@ -378,8 +378,11 @@ function SectionNode({
     <Leaf
       label={section.label}
       emoji={section.emoji}
-      bullet
+      // An outbound leaf keeps its emoji as its marker; the bullet is for the
+      // scroll-anchor leaves, which have none.
+      bullet={!section.externalUrl}
       to={section.path}
+      href={section.externalUrl}
       onClick={() => onScroll(section.id)}
     />
   );
@@ -390,6 +393,7 @@ function Leaf({
   emoji,
   bullet,
   to,
+  href,
   onClick,
 }: {
   label: string;
@@ -398,6 +402,10 @@ function Leaf({
   // When present, render as a route link (active-highlighted); otherwise
   // an onClick button (scroll-anchor).
   to?: string;
+  // An address outside One WSO2 — rendered as a new-tab anchor rather than a
+  // route. Never active-highlighted: no route of ours is current once the user
+  // is over there, and highlighting it would claim otherwise.
+  href?: string;
   onClick: () => void;
 }) {
   const inner = (
@@ -411,6 +419,25 @@ function Leaf({
       />
     </>
   );
+  if (href) {
+    return (
+      <ListItemButton
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ borderRadius: 1.125, py: 0.75, px: 1.25 }}
+      >
+        {inner}
+        {/* The one affordance that says this leaves the app. Without it an
+            outbound item is indistinguishable from a route until it has already
+            opened a tab. */}
+        <Box component="span" sx={{ fontSize: 11, color: "text.disabled", ml: 0.5 }}>
+          ↗
+        </Box>
+      </ListItemButton>
+    );
+  }
   if (to) {
     return (
       <ListItemButton

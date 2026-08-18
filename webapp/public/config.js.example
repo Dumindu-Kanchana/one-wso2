@@ -71,4 +71,21 @@ window.config = {
   // thing instead of showing a dead end. Optional — when absent, those links
   // are hidden.
   // ONE_WSO2_MARKETINGOPS_WEB_APP_URL: "<your-marketing-ops-frontend-url>",
+
+  // ISAC base URL — a separate marketing application, linked to from the top of
+  // the Marketing Ops rail and opened in a new tab. Nothing here calls it as an
+  // API. Optional — when absent, the rail item is omitted entirely rather than
+  // rendered as a link that goes nowhere.
+  // ONE_WSO2_MARKETINGOPS_ISAC_URL: "<your-isac-url>",
+
+  // Pardot UI base URL — for deep-linking to an email template after Email
+  // Workbench pushes it. A link target, not an API. Optional; defaults to
+  // https://pi.pardot.com, which is correct for every WSO2 environment today.
+  // ONE_WSO2_PARDOT_BASE_URL: "https://pi.pardot.com",
+
+  // Salesforce Lightning base URL — for deep-linking to the record an incoming
+  // one collided with, from CRM Upload's review queue. A link target, not an
+  // API. Optional; defaults to https://wso2.lightning.force.com. Set it only
+  // for a sandbox org.
+  // ONE_WSO2_SALESFORCE_BASE_URL: "https://wso2.lightning.force.com",
 };

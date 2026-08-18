@@ -471,6 +471,19 @@ export function isMarketingOpsWebAppConfigured(): boolean {
   return Boolean(marketingOpsWebAppUrl);
 }
 
+// ISAC — a separate marketing application, not part of this webapp and not a
+// Marketing Ops operation. It appears at the top of the Marketing Ops rail as an
+// outbound link because that is where the people who use it look for it, not
+// because One WSO2 hosts any of it.
+//
+// Empty string = not configured, and the rail then omits the item entirely rather
+// than showing one that goes nowhere. Same contract as leaveWebAppUrl above.
+export const isacUrl: string = window.config?.ONE_WSO2_MARKETINGOPS_ISAC_URL ?? "";
+
+export function isIsacConfigured(): boolean {
+  return Boolean(isacUrl);
+}
+
 export const promotionServiceUrls = {
   // GET /employee-info?employeeWorkEmail=<email> — returns the caller's
   // EmployeeInfoWithLead (startDate, jobBand, lastPromotedDate, reportingLead,
