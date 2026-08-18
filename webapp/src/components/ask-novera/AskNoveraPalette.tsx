@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Box, Typography } from "@wso2/oxygen-ui";
 
 interface AskNoveraPaletteProps {
@@ -25,12 +25,32 @@ interface AskNoveraPaletteProps {
 // honest "coming soon" state — the earlier prototype's pre-filled query +
 // canned response looked functional but did nothing real when used.
 export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    // There's no input to autofocus anymore (the placeholder has no
+    // interactive content at all), so focus the panel itself — otherwise a
+    // keyboard user opening this gets no focus change at all and Tab falls
+    // straight through to the page behind the overlay. Restore focus to
+    // whatever triggered the palette (the ⌘K/Ask Novera control) on close.
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "Tab") {
+        // No focusable content inside — keep focus pinned to the panel
+        // instead of letting Tab/Shift+Tab escape to the background.
+        e.preventDefault();
+        panelRef.current?.focus();
+      }
     };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      previouslyFocused?.focus();
+    };
   }, [onClose]);
 
   return (
@@ -45,6 +65,11 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
       }}
     >
       <Box
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ask Novera"
         onClick={(e) => e.stopPropagation()}
         sx={{
           position: "absolute",
@@ -59,6 +84,10 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
           borderRadius: 2,
           boxShadow: 8,
           overflow: "hidden",
+          // Suppress the browser's default focus ring on the panel itself —
+          // it's focused programmatically as a dialog container, not as an
+          // interactive control.
+          "&:focus": { outline: "none" },
         }}
       >
         <Box
@@ -99,7 +128,8 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
         <Box sx={{ p: "28px 22px", textAlign: "center" }}>
           <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>
           <Typography sx={{ fontSize: 13, color: "text.secondary", maxWidth: 360, mx: "auto" }}>
-            Hi! I'm Novera, WSO2's internal AI agent. Just tell me what you need in plain English
+            Hi! I'm Novera, WSO2's internal AI agent. Soon you'll be able to ask me things in plain
+            English and get answers scoped to what you're working on.
           </Typography>
         </Box>
       </Box>

@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Alert, Box, Card, Chip, Skeleton, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Button, Card, Chip, Skeleton, Typography } from "@wso2/oxygen-ui";
 import { useUserInfo } from "@api/useUserInfo";
 import { capabilitiesFromPrivileges } from "@constants/appMenu";
 
@@ -22,13 +22,31 @@ import { capabilitiesFromPrivileges } from "@constants/appMenu";
 // item (direct + indirect reports). The real subordinates view is on hold
 // for this iteration; this just reserves the spot in the Me rail.
 export default function MyTeamComingSoonPage() {
-  const userInfo = useUserInfo();
+  const { data, isLoading, isError, error, isFetching, refetch } = useUserInfo();
 
-  if (userInfo.isLoading) {
+  if (isLoading) {
     return <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 1.5 }} />;
   }
 
-  const caps = capabilitiesFromPrivileges(userInfo.data?.privileges);
+  // A failed user-info fetch must not silently read as "not a lead" — that
+  // hides a real, retryable error behind a message implying it's permanent.
+  if (isError) {
+    return (
+      <Alert
+        severity="error"
+        action={
+          <Button color="inherit" size="small" onClick={() => refetch()} disabled={isFetching}>
+            Retry
+          </Button>
+        }
+      >
+        Couldn't check your access to My Team.
+        {error instanceof Error ? ` ${error.message}` : ""}
+      </Alert>
+    );
+  }
+
+  const caps = capabilitiesFromPrivileges(data?.privileges);
   if (!caps.has("lead")) {
     return <Alert severity="info">My Team is available to leads.</Alert>;
   }
