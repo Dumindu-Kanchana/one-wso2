@@ -21,7 +21,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router";
 import { authConfig } from "@config/authConfig";
 import { themeConfig } from "@config/themeConfig";
-import { ThemeModeProvider } from "@context/theme-mode/ThemeModeContext";
 import { PerspectiveProvider } from "@context/perspective/PerspectiveContext";
 import { NotificationsProvider } from "@context/notifications/NotificationsContext";
 import { HttpError } from "@api/http";
@@ -87,15 +86,13 @@ export default function AppWithConfig() {
       <AuthBridgeMount />
       <QueryClientProvider client={queryClient}>
         <OxygenUIThemeProvider theme={themeConfig}>
-          <ThemeModeProvider>
-            <BrowserRouter>
-              <PerspectiveProvider>
-                <NotificationsProvider>
-                  <App />
-                </NotificationsProvider>
-              </PerspectiveProvider>
-            </BrowserRouter>
-          </ThemeModeProvider>
+          <BrowserRouter>
+            <PerspectiveProvider>
+              <NotificationsProvider>
+                <App />
+              </NotificationsProvider>
+            </PerspectiveProvider>
+          </BrowserRouter>
         </OxygenUIThemeProvider>
         {ReactQueryDevtools && (
           <Suspense fallback={null}>

@@ -15,6 +15,7 @@
 // under the License.
 
 import { UserMenu } from "@wso2/oxygen-ui";
+import { LogOutIcon, UserRoundIcon } from "@wso2/oxygen-ui-icons-react";
 import { useAsgardeo } from "@asgardeo/react";
 import { useUserInfo } from "@api/useUserInfo";
 import { authConfig } from "@config/authConfig";
@@ -81,37 +82,9 @@ export default function UserProfileMenu() {
       <UserMenu.Trigger name={initials} avatar={avatarUrl} />
       <UserMenu.Header name={name || "—"} email={email || " "} avatar={avatarUrl} />
       <UserMenu.Divider />
-      <UserMenu.Item icon={<UserIcon />} label="Profile" onClick={handleProfile} />
-      <UserMenu.Logout icon={<LogOutIcon />} label="Log out" onClick={handleLogout} />
+      <UserMenu.Item icon={<UserRoundIcon size={18} />} label="Profile" onClick={handleProfile} />
+      <UserMenu.Logout icon={<LogOutIcon size={18} />} label="Log out" onClick={handleLogout} />
     </UserMenu>
   );
 }
 
-// TODO(icons): replace these with UserRoundIcon / LogOutIcon from
-// @wso2/oxygen-ui-icons-react.
-//
-// A previous comment here claimed that package "only ships brand icons
-// (Facebook / GitHub / Google / WSO2)". That is not correct: its entrypoint is
-// `export * from "lucide-react"`, so all ~1,863 Lucide icons are available and
-// typed. That mistaken belief is why this app hand-rolls inline SVGs and uses
-// emoji as its icon set. The icons are usable today with no dependency change —
-// the swap is tracked as its own change so it lands with the rest of the
-// emoji-to-icon migration rather than piecemeal.
-function UserIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-      <circle cx={12} cy={7} r={4} />
-    </svg>
-  );
-}
-
-function LogOutIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1={21} y1={12} x2={9} y2={12} />
-    </svg>
-  );
-}

@@ -14,23 +14,39 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect } from "react";
-import { Box, IconButton, Stack, Typography } from "@wso2/oxygen-ui";
-import { useThemeMode } from "@context/theme-mode/ThemeModeContext";
+import { useEffect, type JSX } from "react";
+import {
+  Box,
+  ColorSchemeImage,
+  ColorSchemeToggle,
+  Header,
+  IconButton,
+  Tooltip,
+  Typography,
+} from "@wso2/oxygen-ui";
+import { LayoutGridIcon, SearchIcon } from "@wso2/oxygen-ui-icons-react";
 import UserProfileMenu from "./UserProfileMenu";
 
 interface TopBarProps {
+  collapsed: boolean;
+  onToggleSidebar: () => void;
   onOpenWaffle: () => void;
   onOpenAsk: () => void;
 }
 
-// The persistent top bar. Left: One + WSO2 wordmark. Center: Ask Novera
-// trigger. Right: waffle, theme toggle, avatar. The Ask Novera bar is a
-// click target that opens the palette overlay; the ⌘K shortcut also fires
-// it (wired here so it's available on every page).
-export default function TopBar({ onOpenWaffle, onOpenAsk }: TopBarProps) {
-  const { mode, toggle } = useThemeMode();
-
+// The persistent top bar, on Oxygen's compound `Header`. Child order follows
+// csm-portal: Toggle → Brand → (switcher/search) → Spacer → Actions.
+//
+// Oxygen supplies the bar's height, background, border, and brand-title
+// typography, so nothing here sets those. The rail-width-matching `width: 260`
+// the old hand-rolled bar used is gone with it — Oxygen's Sidebar is 250/64 and
+// the header no longer needs to align to it.
+export default function TopBar({
+  collapsed,
+  onToggleSidebar,
+  onOpenWaffle,
+  onOpenAsk,
+}: TopBarProps): JSX.Element {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -42,43 +58,26 @@ export default function TopBar({ onOpenWaffle, onOpenAsk }: TopBarProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [onOpenAsk]);
 
-  const logoSrc = mode === "dark" ? "/wso2-logo-white.svg" : "/wso2-logo-black.svg";
-
   return (
-    <Box
-      component="header"
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-        px: 2,
-        borderBottom: 1,
-        borderColor: "divider",
-        backgroundColor: "background.paper",
-      }}
-    >
-      {/* Brand */}
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={0}
-        sx={{ width: 260, flexShrink: 0 }}
-      >
-        <Typography
-          component="div"
-          sx={{ fontWeight: 700, fontSize: 23, letterSpacing: "-0.03em", lineHeight: 1 }}
-        >
-          One
-        </Typography>
-        <Box
-          component="img"
-          src={logoSrc}
-          alt="WSO2"
-          sx={{ height: 40, ml: "-4px" }}
-        />
-      </Stack>
+    <Header>
+      <Header.Toggle collapsed={collapsed} onToggle={onToggleSidebar} />
 
-      {/* Ask Novera bar */}
+      <Header.Brand sx={{ flexShrink: 0 }}>
+        <Header.BrandTitle sx={{ whiteSpace: "nowrap" }}>One</Header.BrandTitle>
+        <Header.BrandLogo>
+          {/* Oxygen swaps the source on the resolved colour scheme, so the app
+              no longer needs its own light/dark mode context just for this. */}
+          <ColorSchemeImage
+            src={{ light: "/wso2-logo-black.svg", dark: "/wso2-logo-white.svg" }}
+            alt="WSO2"
+            height={26}
+            width="auto"
+          />
+        </Header.BrandLogo>
+      </Header.Brand>
+
+      {/* Ask Novera trigger. Kept as a click target rather than a real input:
+          it opens the palette, which owns the actual query field. */}
       <Box
         role="button"
         tabIndex={0}
@@ -91,6 +90,7 @@ export default function TopBar({ onOpenWaffle, onOpenAsk }: TopBarProps) {
         }}
         sx={{
           flex: 1,
+          minWidth: 0,
           maxWidth: 680,
           mx: "auto",
           display: "flex",
@@ -101,68 +101,44 @@ export default function TopBar({ onOpenWaffle, onOpenAsk }: TopBarProps) {
           borderColor: "divider",
           borderRadius: 1.5,
           px: 1.75,
-          py: 1,
+          py: 0.75,
           color: "text.secondary",
-          fontSize: 13.5,
           cursor: "text",
           transition: "border-color .15s",
           "&:hover": { borderColor: "text.disabled" },
+          "&:focus-visible": { outline: 2, outlineStyle: "solid", outlineColor: "primary.main" },
         }}
       >
-        <Box
-          sx={{
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: (t) =>
-              `linear-gradient(135deg, ${t.palette.primary.main}, #ff9a6e)`,
-            flexShrink: 0,
-          }}
-        />
-        <span>Ask Novera or search…</span>
+        <SearchIcon size={16} style={{ flexShrink: 0 }} />
+        <Typography variant="body2" noWrap>
+          Ask Novera or search…
+        </Typography>
         <Box
           sx={{
             ml: "auto",
-            fontSize: 11,
+            display: { xs: "none", sm: "block" },
             bgcolor: "background.paper",
             border: 1,
             borderColor: "divider",
             borderRadius: 0.75,
             px: 0.75,
-            py: 0.25,
+            flexShrink: 0,
           }}
         >
-          ⌘K
+          <Typography variant="caption">⌘K</Typography>
         </Box>
       </Box>
 
-      {/* Right icons */}
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={0.75}
-        sx={{ width: 200, justifyContent: "flex-end", flexShrink: 0 }}
-      >
-        <IconButton onClick={onOpenWaffle} title="Switch perspective">
-          <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor">
-            <circle cx={5} cy={5} r={2} />
-            <circle cx={12} cy={5} r={2} />
-            <circle cx={19} cy={5} r={2} />
-            <circle cx={5} cy={12} r={2} />
-            <circle cx={12} cy={12} r={2} />
-            <circle cx={19} cy={12} r={2} />
-            <circle cx={5} cy={19} r={2} />
-            <circle cx={12} cy={19} r={2} />
-            <circle cx={19} cy={19} r={2} />
-          </svg>
-        </IconButton>
-        <IconButton onClick={toggle} title="Theme">
-          <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
-            <path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z" />
-          </svg>
-        </IconButton>
+      <Header.Actions>
+        <Tooltip title="Switch app">
+          <IconButton onClick={onOpenWaffle} size="small" aria-label="Switch app">
+            <LayoutGridIcon size={20} />
+          </IconButton>
+        </Tooltip>
+        {/* Oxygen's own 3-state cycle: light → dark → system. */}
+        <ColorSchemeToggle size="small" />
         <UserProfileMenu />
-      </Stack>
-    </Box>
+      </Header.Actions>
+    </Header>
   );
 }
