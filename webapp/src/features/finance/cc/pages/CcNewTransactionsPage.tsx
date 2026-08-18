@@ -38,11 +38,12 @@ import { CcEditDialog } from "../CcEditDialog";
 import { useCcEmployeeSubmit } from "../useCcMutations";
 import { useCcTransactions, useCcUserInfo, useCreditCards } from "../useCc";
 import { ccTxnComplete, type CcTransaction } from "../ccTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function CcNewTransactionsPage() {
   return (
     <FinanceShell
-      eyebrow="💳 Credit Card Expenses"
+      eyebrow={FINANCE_EYEBROW.cc}
       title="New card transactions"
       subtitle="Categorise your unsubmitted card transactions — expense type, comment and the unit or job number — then submit the completed ones for lead approval."
       configured={isCcBackendConfigured()}

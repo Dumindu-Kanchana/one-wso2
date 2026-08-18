@@ -15,6 +15,7 @@
 // under the License.
 
 import { Box, Button, Card, Chip, Tooltip, Typography } from "@wso2/oxygen-ui";
+import { TreePalmIcon } from "@wso2/oxygen-ui-icons-react";
 import { isLeaveWebAppConfigured, leaveAppUrls } from "@config/apiConfig";
 
 // Placeholder for the Sabbatical category — sabbatical-leave use cases
@@ -26,12 +27,14 @@ export default function LeaveSabbaticalComingSoonPage() {
   return (
     <Box>
       <Chip
-        label="🌴 Leave"
+        icon={<TreePalmIcon size={14} />}
+        label="Leave"
         color="primary"
         size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
+        variant="outlined"
+        sx={{ mb: 0.5 }}
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
+      <Typography variant="h5" sx={{ mb: 0.5 }}>
         Sabbatical
       </Typography>
       <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "70ch" }}>

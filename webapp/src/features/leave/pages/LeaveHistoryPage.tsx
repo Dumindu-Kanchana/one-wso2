@@ -39,7 +39,8 @@ import LeaveShell from "../components/LeaveShell";
 import { StatusChip } from "../components/LeaveChips";
 import {
   GENERAL_LEAVE_TYPES,
-  LEAVE_TYPE_EMOJI,
+  LEAVE_TYPE_ICON,
+  LEAVE_TYPE_ICON_FALLBACK,
   LEAVE_TYPE_LABEL,
   type DatabaseLeave,
   type LeaveType,
@@ -140,7 +141,7 @@ function HistoryBody() {
 function LeaveCard({ leave, onCancel }: { leave: DatabaseLeave; onCancel: () => void }) {
   const t = (leave.leaveType as LeaveType | null) ?? null;
   const typeLabel = t && t in LEAVE_TYPE_LABEL ? LEAVE_TYPE_LABEL[t] : (leave.leaveType ?? "Leave");
-  const typeEmoji = t && t in LEAVE_TYPE_EMOJI ? LEAVE_TYPE_EMOJI[t] : "🗓️";
+  const TypeIcon = t && t in LEAVE_TYPE_ICON ? LEAVE_TYPE_ICON[t] : LEAVE_TYPE_ICON_FALLBACK;
   const cancellable = daysAgo(leave.startDate) <= CANCEL_WINDOW_DAYS;
 
   return (
@@ -167,8 +168,9 @@ function LeaveCard({ leave, onCancel }: { leave: DatabaseLeave; onCancel: () => 
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.25 }}>
+          <TypeIcon size={14} style={{ flexShrink: 0 }} />
           <Typography sx={{ fontSize: 13.5, fontWeight: 600, flex: 1, minWidth: 0 }} noWrap>
-            {typeEmoji} {typeLabel}
+            {typeLabel}
           </Typography>
           <StatusChip status={leave.status} />
         </Stack>

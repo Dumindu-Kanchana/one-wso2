@@ -42,11 +42,12 @@ import { money, formatNice } from "../../util/financeFormat";
 import { useCcProcessStatement, useCcUploadTransactions } from "../useCcMutations";
 import { useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcBankCode, type CcNewTransaction, type CcTransactionUploadGroup } from "../ccTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function CcSettingsPage() {
   return (
     <FinanceShell
-      eyebrow="💳 Credit Card Expenses"
+      eyebrow={FINANCE_EYEBROW.cc}
       title="Statement ingestion"
       subtitle="Finance-only. Upload a bank statement CSV; the system parses it into new, duplicate and invalid transactions for review, then saves the new ones as pending submissions."
       configured={isCcBackendConfigured()}

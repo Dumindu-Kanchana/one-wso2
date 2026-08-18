@@ -27,13 +27,14 @@
 // Each app's own backend still enforces its real role scheme; these
 // capability gates just decide what shows in the rail.
 
+import { CreditCardIcon, ReceiptTextIcon, StethoscopeIcon } from "@wso2/oxygen-ui-icons-react";
 import type { MenuApp } from "@constants/appMenu";
 
 export const FINANCE_APPS: readonly MenuApp[] = [
   {
     key: "opd",
     name: "OPD Claims",
-    emoji: "🏥",
+    icon: StethoscopeIcon,
     purpose: "Outpatient (OPD) medical expense claims — submit and track reimbursements.",
     items: [
       { id: "opd-new", label: "New Claim", desc: "Submit an OPD medical expense claim.", path: "/me/opd/new" },
@@ -44,7 +45,7 @@ export const FINANCE_APPS: readonly MenuApp[] = [
   {
     key: "cc",
     name: "Credit Card Expenses",
-    emoji: "💳",
+    icon: CreditCardIcon,
     purpose: "Reconcile and submit corporate credit-card transactions for approval.",
     items: [
       { id: "cc-new", label: "New Transactions", desc: "Unsubmitted card transactions to categorise and submit.", path: "/me/cc/new" },
@@ -57,7 +58,7 @@ export const FINANCE_APPS: readonly MenuApp[] = [
   {
     key: "expense",
     name: "Expense Claims",
-    emoji: "🧾",
+    icon: ReceiptTextIcon,
     purpose: "Submit and track out-of-pocket expense claims and reimbursements.",
     items: [
       { id: "expense-new", label: "New Claim", desc: "Submit an expense claim / reimbursement.", path: "/me/expense/new" },
@@ -75,3 +76,16 @@ export const FINANCE_APPS: readonly MenuApp[] = [
 export const FINANCE_ITEM_IDS: ReadonlySet<string> = new Set(
   FINANCE_APPS.flatMap((app) => app.items.map((it) => it.id)),
 );
+
+// Eyebrow descriptors for FinanceShell, derived from the registry above so the
+// chip on every finance screen can't drift from the app's own name and icon.
+function eyebrowFor(key: string): { icon: MenuApp["icon"]; label: string } {
+  const app = FINANCE_APPS.find((a) => a.key === key)!;
+  return { icon: app.icon, label: app.name };
+}
+
+export const FINANCE_EYEBROW = {
+  opd: eyebrowFor("opd"),
+  cc: eyebrowFor("cc"),
+  expense: eyebrowFor("expense"),
+} as const;

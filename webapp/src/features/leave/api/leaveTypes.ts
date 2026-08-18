@@ -14,6 +14,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import {
+  BabyIcon,
+  CalendarDaysIcon,
+  CloudSunIcon,
+  CompassIcon,
+  HeartHandshakeIcon,
+  RepeatIcon,
+  ThermometerIcon,
+  TimerIcon,
+  UmbrellaIcon,
+  type LucideIcon,
+} from "@wso2/oxygen-ui-icons-react";
+
 // DTOs + enums mirrored from people-ops-suite/apps/leave-app/backend.
 // Field names match the wire format. Source of truth: the backend's
 // types.bal / modules/database/{types,enum}.bal.
@@ -207,17 +220,20 @@ export const LEAVE_TYPE_LABEL: Record<LeaveType, string> = {
   rtt: "RTT",
 };
 
-export const LEAVE_TYPE_EMOJI: Record<LeaveType, string> = {
-  casual: "🌤️",
-  sick: "🤒",
-  annual: "🏖️",
-  lieu: "🔁",
-  maternity: "🤱",
-  paternity: "👶",
-  sabbatical: "🧭",
-  conges_payes: "🏖️",
-  rtt: "⏱️",
+export const LEAVE_TYPE_ICON: Record<LeaveType, LucideIcon> = {
+  casual: CloudSunIcon,
+  sick: ThermometerIcon,
+  annual: UmbrellaIcon,
+  lieu: RepeatIcon,
+  maternity: HeartHandshakeIcon,
+  paternity: BabyIcon,
+  sabbatical: CompassIcon,
+  conges_payes: UmbrellaIcon,
+  rtt: TimerIcon,
 };
+
+/** Icon for a leave type that isn't in the known set. */
+export const LEAVE_TYPE_ICON_FALLBACK: LucideIcon = CalendarDaysIcon;
 
 // Default leave type per location (matches leave-app's LOCATION defaults).
 export function defaultLeaveTypeForLocation(location: string | null | undefined): LeaveType {

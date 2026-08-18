@@ -36,6 +36,7 @@ import { money, formatNice } from "../../util/financeFormat";
 import { useOpdClaims, useOpdUserInfo } from "../useOpd";
 import { OpdClaimDetailsDialog } from "../OpdClaimDetailsDialog";
 import { OPD_ROLE, opdHasRole, type OpdClaim, type OpdClaimStatus } from "../opdTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 type TabKey = "pending" | "approved" | "rejected";
 const TAB_STATUS: Record<TabKey, OpdClaimStatus[]> = {
@@ -47,7 +48,7 @@ const TAB_STATUS: Record<TabKey, OpdClaimStatus[]> = {
 export default function OpdApprovalsPage() {
   return (
     <FinanceShell
-      eyebrow="🏥 OPD Claims"
+      eyebrow={FINANCE_EYEBROW.opd}
       title="OPD approvals"
       subtitle="Finance review of OPD claims across the company. Open a pending claim to check its bills and approve or reject it."
       configured={isOpdBackendConfigured()}

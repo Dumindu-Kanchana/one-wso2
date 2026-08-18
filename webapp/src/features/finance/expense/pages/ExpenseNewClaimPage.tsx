@@ -33,6 +33,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
+import { CheckIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { isExpenseBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
@@ -44,6 +45,7 @@ import { useDraftAutosave } from "../../util/useDraftAutosave";
 import { useExchangeRates, useExpenseAppData, useExpenseTypes } from "../useExpense";
 import { useExpenseDraftSync, useExpenseReceiptUpload, useSubmitExpenseClaim } from "../useExpenseMutations";
 import type { ExpenseAppData, ExpenseTransactionPayload } from "../expenseTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 const COMMENT_MAX = 100;
 const NO_JOB = "N/A";
@@ -51,7 +53,7 @@ const NO_JOB = "N/A";
 export default function ExpenseNewClaimPage() {
   return (
     <FinanceShell
-      eyebrow="🧾 Expense Claims"
+      eyebrow={FINANCE_EYEBROW.expense}
       title="New expense claim"
       subtitle="Add each out-of-pocket expense as a line — date, amount and currency, expense type and its receipt — then submit the claim to your lead. Amounts are converted to your reimbursement currency automatically."
       configured={isExpenseBackendConfigured()}
@@ -209,7 +211,7 @@ function NewClaimBody() {
                   onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
                   sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
                 >
-                  ✕
+                  <XIcon size={15} />
                 </IconButton>
               </Box>
             ))}
@@ -446,7 +448,10 @@ function AddExpenseDialog({
                 {uploading ? "Uploading…" : receiptUrl ? "Replace file" : "Upload receipt"}
               </Button>
               <Typography sx={{ fontSize: 12, color: receiptUrl ? "success.main" : "text.disabled" }} noWrap>
-                {receiptUrl ? `✓ ${fileName}` : `JPG, PNG or PDF · max ${maxSizeLabel(EXPENSE_RECEIPT_MAX_BYTES)}`}
+                {receiptUrl && (
+                  <CheckIcon size={13} style={{ color: "var(--oxygen-palette-success-main)", flexShrink: 0 }} />
+                )}
+                {receiptUrl ? fileName : `JPG, PNG or PDF · max ${maxSizeLabel(EXPENSE_RECEIPT_MAX_BYTES)}`}
               </Typography>
             </Stack>
           </Box>

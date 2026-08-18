@@ -16,6 +16,7 @@
 
 import { useEffect, useRef } from "react";
 import { Box, Typography } from "@wso2/oxygen-ui";
+import { LockIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import {
   FUNCTIONAL_PERSPECTIVES,
@@ -29,7 +30,7 @@ interface WaffleOverlayProps {
 }
 
 // The 9-dots perspective switcher. Grid of tiles: functional (persona) on
-// top, cross (My / Requests) below. Locked tiles show 🔒 and don't
+// top, cross (My / Requests) below. Locked tiles show a padlock and don't
 // navigate.
 //
 // Keyboard support: Escape dismisses; tiles are real <button> elements so
@@ -175,9 +176,15 @@ function WaffleGroup({ title, items, activeKey, onPick, firstTileRef }: WaffleGr
               textAlign: "center",
             }}
           >
-            <Box sx={{ fontSize: 18 }}>{p.emoji}</Box>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p.icon size={20} />
+            </Box>
             {p.label}
-            {!p.access && <Box sx={{ fontSize: 10 }}>🔒</Box>}
+            {!p.access && (
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <LockIcon size={11} />
+              </Box>
+            )}
           </Box>
         ))}
       </Box>

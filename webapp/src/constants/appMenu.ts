@@ -28,6 +28,8 @@
 // roles onto these four One-WSO2 capabilities and gate each menu item on
 // the capability that best matches its backing role.
 
+import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
+
 export type Capability = "employee" | "lead" | "serviceDesk" | "admin";
 
 // people-app privilege numbers (see people-app CLAUDE.md). One WSO2's
@@ -79,7 +81,10 @@ export interface MenuAppItem {
 export interface MenuApp {
   key: string;
   name: string;
-  emoji: string;
+  // Rendered by the rail, the waffle, and the app-menu board. A Lucide icon
+  // component from @wso2/oxygen-ui-icons-react — callers size it at the call
+  // site (16 inline, 20 rail, 24 tile) rather than the registry deciding.
+  icon: LucideIcon;
   purpose: string;
   items: MenuAppItem[];
   // Keep this app rendered as an expandable group in the rail even while it has

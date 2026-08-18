@@ -19,13 +19,14 @@
 // Same App → items shape as @constants/financeApps / workspaceApps; see
 // that file's header for the general rationale.
 
+import { TreePalmIcon } from "@wso2/oxygen-ui-icons-react";
 import type { MenuApp } from "@constants/appMenu";
 
 export const ME_APPS: readonly MenuApp[] = [
   {
     key: "leave",
     name: "Leave",
-    emoji: "🌴",
+    icon: TreePalmIcon,
     purpose: "Apply for and track leave; leads and people-ops approve and report.",
     items: [
       { id: "leave-apply", label: "Apply", desc: "Request general leave.", path: "/me/leave/apply" },

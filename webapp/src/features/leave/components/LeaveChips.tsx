@@ -15,8 +15,10 @@
 // under the License.
 
 import { Chip } from "@wso2/oxygen-ui";
+import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import {
-  LEAVE_TYPE_EMOJI,
+  LEAVE_TYPE_ICON,
+  LEAVE_TYPE_ICON_FALLBACK,
   LEAVE_TYPE_LABEL,
   type LeaveStatus,
   type LeaveType,
@@ -51,19 +53,22 @@ export function StatusChip({ status }: { status: LeaveStatus | null }) {
 
 // Best-effort mapping of a raw leaveType string to a known type; unknown
 // values fall through to the raw label.
-function normalizeType(raw: string | null): { label: string; emoji: string } {
+function normalizeType(raw: string | null): { label: string; Icon: LucideIcon } {
   const t = raw as LeaveType | null;
   if (t && t in LEAVE_TYPE_LABEL) {
-    return { label: LEAVE_TYPE_LABEL[t], emoji: LEAVE_TYPE_EMOJI[t] };
+    return { label: LEAVE_TYPE_LABEL[t], Icon: LEAVE_TYPE_ICON[t] };
   }
-  return { label: raw ?? "—", emoji: "🗓️" };
+  return { label: raw ?? "—", Icon: LEAVE_TYPE_ICON_FALLBACK };
 }
 
 export function LeaveTypeChip({ leaveType }: { leaveType: string | null }) {
-  const { label, emoji } = normalizeType(leaveType);
+  const { label, Icon } = normalizeType(leaveType);
   return (
     <Chip
-      label={`${emoji} ${label}`}
+      // Icon goes in the Chip's own icon slot, not concatenated into the label,
+      // so it inherits chip sizing/colour and stays out of the accessible name.
+      icon={<Icon size={14} />}
+      label={label}
       size="small"
       color="primary"
       variant="outlined"

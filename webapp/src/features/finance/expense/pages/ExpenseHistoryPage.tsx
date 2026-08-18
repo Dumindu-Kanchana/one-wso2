@@ -39,11 +39,12 @@ import { money, formatNice, startOfYearIso, endOfYearIso } from "../../util/fina
 import { useExpenseAppData, useExpenseClaims } from "../useExpense";
 import { ExpenseClaimDetailsDialog } from "../ExpenseClaimDetailsDialog";
 import type { ExpenseClaim } from "../expenseTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function ExpenseHistoryPage() {
   return (
     <FinanceShell
-      eyebrow="🧾 Expense Claims"
+      eyebrow={FINANCE_EYEBROW.expense}
       title="My expense claims"
       subtitle="Your submitted expense claims and where each one stands. Open a claim to see its lines and receipts."
       configured={isExpenseBackendConfigured()}

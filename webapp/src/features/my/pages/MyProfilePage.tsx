@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Alert, Box, Button, Chip, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Button, Typography } from "@wso2/oxygen-ui";
 import ProfileHero from "../components/ProfileHero";
 import GeneralInfo from "../components/GeneralInfo";
 import PersonalInfo from "../components/PersonalInfo";
@@ -36,12 +36,6 @@ export default function MyProfilePage() {
 
   return (
     <Box>
-      <Chip
-        label="✦ Me"
-        color="primary"
-        size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
-      />
       <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 2.25 }}>
         Welcome back{firstName ? `, ${firstName}` : ""}
       </Typography>

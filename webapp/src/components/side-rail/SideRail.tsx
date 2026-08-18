@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from "react";
 import { Box, ListItemButton, ListItemText, Typography } from "@wso2/oxygen-ui";
+import { ChevronRightIcon, SettingsIcon, type LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { matchPath, NavLink, useLocation, useNavigate } from "react-router";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
 import { CROSS_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
@@ -153,7 +154,7 @@ export default function SideRail() {
   } as const;
   const headerInner = (
     <>
-      <span style={{ fontSize: 13 }}>{active.emoji}</span>
+      <active.icon size={13} />
       {active.label}
     </>
   );
@@ -245,7 +246,9 @@ export default function SideRail() {
                   },
                 }}
               >
-                <Box sx={{ width: 18, mr: 1.25 }}>{p.emoji}</Box>
+                <Box sx={{ width: 18, mr: 1.25, display: "flex", alignItems: "center" }}>
+                  <p.icon size={16} />
+                </Box>
                 <ListItemText
                   primary={p.label}
                   primaryTypographyProps={{ fontSize: 13.5, fontWeight: 500 }}
@@ -268,7 +271,9 @@ export default function SideRail() {
         }}
       >
         <ListItemButton sx={{ borderRadius: 1.125, py: 0.75, px: 1.25 }}>
-          <Box sx={{ width: 18, mr: 1.25 }}>⚙</Box>
+          <Box sx={{ width: 18, mr: 1.25, display: "flex", alignItems: "center" }}>
+            <SettingsIcon size={16} />
+          </Box>
           <ListItemText
             primary="Settings"
             primaryTypographyProps={{ fontSize: 13.5, fontWeight: 500 }}
@@ -321,7 +326,7 @@ function SectionNode({
       return (
         <Leaf
           label={section.label}
-          emoji={section.emoji}
+          icon={section.icon}
           to={only.path}
           onClick={() => onScroll(only.id)}
         />
@@ -345,7 +350,9 @@ function SectionNode({
             }),
           }}
         >
-          <Box sx={{ width: 18, mr: 1.25, fontSize: 13, textAlign: "center" }}>{section.emoji}</Box>
+          <Box sx={{ width: 18, mr: 1.25, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {section.icon ? <section.icon size={16} /> : null}
+          </Box>
           <ListItemText
             primary={section.label}
             primaryTypographyProps={{ fontSize: 13.5, fontWeight: 600 }}
@@ -395,8 +402,8 @@ function SectionNode({
   return (
     <Leaf
       label={section.label}
-      emoji={section.emoji}
-      // An outbound leaf keeps its emoji as its marker; the bullet is for the
+      icon={section.icon}
+      // An outbound leaf keeps its icon as its marker; the bullet is for the
       // scroll-anchor leaves, which have none.
       bullet={!section.externalUrl}
       to={section.path}
@@ -408,14 +415,14 @@ function SectionNode({
 
 function Leaf({
   label,
-  emoji,
+  icon: Icon,
   bullet,
   to,
   href,
   onClick,
 }: {
   label: string;
-  emoji?: string;
+  icon?: LucideIcon;
   bullet?: boolean;
   // When present, render as a route link (active-highlighted); otherwise
   // an onClick button (scroll-anchor).
@@ -428,12 +435,21 @@ function Leaf({
 }) {
   const inner = (
     <>
-      <Box sx={{ width: 18, mr: 1.25, color: emoji ? undefined : "text.disabled", fontSize: emoji ? 13 : undefined, textAlign: "center" }}>
-        {emoji ?? (bullet ? "›" : null)}
+      <Box
+        sx={{
+          width: 18,
+          mr: 1.25,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: Icon ? undefined : "text.disabled",
+        }}
+      >
+        {Icon ? <Icon size={16} /> : bullet ? <ChevronRightIcon size={13} /> : null}
       </Box>
       <ListItemText
         primary={label}
-        primaryTypographyProps={{ fontSize: 13.5, fontWeight: emoji ? 600 : 500 }}
+        primaryTypographyProps={{ fontSize: 13.5, fontWeight: Icon ? 600 : 500 }}
       />
     </>
   );

@@ -35,7 +35,7 @@ import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListb
 import LeaveShell from "../components/LeaveShell";
 import LeaveBalanceSummary from "../components/LeaveBalanceSummary";
 import {
-  LEAVE_TYPE_EMOJI,
+  LEAVE_TYPE_ICON,
   LEAVE_TYPE_LABEL,
   LEAVE_TYPE_POLICY_KEY,
   LEAVE_TYPE_TOOLTIP,
@@ -300,14 +300,16 @@ function ApplyForm() {
           {availableLeaveTypes.map((t) => {
             const active = t === leaveType;
             const info = leaveTypeInfo(location, t);
+            const TypeIcon = LEAVE_TYPE_ICON[t];
             const button = (
               <Button
                 size="small"
                 variant={active ? "contained" : "outlined"}
                 onClick={() => setLeaveType(t)}
+                startIcon={<TypeIcon size={14} />}
                 sx={{ fontSize: 12, fontWeight: 600, borderRadius: 1.25, textTransform: "none" }}
               >
-                {LEAVE_TYPE_EMOJI[t]} {LEAVE_TYPE_LABEL[t]}
+                {LEAVE_TYPE_LABEL[t]}
               </Button>
             );
             const tooltip = LEAVE_TYPE_TOOLTIP[t];

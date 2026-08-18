@@ -14,33 +14,44 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Chip, Typography } from "@wso2/oxygen-ui";
+import { Typography } from "@wso2/oxygen-ui";
 import type { ReactNode } from "react";
 
 export interface PerspectiveHeaderProps {
-  // Shown in the "✦ " eyebrow chip above the title, e.g. "Finance perspective".
-  eyebrow: string;
+  /**
+   * Accepted but no longer rendered — see the note below. Kept on the interface
+   * so the ~6 call sites don't all have to change, and so the intent of each
+   * page is still readable at its call site.
+   */
+  eyebrow?: string;
   title: ReactNode;
   subtitle?: ReactNode;
 }
 
-// The eyebrow chip + title + subtitle every perspective/placeholder page
-// opens with (People Ops, Finance, Workspace, My Team, ...). Consolidates
-// what was a hand-copied block with the same hardcoded sizes on each page.
-export default function PerspectiveHeader({ eyebrow, title, subtitle }: PerspectiveHeaderProps) {
+// The title + subtitle every perspective/placeholder page opens with (People
+// Ops, Finance, Workspace, My Team, ...).
+//
+// Two deliberate changes from the version that consolidated these blocks:
+//
+//  - The sparkle-prefixed "<name> perspective" chip is gone. It was decoration — the rail
+//    already says which perspective you are in, csm-portal has no equivalent,
+//    and a filled `color="primary"` chip put ~11px white text on brand orange,
+//    which measures about 3.6:1 and fails WCAG AA.
+//  - Sizes come from the theme instead of being hardcoded. `variant="h5"` is
+//    16px/400 against the old 23px/700 — the same restraint csm-portal's page
+//    titles have, and the reason its pages read as calmer.
+export default function PerspectiveHeader({ title, subtitle }: PerspectiveHeaderProps) {
   return (
     <>
-      <Chip
-        label={`✦ ${eyebrow}`}
-        color="primary"
-        size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
-      />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
+      <Typography variant="h5" sx={{ mb: 0.5 }}>
         {title}
       </Typography>
       {subtitle && (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 2.25, maxWidth: "68ch" }}
+        >
           {subtitle}
         </Typography>
       )}
