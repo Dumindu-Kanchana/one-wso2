@@ -331,9 +331,62 @@ export const marketingOpsServiceUrls = {
   emailWorkbenchSettings: `${marketingOpsBackendUrl}/api/email-workbench/settings`,
   emailWorkbenchStructure: `${marketingOpsBackendUrl}/api/email-workbench/structure`,
 
-  // Remaining operation roots — /api/crm-upload, /api/events, /api/audit — get
-  // their builders added by the phase that ports them, so this object never
-  // lists a URL nothing calls.
+  // ---- events ------------------------------------------------------------------
+  //
+  // Note how SMALL this surface is relative to the feature. Validation, scoring,
+  // deriving and every accept/reject run in the BROWSER (see events/rules/), so the
+  // backend is asked for four things only: reference lists, the model's opinion on
+  // values our rules couldn't resolve, storage, and the review workflow.
+  //
+  // `save` is a whole-payload PUT on a debounce — never on the path of an individual
+  // edit. One blob per submission.
+  //
+  // The two export endpoints return BINARY (a CSV, or every tab zipped server-side),
+  // so they need the blob path rather than authedGet — see events/lib/download.ts.
+  eventsSubmissions: `${marketingOpsBackendUrl}/api/events/submissions`,
+  eventsSubmission: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}`,
+  eventsSubmissionPayload: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/payload`,
+  eventsSubmissionSuggest: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/suggest`,
+  eventsSubmissionSubmit: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/submit`,
+  eventsSubmissionWithdraw: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/withdraw`,
+  eventsSubmissionComments: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/comments`,
+  eventsEventNames: (q: string) =>
+    `${marketingOpsBackendUrl}/api/events/event-names?q=${encodeURIComponent(q)}`,
+  eventsReference: `${marketingOpsBackendUrl}/api/events/reference`,
+  eventsFields: `${marketingOpsBackendUrl}/api/events/fields`,
+  eventsFieldsForTab: (tab: string) =>
+    `${marketingOpsBackendUrl}/api/events/fields/${encodeURIComponent(tab)}`,
+  eventsStatuses: (includeDisabled = false) =>
+    `${marketingOpsBackendUrl}/api/events/statuses${includeDisabled ? "?include_disabled=true" : ""}`,
+  eventsStatus: (name: string) =>
+    `${marketingOpsBackendUrl}/api/events/statuses/${encodeURIComponent(name)}`,
+  eventsStatusDuplicate: (source: string) =>
+    `${marketingOpsBackendUrl}/api/events/statuses/${encodeURIComponent(source)}/duplicate`,
+  // ---- events: review (gated by the separate `events-review` capability) ----
+  eventsReviewQueue: `${marketingOpsBackendUrl}/api/events/review/queue`,
+  eventsReviewSubmission: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}`,
+  eventsReviewComments: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/comments`,
+  eventsReviewApprove: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/approve`,
+  eventsReviewReject: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/reject`,
+  eventsReviewImported: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/imported`,
+  eventsReviewExportTab: (id: string, tab: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/export/${encodeURIComponent(tab)}`,
+  eventsReviewExportAll: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/export`,
+
+  // Remaining operation roots — /api/crm-upload and /api/audit — get their builders
+  // added by the phase that ports them, so this object never lists a URL nothing calls.
 };
 
 // Base URL of the Pardot UI, for deep-linking to a template after it's pushed.

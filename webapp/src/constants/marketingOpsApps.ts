@@ -149,14 +149,14 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
         label: "My Submissions",
         desc: "Upload an attendee workbook and track your submitted lists.",
         requires: ["admin"],
-        // path: "/marketing-ops/events/mine",
+        path: "/marketing-ops/events/mine",
       },
       {
         id: "mops-events-review",
         label: "Review Queue",
         desc: "Review submitted attendee lists, approve or send back, and export for Pardot.",
         requires: ["admin"],
-        // path: "/marketing-ops/events/review",
+        path: "/marketing-ops/events/review",
       },
     ],
   },
@@ -255,6 +255,16 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
         desc: "The components the email editor offers. Editing a block changes what future emails insert.",
         requires: ["admin"],
         path: "/marketing-ops/admin/blocks",
+      },
+      // Phase 4 — the Events import contract. Not cosmetic config: the member
+      // statuses and their column definitions decide which workbook tabs are read
+      // at all and what each is allowed to contain, so it ships with the operation.
+      {
+        id: "mops-admin-events",
+        label: "Events statuses & columns",
+        desc: "Member statuses and the per-status columns an attendee workbook must carry to be imported.",
+        requires: ["admin"],
+        path: "/marketing-ops/admin/events",
       },
     ],
   },
