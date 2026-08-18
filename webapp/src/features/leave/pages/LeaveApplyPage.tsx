@@ -26,22 +26,33 @@ import {
   Stack,
   Switch,
   TextField,
+  Tooltip,
   Typography,
 } from "@wso2/oxygen-ui";
 import { describeError } from "../util/leaveError";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
 import LeaveShell from "../components/LeaveShell";
+import LeaveBalanceSummary from "../components/LeaveBalanceSummary";
 import {
-  GENERAL_LEAVE_TYPES,
   LEAVE_TYPE_EMOJI,
   LEAVE_TYPE_LABEL,
+  LEAVE_TYPE_POLICY_KEY,
+  LEAVE_TYPE_TOOLTIP,
   defaultLeaveTypeForLocation,
+  leaveTypeInfo,
+  leaveTypesForLocation,
+  quotaTrackedTypesForLocation,
   type LeavePayload,
   type LeavePeriodType,
   type LeaveType,
 } from "../api/leaveTypes";
-import { useLeaveAppConfig, useLeaveEmployees, useLeaveUserInfo } from "../api/useLeaveData";
+import {
+  useLeaveAppConfig,
+  useLeaveEmployees,
+  useLeaveEntitlement,
+  useLeaveUserInfo,
+} from "../api/useLeaveData";
 import { useSubmitLeave, useValidateLeave } from "../api/useLeaveMutations";
 import { calendarDaysInclusive, startOfYearIso, todayIso } from "../util/leaveDates";
 
@@ -64,7 +75,7 @@ function ApplyForm() {
   const employees = useLeaveEmployees();
   const validate = useValidateLeave();
   const submit = useSubmitLeave();
-  const { showSuccess, showError } = useNotifications();
+  const { showSuccess, showError, showWarning } = useNotifications();
 
   const today = todayIso();
   const yearStart = startOfYearIso(new Date().getFullYear());
@@ -84,6 +95,19 @@ function ApplyForm() {
     // Only re-seed when location resolves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
+
+  // Which leave types this employee can pick, and (for the balance panel)
+  // which of those are quota-tracked — both location-gated, matching
+  // leave-app's LeaveSelection.tsx rather than offering every general type
+  // to everyone regardless of where they are.
+  const availableLeaveTypes = useMemo(() => leaveTypesForLocation(location), [location]);
+  const quotaTrackedTypes = useMemo(() => quotaTrackedTypesForLocation(location), [location]);
+  // The balance panel + entitlement-exceeded warning only apply where
+  // quota tracking exists today (France/Spain) — matches leave-app's
+  // LeaveBalanceSummary early return.
+  const hasQuotaTracking = quotaTrackedTypes.length > 0;
+  const entitlementQuery = useLeaveEntitlement(userInfo.data?.workEmail ?? undefined, hasQuotaTracking);
+  const entitlement = entitlementQuery.data?.[0];
 
   const days = calendarDaysInclusive(startDate, endDate);
   const rangeValid = days > 0;
@@ -174,7 +198,28 @@ function ApplyForm() {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const emailRecipients = Array.from(new Set([...mandatory, ...recipients]));
+    // Mandatory recipients (lead + People Ops) are notified by the backend
+    // independently of this list — exclude them here rather than merging
+    // them in, matching leave-app's GeneralLeave.tsx (filteredEmailRecipients)
+    // so we don't risk double-notifying them.
+    const emailRecipients = recipients.filter((r) => !mandatory.includes(r));
+
+    // Warn (don't block) if this request would exceed a quota-tracked
+    // entitlement — matches leave-app's executeSubmit. Only meaningful
+    // where quota tracking exists (France/Spain) and the type itself has
+    // a policy key (maternity/paternity/lieu don't).
+    const policyKey = LEAVE_TYPE_POLICY_KEY[leaveType];
+    if (policyKey && entitlement) {
+      const entitled = entitlement.leavePolicy[policyKey] ?? 0;
+      const consumed = entitlement.policyAdjustedLeave[policyKey] ?? 0;
+      const projected = consumed + (workingDays ?? 0);
+      if (entitled > 0 && projected > entitled) {
+        showWarning(
+          `This request will exceed your ${LEAVE_TYPE_LABEL[leaveType]} entitlement (${projected}/${entitled} days)`,
+        );
+      }
+    }
+
     const payload: LeavePayload = {
       startDate,
       endDate,
@@ -251,12 +296,12 @@ function ApplyForm() {
       {/* Leave type + portion */}
       <Card variant="outlined" sx={{ p: 2 }}>
         <FieldLabel>Leave type</FieldLabel>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
-          {GENERAL_LEAVE_TYPES.map((t) => {
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2, alignItems: "flex-start" }}>
+          {availableLeaveTypes.map((t) => {
             const active = t === leaveType;
-            return (
+            const info = leaveTypeInfo(location, t);
+            const button = (
               <Button
-                key={t}
                 size="small"
                 variant={active ? "contained" : "outlined"}
                 onClick={() => setLeaveType(t)}
@@ -265,8 +310,32 @@ function ApplyForm() {
                 {LEAVE_TYPE_EMOJI[t]} {LEAVE_TYPE_LABEL[t]}
               </Button>
             );
+            const tooltip = LEAVE_TYPE_TOOLTIP[t];
+            return (
+              <Stack key={t} spacing={0.25} alignItems="center">
+                {tooltip ? <Tooltip title={tooltip}>{button}</Tooltip> : button}
+                {/* Eligibility caveat (e.g. "Maharashtra only") — always
+                    visible, not a hover tooltip, since it affects whether
+                    the employee can actually use this type. */}
+                {info && (
+                  <Typography sx={{ fontSize: 9.5, color: "text.disabled", fontStyle: "italic" }}>
+                    {info}
+                  </Typography>
+                )}
+              </Stack>
+            );
           })}
         </Box>
+
+        {hasQuotaTracking && (
+          <Box sx={{ mb: 2 }}>
+            <LeaveBalanceSummary
+              types={quotaTrackedTypes}
+              entitlement={entitlement}
+              isLoading={entitlementQuery.isLoading}
+            />
+          </Box>
+        )}
 
         <FieldLabel>Portion of the day</FieldLabel>
         <Stack direction="row" spacing={1}>
@@ -301,13 +370,33 @@ function ApplyForm() {
           multiple
           size="small"
           options={employeeOptions}
-          value={recipients}
-          onChange={(_e, v) => setRecipients(v as string[])}
+          // Mandatory recipients (lead + People Ops) are always shown as
+          // chips ahead of whatever the user picked — matches leave-app's
+          // NotifyPeople.tsx, which pre-populates them as fixed/non-removable
+          // tags so the user can actually see who's auto-notified, instead
+          // of leaving it to static copy text alone.
+          value={[...mandatory, ...recipients.filter((r) => !mandatory.includes(r))]}
+          onChange={(_e, v) => setRecipients((v as string[]).filter((r) => !mandatory.includes(r)))}
           loading={employees.isLoading}
           loadingText="Loading employees…"
           noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
           disableListWrap
           ListboxComponent={VirtualizedListbox}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => {
+              const isFixed = mandatory.includes(option);
+              const { onDelete, ...tagProps } = getTagProps({ index });
+              return (
+                <Chip
+                  {...tagProps}
+                  key={option}
+                  label={option}
+                  size="small"
+                  onDelete={isFixed ? undefined : onDelete}
+                />
+              );
+            })
+          }
           renderInput={(params) => (
             <TextField {...params} placeholder="Add people to notify (optional)" />
           )}
