@@ -14,22 +14,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect, useRef } from "react";
-import { Box, Typography, Button, Stack } from "@wso2/oxygen-ui";
-import { useActivePerspective } from "@context/perspective/PerspectiveContext";
+import { useEffect } from "react";
+import { Box, Typography } from "@wso2/oxygen-ui";
 
 interface AskNoveraPaletteProps {
   onClose: () => void;
 }
 
-// The command-K palette. Static mock content matching the prototype —
-// hooking this up to a real Novera backend is a separate future task.
+// The ⌘K palette. Ask Novera isn't shipping anytime soon, so this is an
+// honest "coming soon" state — the earlier prototype's pre-filled query +
+// canned response looked functional but did nothing real when used.
 export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
-  const active = useActivePerspective();
-  const inputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
-    inputRef.current?.focus();
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -55,7 +51,7 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
           top: 78,
           left: "50%",
           transform: "translateX(-50%)",
-          width: 680,
+          width: 520,
           maxWidth: "92vw",
           bgcolor: "background.paper",
           border: 1,
@@ -65,7 +61,6 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
           overflow: "hidden",
         }}
       >
-        {/* Search input */}
         <Box
           sx={{
             display: "flex",
@@ -81,37 +76,11 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
               width: 20,
               height: 20,
               borderRadius: "50%",
-              background: (t) =>
-                `linear-gradient(135deg, ${t.palette.primary.main}, #ff9a6e)`,
+              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, #ff9a6e)`,
+              flexShrink: 0,
             }}
           />
-          <Box
-            component="input"
-            ref={inputRef}
-            defaultValue="what's shipping this week"
-            sx={{
-              flex: 1,
-              border: "none",
-              outline: "none",
-              bgcolor: "transparent",
-              fontSize: 16,
-              color: "text.primary",
-              fontFamily: "inherit",
-            }}
-          />
-          <Box
-            sx={{
-              fontSize: 11,
-              color: "primary.main",
-              bgcolor: "primary.light",
-              borderRadius: 0.75,
-              px: 1,
-              py: 0.375,
-              whiteSpace: "nowrap",
-            }}
-          >
-            context: {active.label}
-          </Box>
+          <Typography sx={{ flex: 1, fontSize: 15, fontWeight: 600 }}>Ask Novera</Typography>
           <Box
             sx={{
               fontSize: 11,
@@ -127,41 +96,11 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
           </Box>
         </Box>
 
-        {/* Results */}
-        <Box sx={{ maxHeight: "54vh", overflowY: "auto", p: 1 }}>
-          <Box
-            sx={{
-              bgcolor: "primary.light",
-              border: 1,
-              borderColor: "primary.main",
-              borderRadius: 1.375,
-              p: "13px 14px",
-              m: 0.75,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "primary.main",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.75,
-                mb: 0.875,
-              }}
-            >
-              ✦ NOVERA — scoped to {active.label}
-            </Typography>
-            <Typography sx={{ fontSize: 13.5, lineHeight: 1.5 }}>
-              Novera integration is a stub in this UI mock. Wire this palette
-              to the po-agent backend (or /query on a Choreo gateway) to
-              answer live questions scoped to the {active.label} perspective.
-            </Typography>
-            <Stack direction="row" spacing={0.875} sx={{ mt: 1.125 }}>
-              <Button variant="contained" size="small">Go</Button>
-              <Button variant="outlined" size="small">Edit plan</Button>
-            </Stack>
-          </Box>
+        <Box sx={{ p: "28px 22px", textAlign: "center" }}>
+          <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>
+          <Typography sx={{ fontSize: 13, color: "text.secondary", maxWidth: 360, mx: "auto" }}>
+            Hi! I'm Novera, WSO2's internal AI agent. Just tell me what you need in plain English
+          </Typography>
         </Box>
       </Box>
     </Box>
