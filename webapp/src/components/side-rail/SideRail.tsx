@@ -23,6 +23,7 @@ import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu"
 import { FINANCE_ITEM_IDS } from "@constants/financeApps";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
+import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
 
 // Context-sensitive left rail. Header = the active perspective; body =
 // its sections (jump-anchor to canvas ids); footer = For you (My +
@@ -48,8 +49,22 @@ export default function SideRail() {
   // per perspective since Finance items are just some of Me's sections now.
   // Only fetch those roles while Me is active.
   const financeGate = useFinanceGate(active.key === "me");
-  const resolveVisible = (s: PerspectiveSection): boolean =>
-    FINANCE_ITEM_IDS.has(s.id) ? financeGate.canSee(s.id) : sectionAllowed(s.requires, caps);
+
+  // Marketing Ops needs the same treatment for the same reason, against its own
+  // backend: its access comes from Asgardeo group membership
+  // (app-marketingops-*), which has no relationship to the people-app privilege
+  // numbers `caps` is built from. Gating its items on `caps` would show a
+  // people-app admin every marketing screen — including ones the marketing
+  // backend will 403 — and hide them from an actual Marketing Ops admin who
+  // happens not to be a people-app admin.
+  const isMarketingOps = active.key === "marketing";
+  const marketingOpsGate = useMarketingOpsGate(isMarketingOps);
+
+  const resolveVisible = (s: PerspectiveSection): boolean => {
+    if (FINANCE_ITEM_IDS.has(s.id)) return financeGate.canSee(s.id);
+    if (isMarketingOps) return marketingOpsGate.canSee(s.id);
+    return sectionAllowed(s.requires, caps);
+  };
 
   // Manual open/close choices for groups the user has explicitly clicked,
   // for when they're NOT the group containing the current route (see
@@ -290,7 +305,11 @@ function SectionNode({
 
     // Single visible child → collapse the whole app to a plain leaf that
     // scrolls (or routes) straight to it (e.g. Menu → Home).
-    if (visible.length === 1) {
+    //
+    // Unless the app opts out. An app that is permanently one screen reads better
+    // collapsed; one that is about to gain siblings does not, because the child's
+    // name vanishes from the rail until the second one arrives.
+    if (visible.length === 1 && !section.alwaysGroup) {
       const only = visible[0];
       return (
         <Leaf
@@ -360,8 +379,11 @@ function SectionNode({
     <Leaf
       label={section.label}
       emoji={section.emoji}
-      bullet
+      // An outbound leaf keeps its emoji as its marker; the bullet is for the
+      // scroll-anchor leaves, which have none.
+      bullet={!section.externalUrl}
       to={section.path}
+      href={section.externalUrl}
       onClick={() => onScroll(section.id)}
     />
   );
@@ -372,6 +394,7 @@ function Leaf({
   emoji,
   bullet,
   to,
+  href,
   onClick,
 }: {
   label: string;
@@ -380,6 +403,10 @@ function Leaf({
   // When present, render as a route link (active-highlighted); otherwise
   // an onClick button (scroll-anchor).
   to?: string;
+  // An address outside One WSO2 — rendered as a new-tab anchor rather than a
+  // route. Never active-highlighted: no route of ours is current once the user
+  // is over there, and highlighting it would claim otherwise.
+  href?: string;
   onClick: () => void;
 }) {
   const inner = (
@@ -393,6 +420,25 @@ function Leaf({
       />
     </>
   );
+  if (href) {
+    return (
+      <ListItemButton
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ borderRadius: 1.125, py: 0.75, px: 1.25 }}
+      >
+        {inner}
+        {/* The one affordance that says this leaves the app. Without it an
+            outbound item is indistinguishable from a route until it has already
+            opened a tab. */}
+        <Box component="span" sx={{ fontSize: 11, color: "text.disabled", ml: 0.5 }}>
+          ↗
+        </Box>
+      </ListItemButton>
+    );
+  }
   if (to) {
     return (
       <ListItemButton

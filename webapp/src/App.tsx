@@ -22,6 +22,30 @@ import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamComingSoonPage from "@features/my/pages/MyTeamComingSoonPage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import WorkspacePage from "@features/workspace/pages/WorkspacePage";
+import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
+import AdCampaignsAnalyticsPage from "@features/marketing-ops/ad-campaigns/pages/AdCampaignsAnalyticsPage";
+import UtmGeneratorPage from "@features/marketing-ops/utilities/pages/UtmGeneratorPage";
+import AssetNameGeneratorPage from "@features/marketing-ops/utilities/pages/AssetNameGeneratorPage";
+import UtmSettingsPage from "@features/marketing-ops/admin/pages/UtmSettingsPage";
+import AssetNameSettingsPage from "@features/marketing-ops/admin/pages/AssetNameSettingsPage";
+import EmailWorkbenchSettingsPage from "@features/marketing-ops/admin/pages/EmailWorkbenchSettingsPage";
+import BlockCatalogPage from "@features/marketing-ops/email-workbench/pages/BlockCatalogPage";
+import EventsSettingsPage from "@features/marketing-ops/admin/pages/EventsSettingsPage";
+import {
+  EventsMinePage,
+  EventsReviewPage,
+} from "@features/marketing-ops/events/pages/EventsPages";
+import {
+  CrmUploadPipelinesPage,
+  CrmUploadRecordsPage,
+  CrmUploadReviewPage,
+  CrmUploadRunLogPage,
+} from "@features/marketing-ops/crm-upload/pages/CrmUploadPages";
+import {
+  EmailWorkbenchCreatePage,
+  EmailWorkbenchHistoryPage,
+  EmailWorkbenchManagePage,
+} from "@features/marketing-ops/email-workbench/pages/EmailWorkbenchPages";
 import LeaveApplyPage from "@features/leave/pages/LeaveApplyPage";
 import LeaveHistoryPage from "@features/leave/pages/LeaveHistoryPage";
 import LeaveReportsPage from "@features/leave/pages/LeaveReportsPage";
@@ -88,6 +112,60 @@ export default function App() {
           {/* Workspace perspective — office-amenity apps split out of People
               Ops (starting with the cafeteria Menu app). */}
           <Route path="workspace" element={<WorkspacePage />} />
+          {/* Marketing Ops perspective — overview + the Phase 1 Utilities
+              screens, ported from the Marketing Ops frontend. The remaining
+              operations (Ad Campaigns, Email Workbench, Events, CRM Upload)
+              still live in Marketing Ops; the overview deep-links out to them
+              until their phase lands. */}
+          <Route path="marketing-ops" element={<MarketingOpsPage />} />
+          {/* Email Workbench. The editor is transient state inside these pages, not
+              a route of its own — see EmailWorkbenchPages. */}
+          <Route
+            path="marketing-ops/email-workbench/create"
+            element={<EmailWorkbenchCreatePage />}
+          />
+          <Route
+            path="marketing-ops/email-workbench/history"
+            element={<EmailWorkbenchHistoryPage />}
+          />
+          <Route
+            path="marketing-ops/email-workbench/manage"
+            element={<EmailWorkbenchManagePage />}
+          />
+          <Route
+            path="marketing-ops/email-workbench/blocks"
+            element={<BlockCatalogPage />}
+          />
+          {/* Ad Campaigns → Analytics. Read-only reports computed on demand. */}
+          <Route
+            path="marketing-ops/ad-campaigns/analytics"
+            element={<AdCampaignsAnalyticsPage />}
+          />
+          {/* Utilities — open to any authorized Marketing Ops caller. */}
+          <Route path="marketing-ops/utilities/utm" element={<UtmGeneratorPage />} />
+          <Route
+            path="marketing-ops/utilities/asset-name"
+            element={<AssetNameGeneratorPage />}
+          />
+          {/* Marketing Admin — each operation's configuration lands with the
+              operation, so this grows one panel per phase. Admin-gated by the
+              rail and by MarketingOpsShell; the backend enforces it too. */}
+          <Route path="marketing-ops/admin/utm" element={<UtmSettingsPage />} />
+          <Route
+            path="marketing-ops/admin/asset-name"
+            element={<AssetNameSettingsPage />}
+          />
+          <Route path="marketing-ops/admin/pardot" element={<EmailWorkbenchSettingsPage />} />
+          <Route path="marketing-ops/admin/events" element={<EventsSettingsPage />} />
+          <Route path="marketing-ops/events/mine" element={<EventsMinePage />} />
+          <Route path="marketing-ops/events/review" element={<EventsReviewPage />} />
+          <Route
+            path="marketing-ops/crm-upload/pipelines"
+            element={<CrmUploadPipelinesPage />}
+          />
+          <Route path="marketing-ops/crm-upload/runs" element={<CrmUploadRunLogPage />} />
+          <Route path="marketing-ops/crm-upload/records" element={<CrmUploadRecordsPage />} />
+          <Route path="marketing-ops/crm-upload/review" element={<CrmUploadReviewPage />} />
           {/* Legacy /my bookmarks → the Me home. */}
           <Route path="my" element={<Navigate to="/me" replace />} />
           {/* Catch-all → landing */}

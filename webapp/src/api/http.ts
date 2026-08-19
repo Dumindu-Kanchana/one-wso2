@@ -242,6 +242,29 @@ export async function authedPatch<T>(
   return readJsonOrNull<T>(res, url);
 }
 
+// Authed PUT with a JSON body. Returns parsed JSON when the response has a
+// body, or null on 204. Same error semantics as authedPost.
+//
+// PUT rather than PATCH is a whole-collection REPLACE — the marketing-ops
+// settings API works this way (`PUT /api/settings/utm/{parameter}` with the
+// complete `entries` array), because the thing being edited is an ordered list
+// whose order is meaningful, and a partial patch can't express "these values, in
+// this sequence, and nothing else".
+export async function authedPut<T>(
+  url: string,
+  accessToken: string,
+  body: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<T | null> {
+  const res = await fetchWithReauth(
+    url,
+    { method: "PUT", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
+    accessToken,
+  );
+  if (!res.ok) await throwFromError(url, res, "authedPut");
+  return readJsonOrNull<T>(res, url);
+}
+
 // Shared React Query retry predicate. Skip retries on 4xx (they don't
 // improve with a retry — the caller sent a bad request, or the user
 // isn't authorized) and retry once on anything else. Kept next to the
@@ -259,6 +282,25 @@ export async function authedPatch<T>(
 export function defaultQueryRetry(failureCount: number, error: unknown): boolean {
   if (error instanceof HttpError && error.status >= 400 && error.status < 500) return false;
   return failureCount < 1;
+}
+
+// Authed DELETE that carries a JSON body, for the rare endpoint whose delete needs
+// arguments — CRM Upload's record delete requires a reason, which is written to the
+// audit log. Kept separate from `authedDelete` rather than added as a parameter so
+// the plain form's signature (and its dozen call sites) stays as it is.
+export async function authedDeleteJson<T>(
+  url: string,
+  accessToken: string,
+  body: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<T | null> {
+  const res = await fetchWithReauth(
+    url,
+    { method: "DELETE", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
+    accessToken,
+  );
+  if (!res.ok) await throwFromError(url, res, "authedDeleteJson");
+  return readJsonOrNull<T>(res, url);
 }
 
 // Authed DELETE. Returns nothing; throws HttpError on non-2xx.

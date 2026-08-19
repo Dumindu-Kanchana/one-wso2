@@ -1,0 +1,469 @@
+// Copyright (c) 2026 WSO2 LLC. (https://www.wso2.com).
+//
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+import type { ReactNode } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
+} from "@wso2/oxygen-ui";
+import { Download } from "@wso2/oxygen-ui-icons-react";
+import { describeError } from "@api/errors";
+import {
+  downloadCsv,
+  roiReportToCsv,
+  type GroupByDim,
+  type RoiReport,
+  type RoiRow,
+  type RoiTotals,
+} from "../adAnalyticsTypes";
+import { ACCENT, num, perDollar, usd } from "../chartTheme";
+import {
+  EmptyHint,
+  FieldLabel,
+  ReportLoading,
+  StatCard,
+  ToggleChip,
+} from "./AnalyticsPrimitives";
+import { useTableSx } from "./useChartStyles";
+
+// Campaign ROI — the Google Ads ↔ Salesforce join keyed on utm_campaign.
+//
+// The load-bearing subtlety in this view is SHARED SPEND. When a campaign maps to
+// several rows (e.g. grouped by region, but the campaign spans regions), the
+// campaign's spend is shown against each row rather than split — so the spend
+// column deliberately does NOT sum to the total. The engine computes totals
+// independently. Both the asterisk footnote and the fact that TotalRow reads
+// `report.totals` rather than summing exist to keep someone from adding up the
+// column and concluding the total is wrong.
+
+const ROI_LOADING = [
+  "Generating the ROI report…",
+  "Joining ad spend to Salesforce…",
+  "Almost there…",
+] as const;
+
+const GROUP_BY: { key: GroupByDim; label: string }[] = [
+  { key: "campaign", label: "Campaign" },
+  { key: "region", label: "Region" },
+  { key: "product", label: "Business unit" },
+  { key: "lead_source_detail", label: "Lead source" },
+];
+
+const DIM_LABEL: Record<string, string> = {
+  campaign: "Campaign",
+  region: "Region",
+  product: "Business unit",
+  lead_source_detail: "Lead source",
+};
+
+export default function RoiReporting({
+  query,
+  groupBy,
+  onGroupBy,
+  roiSupported,
+  platform,
+}: {
+  query: { data?: RoiReport; isLoading: boolean; isError: boolean; error: Error | null };
+  groupBy: GroupByDim;
+  onGroupBy: (g: GroupByDim) => void;
+  roiSupported: boolean;
+  platform: string;
+}) {
+  // LinkedIn ads expose no utm_campaign — a creative only references a post — so
+  // there is nothing to attribute a lead back to a campaign by. This is a
+  // structural limitation of the integration, not a missing feature, which is
+  // why it gets an explanation rather than an empty state.
+  if (!roiSupported) {
+    return (
+      <Box sx={{ border: 1, borderStyle: "dashed", borderColor: "divider", borderRadius: 1.5, p: 4, textAlign: "center" }}>
+        <Typography sx={{ fontSize: 15, fontWeight: 800, mb: 1 }}>
+          Campaign ROI isn't available for{" "}
+          {platform === "linkedin" ? "LinkedIn" : "this platform"}
+        </Typography>
+        <Typography
+          sx={{ fontSize: 13, color: "text.secondary", maxWidth: 560, mx: "auto", lineHeight: 1.6 }}
+        >
+          ROI joins ad spend to Salesforce pipeline by <code>utm_campaign</code>. Google ads carry
+          that value in their destination URL, but LinkedIn ads don't expose one, so leads can't be
+          attributed back to a LinkedIn campaign. Switch to <strong>Google Ads</strong> for the ROI
+          report, or see the <strong>Dashboard</strong> tab for LinkedIn ad performance.
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      {/* Breakdown selector — ROI-local. Changing it re-runs ONLY this report
+          (its own query key), not the dashboard. */}
+      <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, p: 2.5, mb: 3 }}>
+        <FieldLabel>Break down by</FieldLabel>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+          {GROUP_BY.map((g) => (
+            <ToggleChip
+              key={g.key}
+              label={g.label}
+              active={groupBy === g.key}
+              onClick={() => onGroupBy(g.key)}
+            />
+          ))}
+        </Box>
+      </Box>
+
+      {query.isLoading ? (
+        <ReportLoading messages={ROI_LOADING} />
+      ) : query.isError ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {describeError(query.error)}
+        </Alert>
+      ) : query.data ? (
+        <ResultsView report={query.data} />
+      ) : (
+        <EmptyHint>Pick a date range to see the report.</EmptyHint>
+      )}
+    </Box>
+  );
+}
+
+function ResultsView({ report }: { report: RoiReport }) {
+  const { cell, hdr } = useTableSx();
+  const t = report.totals;
+  const mq = report.match_quality;
+  const rows = report.rows ?? [];
+  const cfg = report.config_snapshot;
+
+  // Dimension columns come from the rows, not the config: `group_by` changes the
+  // shape of `dims` per run, and a row may carry dims the config didn't name.
+  const dimKeys: string[] = [];
+  rows.forEach((r) =>
+    Object.keys(r.dims || {}).forEach((k) => {
+      if (!dimKeys.includes(k)) dimKeys.push(k);
+    }),
+  );
+
+  // Which funnel columns to show. Driven by the config the backend echoed back,
+  // so the table matches the report that actually ran rather than our defaults.
+  const funnel = new Set(
+    cfg?.funnel_stages ?? ["lead", "mql", "sal", "sql", "opportunity", "closed_won"],
+  );
+  const anySharedSpend = rows.some((r) => r.spend_shared);
+
+  return (
+    <Box>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1.5,
+          flexWrap: "wrap",
+          gap: 1,
+        }}
+      >
+        <Typography sx={{ fontSize: 11, color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>
+          {report.window_start} → {report.window_end}
+        </Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={rows.length === 0}
+          onClick={() =>
+            downloadCsv(
+              `roi-report-${report.window_start}_${report.window_end}.csv`,
+              roiReportToCsv(report),
+            )
+          }
+          startIcon={<Download size={15} />}
+          sx={{ fontSize: 12, fontWeight: 700, textTransform: "none" }}
+        >
+          Export CSV
+        </Button>
+      </Box>
+
+      {t && (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "repeat(2,1fr)", sm: "repeat(3,1fr)", md: "repeat(6,1fr)" },
+            gap: 1,
+            mb: 2,
+          }}
+        >
+          <StatCard label="Spend" value={usd(t.spend)} />
+          <StatCard label="Leads" value={num(t.leads)} />
+          <StatCard label="Opportunities" value={num(t.opportunities)} />
+          <StatCard label="Open pipeline" value={usd(t.open_pipeline_value)} />
+          <StatCard label="Won" value={usd(t.won_value)} />
+          <StatCard label="Value / $" value={perDollar(t.value_per_dollar)} accent={ACCENT} />
+        </Box>
+      )}
+
+      {mq && <MatchPanel mq={mq} />}
+
+      {rows.length === 0 ? (
+        <EmptyHint>No rows for this window and breakdown.</EmptyHint>
+      ) : (
+        <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1.25, overflowX: "auto" }}>
+          <Table size="small" sx={{ minWidth: 720 }}>
+            <TableHead>
+              <TableRow>
+                {dimKeys.map((k) => (
+                  <TableCell key={k} sx={hdr}>{DIM_LABEL[k] ?? k}</TableCell>
+                ))}
+                <TableCell align="right" sx={hdr}>Spend</TableCell>
+                <TableCell align="right" sx={hdr}>Leads</TableCell>
+                {funnel.has("mql") && <TableCell align="right" sx={hdr}>MQLs</TableCell>}
+                {funnel.has("sal") && <TableCell align="right" sx={hdr}>SALs</TableCell>}
+                {funnel.has("sql") && <TableCell align="right" sx={hdr}>SQLs</TableCell>}
+                <TableCell align="right" sx={hdr}>Opps</TableCell>
+                {funnel.has("closed_won") && <TableCell align="right" sx={hdr}>Won</TableCell>}
+                <TableCell align="right" sx={hdr}>Pipeline $</TableCell>
+                <TableCell align="right" sx={hdr}>Won $</TableCell>
+                {funnel.has("lead") && <TableCell align="right" sx={hdr}>Cost/lead</TableCell>}
+                {funnel.has("mql") && <TableCell align="right" sx={hdr}>Cost/MQL</TableCell>}
+                {funnel.has("sal") && <TableCell align="right" sx={hdr}>Cost/SAL</TableCell>}
+                {funnel.has("sql") && <TableCell align="right" sx={hdr}>Cost/SQL</TableCell>}
+                {funnel.has("opportunity") && <TableCell align="right" sx={hdr}>Cost/opp</TableCell>}
+                {funnel.has("closed_won") && <TableCell align="right" sx={hdr}>Cost/won</TableCell>}
+                <TableCell align="right" sx={hdr}>Value/$</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map((r, i) => (
+                <ResultRow key={i} r={r} dimKeys={dimKeys} funnel={funnel} cell={cell} />
+              ))}
+              {t && <TotalRow t={t} dimKeys={dimKeys} funnel={funnel} hdrBg={hdr.bgcolor} />}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+
+      {anySharedSpend && (
+        <Typography sx={{ fontSize: 11, color: "text.disabled", mt: 1 }}>
+          * Spend is shown at the campaign level and shared across these rows — do not sum the
+          spend column.
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+// Total row. Figures come from `report.totals`, computed independently by the
+// engine — NOT from summing the visible columns, which with shared campaign-level
+// spend would be wrong. These totals reconcile with the dashboard overview strip.
+function TotalRow({
+  t,
+  dimKeys,
+  funnel,
+  hdrBg,
+}: {
+  t: RoiTotals;
+  dimKeys: string[];
+  funnel: Set<string>;
+  hdrBg: string;
+}) {
+  const per = (n: number) => (t.spend && n ? t.spend / n : null);
+  const cell = (v: ReactNode) => (
+    <TableCell
+      align="right"
+      sx={{ fontVariantNumeric: "tabular-nums", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap" }}
+    >
+      {v}
+    </TableCell>
+  );
+  return (
+    <TableRow sx={{ bgcolor: hdrBg, "& td": { borderTop: 2, borderColor: "divider" } }}>
+      {dimKeys.map((k, i) => (
+        <TableCell key={k} sx={{ fontSize: 12, fontWeight: 800 }}>
+          {i === 0 ? "Total" : ""}
+        </TableCell>
+      ))}
+      {cell(usd(t.spend))}
+      {cell(num(t.leads))}
+      {funnel.has("mql") && cell(num(t.mqls))}
+      {funnel.has("sal") && cell(num(t.sals))}
+      {funnel.has("sql") && cell(num(t.sqls))}
+      {cell(num(t.opportunities))}
+      {funnel.has("closed_won") && cell(num(t.closed_won))}
+      {cell(usd(t.open_pipeline_value))}
+      {cell(usd(t.won_value))}
+      {funnel.has("lead") && cell(usd(per(t.leads)))}
+      {funnel.has("mql") && cell(usd(per(t.mqls)))}
+      {funnel.has("sal") && cell(usd(per(t.sals)))}
+      {funnel.has("sql") && cell(usd(per(t.sqls)))}
+      {funnel.has("opportunity") && cell(usd(per(t.opportunities)))}
+      {funnel.has("closed_won") && cell(usd(per(t.closed_won)))}
+      {cell(
+        <Box component="span" sx={{ color: t.value_per_dollar ? "success.main" : undefined }}>
+          {perDollar(t.value_per_dollar)}
+        </Box>,
+      )}
+    </TableRow>
+  );
+}
+
+function ResultRow({
+  r,
+  dimKeys,
+  funnel,
+  cell: cellSx,
+}: {
+  r: RoiRow;
+  dimKeys: string[];
+  funnel: Set<string>;
+  cell: Record<string, unknown>;
+}) {
+  const isUnmatched = Object.values(r.dims || {}).some((v) => v === "(unmatched)");
+  // Spend with zero leads is the row worth noticing — money going nowhere.
+  const waste = r.leads === 0 && r.spend > 0;
+
+  const n = (v: ReactNode, dim?: boolean) => (
+    <TableCell
+      align="right"
+      sx={{ ...cellSx, color: dim ? "text.disabled" : "text.primary" }}
+    >
+      {v}
+    </TableCell>
+  );
+
+  return (
+    <TableRow sx={isUnmatched ? { bgcolor: "action.hover" } : undefined}>
+      {dimKeys.map((k) => (
+        <TableCell
+          key={k}
+          sx={{
+            fontSize: 12,
+            fontWeight: 600,
+            maxWidth: 280,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {r.dims?.[k] ?? "—"}
+        </TableCell>
+      ))}
+      {n(
+        <Tooltip
+          title={r.spend_shared ? "Shared campaign-level spend" : ""}
+          disableHoverListener={!r.spend_shared}
+        >
+          <Box component="span" sx={{ color: waste ? "warning.main" : undefined }}>
+            {usd(r.spend)}
+            {r.spend_shared ? "*" : ""}
+          </Box>
+        </Tooltip>,
+      )}
+      {n(num(r.leads), r.leads === 0)}
+      {funnel.has("mql") && n(num(r.mqls), r.mqls === 0)}
+      {funnel.has("sal") && n(num(r.sals), r.sals === 0)}
+      {funnel.has("sql") && n(num(r.sqls), r.sqls === 0)}
+      {n(num(r.opportunities), r.opportunities === 0)}
+      {funnel.has("closed_won") && n(num(r.closed_won), r.closed_won === 0)}
+      {n(usd(r.open_pipeline_value), !r.open_pipeline_value)}
+      {n(usd(r.won_value), !r.won_value)}
+      {funnel.has("lead") && n(usd(r.cost_per_lead))}
+      {funnel.has("mql") && n(usd(r.cost_per_mql))}
+      {funnel.has("sal") && n(usd(r.cost_per_sal))}
+      {funnel.has("sql") && n(usd(r.cost_per_sql))}
+      {funnel.has("opportunity") && n(usd(r.cost_per_opportunity))}
+      {funnel.has("closed_won") && n(usd(r.cost_per_won))}
+      {n(
+        <Box
+          component="span"
+          sx={{ fontWeight: 700, color: r.value_per_dollar ? "success.main" : undefined }}
+        >
+          {perDollar(r.value_per_dollar)}
+        </Box>,
+      )}
+    </TableRow>
+  );
+}
+
+// How much of the Salesforce lead volume actually joined to a Google campaign.
+// A quietly-falling match rate is the failure mode that makes every other number
+// on this page an understatement, so it sits above the table rather than below it.
+function MatchPanel({ mq }: { mq: NonNullable<RoiReport["match_quality"]> }) {
+  const rate = mq.match_rate != null ? Math.round(mq.match_rate * 1000) / 10 : null;
+  const good = (rate ?? 0) >= 90;
+  return (
+    <Box
+      sx={{
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 1.25,
+        p: 1.75,
+        mb: 2,
+        display: "flex",
+        alignItems: "center",
+        gap: 2.5,
+        flexWrap: "wrap",
+      }}
+    >
+      <Box>
+        <Typography
+          sx={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.13em",
+            textTransform: "uppercase",
+            color: "text.secondary",
+            mb: 0.4,
+          }}
+        >
+          Slug match rate
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: 17,
+            fontWeight: 800,
+            lineHeight: 1,
+            color: good ? "success.main" : "warning.main",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {rate == null ? "—" : `${rate}%`}
+        </Typography>
+      </Box>
+      <Typography sx={{ fontSize: 11.5, color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>
+        {num(mq.leads_matched)} of {num(mq.leads_total)} leads joined · {mq.leads_unmatched}{" "}
+        unmatched · {mq.google_campaigns_in_window} campaigns in window
+      </Typography>
+      {mq.top_unmatched_slugs.length > 0 && (
+        <Tooltip
+          title={mq.top_unmatched_slugs.map((u) => `${u.slug} (${u.leads})`).join("\n")}
+        >
+          <Chip
+            size="small"
+            color="warning"
+            variant="outlined"
+            label={`${mq.unmatched_sf_slugs} unmatched slug${mq.unmatched_sf_slugs === 1 ? "" : "s"}`}
+            sx={{ fontSize: 11, height: 22, fontWeight: 600 }}
+          />
+        </Tooltip>
+      )}
+    </Box>
+  );
+}

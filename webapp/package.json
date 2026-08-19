@@ -16,17 +16,24 @@
     "@tanstack/react-query": "5.90.20",
     "@wso2/oxygen-ui": "0.6.0",
     "@wso2/oxygen-ui-icons-react": "0.6.0",
+    "exceljs": "4.4.0",
+    "html-to-text": "10.0.0",
+    "parse5": "8.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-router": "7.18.2",
-    "react-window": "1.8.11"
+    "react-window": "1.8.11",
+    "recharts": "3.10.1"
   },
   "overrides": {
-    "dompurify": "^3.4.13"
+    "dompurify": "^3.4.13",
+    "deepmerge-ts": "^8.0.1",
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
     "@tanstack/react-query-devtools": "5.91.2",
+    "@types/html-to-text": "9.0.4",
     "@types/node": "22.15.0",
     "@types/react": "19.2.5",
     "@types/react-dom": "19.2.3",

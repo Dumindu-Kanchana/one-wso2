@@ -82,6 +82,12 @@ export interface MenuApp {
   emoji: string;
   purpose: string;
   items: MenuAppItem[];
+  // Keep this app rendered as an expandable group in the rail even while it has
+  // only ONE visible item, instead of collapsing to a leaf that jumps straight
+  // there. For an app that is genuinely one screen (Menu → Home) collapsing is
+  // right; for one that is about to grow, it teaches the wrong shape — the item
+  // disappears as a concept, and reappears the day a second one lands.
+  alwaysGroup?: boolean;
 }
 
 // Items of an app the caller is allowed to see, given their capabilities.
