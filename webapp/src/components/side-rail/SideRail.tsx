@@ -244,7 +244,7 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
               key={s.id}
               section={s}
               resolveVisible={resolveVisible}
-              locked={activeGroupIds.has(s.id)}
+              containsActiveRoute={activeGroupIds.has(s.id)}
             />
           ))}
 
@@ -323,15 +323,22 @@ function RouteItem({
 function SectionNode({
   section,
   resolveVisible,
-  locked,
+  containsActiveRoute,
 }: {
   section: PerspectiveSection;
   resolveVisible: (section: PerspectiveSection) => boolean;
-  // True while this group contains the current route. It is forced open (see
-  // activeGroupIds) so toggling is a no-op — render it non-interactive rather
-  // than leaving a click target that silently does nothing, which reads as
-  // "the rail is broken".
-  locked: boolean;
+  /**
+   * True while this group holds the current route. Drives two things that used
+   * to be tracked separately but are the same fact:
+   *
+   *  - The header is forced open (see activeGroupIds), so toggling is a no-op.
+   *    Render it non-interactive rather than leaving a click target that
+   *    silently does nothing, which reads as "the rail is broken".
+   *  - Its icon is tinted, so an expanded group signals that you are inside it.
+   *    Oxygen computes an equivalent internally but only spends it when the rail
+   *    is collapsed, and the child row carrying the highlight has no icon.
+   */
+  containsActiveRoute: boolean;
 }): JSX.Element | null {
   if (section.children && section.children.length > 0) {
     const visible = section.children.filter((c) => resolveVisible(c));
@@ -348,12 +355,21 @@ function SectionNode({
       return <LeafItem id={only.id} label={section.label} icon={section.icon} to={only.path} />;
     }
 
+
     return (
       <Sidebar.Item
         id={section.id}
-        sx={locked ? { cursor: "default", "&:hover": { bgcolor: "transparent" } } : undefined}
+        sx={
+          containsActiveRoute
+            ? { cursor: "default", "&:hover": { bgcolor: "transparent" } }
+            : undefined
+        }
       >
-        <Sidebar.ItemIcon>{section.icon ? <section.icon /> : null}</Sidebar.ItemIcon>
+        <Sidebar.ItemIcon
+          sx={containsActiveRoute ? { color: "primary.main" } : undefined}
+        >
+          {section.icon ? <section.icon /> : null}
+        </Sidebar.ItemIcon>
         <Sidebar.ItemLabel sx={ELLIPSIS_SX}>{section.label}</Sidebar.ItemLabel>
         {/* Literal Sidebar.Item elements, NOT a wrapper component. Oxygen
             renders a group's children with
