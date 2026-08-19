@@ -24,7 +24,7 @@ import AskNoveraPalette from "@components/ask-novera/AskNoveraPalette";
 import AppFooter from "@components/footer/AppFooter";
 import AuthDebugPanel from "@features/debug/AuthDebugPanel";
 import AppShellLayout from "@layouts/AppShellLayout";
-import { useIdleLogout } from "@hooks/useIdleLogout";
+import IdleTimeoutProvider from "@context/idle-timeout/IdleTimeoutProvider";
 
 const SIDEBAR_COLLAPSED_KEY = "one-wso2.sidebar.collapsed";
 
@@ -58,9 +58,6 @@ export default function AppLayout(): JSX.Element {
   const location = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
 
-  // Sign out after 20 min idle (< 30 min) and purge the cache (ONEWSO2-R1).
-  useIdleLogout(20);
-
   const { state: shellState, actions: shellActions } = useAppShell({
     initialCollapsed: readCollapsed(),
   });
@@ -76,48 +73,53 @@ export default function AppLayout(): JSX.Element {
   }, [location.pathname]);
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100dvh",
-        overflow: "hidden",
-      }}
-    >
-      <AppShellLayout
-        header={
-          <TopBar
-            collapsed={shellState.sidebarCollapsed}
-            onToggleSidebar={shellActions.toggleSidebar}
-            onOpenWaffle={() => setWaffleOpen(true)}
-            onOpenAsk={() => setAskOpen(true)}
-          />
-        }
-        sidebar={<SideRail collapsed={shellState.sidebarCollapsed} />}
+    // Owns the idle deadline and the "still there?" prompt (ONEWSO2-R1).
+    // Wraps the shell rather than sitting inside it so the dialog is a sibling
+    // of the layout, not a child of the scrolling content area.
+    <IdleTimeoutProvider>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100dvh",
+          overflow: "hidden",
+        }}
       >
-        {/* The footer sits OUTSIDE the scroller, pinned to the bottom of the
-            content column, which is where it was before this shell rewrite.
-            Moving it inside would make it scroll away with the page. */}
-        <Box
-          ref={mainRef}
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            minWidth: 0,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "auto",
-            p: 3,
-          }}
+        <AppShellLayout
+          header={
+            <TopBar
+              collapsed={shellState.sidebarCollapsed}
+              onToggleSidebar={shellActions.toggleSidebar}
+              onOpenWaffle={() => setWaffleOpen(true)}
+              onOpenAsk={() => setAskOpen(true)}
+            />
+          }
+          sidebar={<SideRail collapsed={shellState.sidebarCollapsed} />}
         >
-          <Outlet />
-        </Box>
-        <AppFooter />
-      </AppShellLayout>
+          {/* The footer sits OUTSIDE the scroller, pinned to the bottom of the
+              content column, which is where it was before this shell rewrite.
+              Moving it inside would make it scroll away with the page. */}
+          <Box
+            ref={mainRef}
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "auto",
+              p: 3,
+            }}
+          >
+            <Outlet />
+          </Box>
+          <AppFooter />
+        </AppShellLayout>
 
-      {waffleOpen && <WaffleOverlay onClose={() => setWaffleOpen(false)} />}
-      {askOpen && <AskNoveraPalette onClose={() => setAskOpen(false)} />}
-      <AuthDebugPanel />
-    </Box>
+        {waffleOpen && <WaffleOverlay onClose={() => setWaffleOpen(false)} />}
+        {askOpen && <AskNoveraPalette onClose={() => setAskOpen(false)} />}
+        <AuthDebugPanel />
+      </Box>
+    </IdleTimeoutProvider>
   );
 }
