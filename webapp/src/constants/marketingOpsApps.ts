@@ -91,12 +91,28 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
         requires: ["admin"],
         path: "/marketing-ops/email-workbench/manage",
       },
+      // The block catalog belongs to the operation, not to Marketing Admin: it is
+      // where an editor's building blocks are maintained, and Marketing Ops has it
+      // as a sub-operation of Email Workbench at the matching path. Its backend
+      // router is mounted under the operation's own guard, so the capability is
+      // `emailworkbench` — the same one the other three items need.
+      {
+        id: "mops-email-blocks",
+        label: "Block catalog",
+        desc: "The components the email editor offers. Editing a block changes what future emails insert.",
+        requires: ["admin"],
+        path: "/marketing-ops/email-workbench/blocks",
+      },
     ],
   },
   {
     key: "ad-campaigns",
     name: "Ad Campaigns",
     emoji: "📊",
+    // Analytics is the first of several screens planned here, so the rail keeps
+    // "Ad Campaigns" expandable with "Analytics" nested under it rather than
+    // collapsing the two into one entry.
+    alwaysGroup: true,
     purpose:
       "Cross-channel paid campaign performance — spend, reach and conversion pulled from the connected ad platforms.",
     items: [
@@ -262,13 +278,6 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
         desc: "Campaign, tracker domain, email types and sender applied to every email pushed to Pardot.",
         requires: ["admin"],
         path: "/marketing-ops/admin/pardot",
-      },
-      {
-        id: "mops-admin-blocks",
-        label: "Block catalog",
-        desc: "The components the email editor offers. Editing a block changes what future emails insert.",
-        requires: ["admin"],
-        path: "/marketing-ops/admin/blocks",
       },
       // Phase 4 — the Events import contract. Not cosmetic config: the member
       // statuses and their column definitions decide which workbook tabs are read

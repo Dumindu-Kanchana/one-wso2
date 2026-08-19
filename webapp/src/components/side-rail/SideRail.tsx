@@ -330,7 +330,11 @@ function SectionNode({
 
     // Single visible child → collapse the whole app to a plain leaf that
     // scrolls (or routes) straight to it (e.g. Menu → Home).
-    if (visible.length === 1) {
+    //
+    // Unless the app opts out. An app that is permanently one screen reads better
+    // collapsed; one that is about to gain siblings does not, because the child's
+    // name vanishes from the rail until the second one arrives.
+    if (visible.length === 1 && !section.alwaysGroup) {
       const only = visible[0];
       return (
         <Leaf

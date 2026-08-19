@@ -69,6 +69,12 @@ export default function MarketingOpsPage() {
           gap: 1.75,
         }}
       >
+        {/* ISAC leads, matching the rail. It is a separate application rather than an
+            operation, so it gets a tile rather than a route — but a reader who has just
+            used the rail should find the same thing in the same place. Omitted entirely
+            when unconfigured. */}
+        {isIsacConfigured() && <IsacTile />}
+
         {operations.map((app) => {
           // An operation whose every screen is hidden by the gate is hidden
           // entirely — an empty tile is worse than no tile, because it advertises
@@ -84,11 +90,6 @@ export default function MarketingOpsPage() {
             />
           );
         })}
-
-        {/* ISAC is a separate application, so it gets a tile rather than a route —
-            same reasoning as its place at the top of the rail. Omitted entirely
-            when unconfigured. */}
-        {isIsacConfigured() && <IsacTile />}
       </Box>
 
       {adminItems.length > 0 && <AdminStrip items={adminItems} />}

@@ -40,7 +40,7 @@ import {
   useDeleteBlock,
   useSaveBlock,
 } from "../../api/useEmailWorkbench";
-import type { Block, BlockWrite } from "../../email-workbench/emailWorkbenchTypes";
+import type { Block, BlockWrite } from "../emailWorkbenchTypes";
 
 // Marketing Admin → Block catalog: the components the Advanced editor offers.
 //
@@ -102,7 +102,7 @@ export default function BlockCatalogPage() {
   if (form) {
     return (
       <MarketingOpsShell
-        eyebrow="⚙️ Marketing Admin"
+        eyebrow="📣 Email Workbench"
         title={form.editing ? "Edit block" : "New block"}
         subtitle="The HTML here is inserted verbatim into the email body. Its styling comes from the template's chassis classes, not from this block."
       >
@@ -117,7 +117,7 @@ export default function BlockCatalogPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="⚙️ Marketing Admin"
+      eyebrow="📣 Email Workbench"
       title="Block catalog"
       subtitle="The components the Advanced editor offers. Editing a block changes what gets inserted into every future email — no redeploy needed."
     >
