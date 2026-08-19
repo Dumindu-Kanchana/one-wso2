@@ -17,8 +17,8 @@
 // Registry of the Workspace perspective's apps. Split out of People Ops —
 // menu-app is an office-amenity tool, not an HR-team one, so it gets its
 // own perspective. More non-HR office apps land here over time. Same
-// App → items shape as @constants/financeApps / peopleOpsApps; see that
-// file's header for the general rationale.
+// App → items shape as @constants/financeApps; see that file's header for
+// the general rationale.
 
 import type { MenuApp } from "@constants/appMenu";
 
