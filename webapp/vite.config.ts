@@ -1,4 +1,5 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, mergeConfig, type Plugin } from "vite";
+import { configDefaults, defineConfig as defineVitestConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -52,7 +53,7 @@ function cspPlugin(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
+const viteConfig = defineConfig({
   plugins: [
     react({
       babel: {
@@ -80,3 +81,28 @@ export default defineConfig({
     port: 3000,
   },
 });
+
+// Vitest lives inline here rather than in a separate vitest.config.ts, matching
+// csm-portal. `css: true` so Oxygen's emotion styles resolve under jsdom, and
+// the Oxygen/Asgardeo packages ship ESM that has to be inlined to be
+// transformable.
+const vitestConfig = defineVitestConfig({
+  test: {
+    globals: true,
+    environment: "jsdom",
+    css: true,
+    setupFiles: ["./src/test/setup.ts"],
+    exclude: [...configDefaults.exclude],
+    server: {
+      deps: {
+        inline: [
+          "@wso2/oxygen-ui",
+          "@wso2/oxygen-ui-icons-react",
+          "@asgardeo/browser",
+        ],
+      },
+    },
+  },
+});
+
+export default mergeConfig(viteConfig, vitestConfig);
