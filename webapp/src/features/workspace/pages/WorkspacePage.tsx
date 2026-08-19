@@ -14,8 +14,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Chip, Typography } from "@wso2/oxygen-ui";
+import { Box } from "@wso2/oxygen-ui";
 import AppMenuBoard from "@components/app-menu/AppMenuBoard";
+import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
 import { WORKSPACE_APPS } from "@constants/workspaceApps";
 
 // Workspace perspective overview — office-amenity apps that aren't HR-team
@@ -24,18 +25,11 @@ import { WORKSPACE_APPS } from "@constants/workspaceApps";
 export default function WorkspacePage() {
   return (
     <Box>
-      <Chip
-        label="✦ Workspace perspective"
-        color="primary"
-        size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
+      <PerspectiveHeader
+        eyebrow="Workspace perspective"
+        title="Workspace"
+        subtitle="Everyday office apps in one place — jump to any app's section from the left rail."
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
-        Workspace
-      </Typography>
-      <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
-        Everyday office apps in one place — jump to any app's section from the left rail.
-      </Typography>
 
       <AppMenuBoard apps={WORKSPACE_APPS} />
     </Box>

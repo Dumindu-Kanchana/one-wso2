@@ -14,7 +14,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Card, Chip, Typography } from "@wso2/oxygen-ui";
+import { Box, Card, Typography } from "@wso2/oxygen-ui";
+import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
 
 // Skeleton for the Finance perspective — the OPD/credit-card/expense claim
 // apps that used to live here moved under Me (an employee submits/tracks
@@ -23,18 +24,11 @@ import { Box, Card, Chip, Typography } from "@wso2/oxygen-ui";
 export default function FinancePage() {
   return (
     <Box>
-      <Chip
-        label="✦ Finance perspective"
-        color="primary"
-        size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
+      <PerspectiveHeader
+        eyebrow="Finance perspective"
+        title="Finance"
+        subtitle="This perspective is being rebuilt."
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
-        Finance
-      </Typography>
-      <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
-        This perspective is being rebuilt.
-      </Typography>
 
       <Card variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
         <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>

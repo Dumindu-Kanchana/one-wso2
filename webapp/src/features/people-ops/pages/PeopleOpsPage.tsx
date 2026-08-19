@@ -14,7 +14,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Card, Chip, Typography } from "@wso2/oxygen-ui";
+import { Box, Card, Typography } from "@wso2/oxygen-ui";
+import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
 import SectionHeader from "../components/SectionHeader";
 
 // This perspective's prior content (People/Visitor/Careers app menus, the
@@ -31,18 +32,11 @@ const REPORTS = [
 export default function PeopleOpsPage() {
   return (
     <Box>
-      <Chip
-        label="✦ People Ops perspective"
-        color="primary"
-        size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
+      <PerspectiveHeader
+        eyebrow="People Ops perspective"
+        title="People Operations"
+        subtitle="This perspective is being rebuilt. Here's what's coming next."
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
-        People Operations
-      </Typography>
-      <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
-        This perspective is being rebuilt. Here's what's coming next.
-      </Typography>
 
       {REPORTS.map((r) => (
         <Box key={r.id}>

@@ -14,7 +14,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Alert, Box, Button, Card, Chip, Skeleton, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Button, Card, Skeleton, Typography } from "@wso2/oxygen-ui";
+import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
 import { useUserInfo } from "@api/useUserInfo";
 import { capabilitiesFromPrivileges } from "@constants/appMenu";
 
@@ -53,18 +54,7 @@ export default function MyTeamComingSoonPage() {
 
   return (
     <Box>
-      <Chip
-        label="✦ My Team"
-        color="primary"
-        size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
-      />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
-        My Team
-      </Typography>
-      <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
-        Your direct and indirect reports.
-      </Typography>
+      <PerspectiveHeader eyebrow="My Team" title="My Team" subtitle="Your direct and indirect reports." />
 
       <Card variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
         <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>
