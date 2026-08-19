@@ -103,11 +103,17 @@ function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Elemen
             sx={{
               all: "unset",
               boxSizing: "border-box",
+              // `all: unset` leaves the button shrink-to-fit, so without an
+              // explicit width every tile sized to its own label — measured
+              // 38.7px for "CSM" against 90.6px for "Marketing Ops" — and
+              // `aspectRatio` then derived a different height for each.
+              width: "100%",
               aspectRatio: "1",
               border: 1,
               borderStyle: "solid",
               borderColor: isActive ? "primary.main" : "divider",
               borderRadius: 1.5,
+              position: "relative",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -135,11 +141,35 @@ function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Elemen
               },
             }}
           >
-            <p.icon size={20} />
-            <Typography variant="caption" sx={{ fontWeight: isActive ? 600 : 400 }}>
+            {/* Every tile must have identical internal geometry, or the icons
+                sit at different heights across the grid. Three rules do that:
+                the icon never shrinks; the label always occupies exactly two
+                lines whether or not it wraps ("Leave" vs "Marketing Ops"); and
+                the padlock is taken out of flow so a locked tile doesn't have
+                an extra flex child to centre around. */}
+            <p.icon size={20} style={{ flexShrink: 0 }} />
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: isActive ? 600 : 400,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                lineHeight: 1.25,
+                height: "2.5em",
+                width: "100%",
+              }}
+            >
               {p.label}
             </Typography>
-            {!p.access && <LockIcon size={11} aria-hidden />}
+            {!p.access && (
+              <LockIcon
+                size={11}
+                aria-hidden
+                style={{ position: "absolute", top: 6, right: 6 }}
+              />
+            )}
           </Box>
         );
 

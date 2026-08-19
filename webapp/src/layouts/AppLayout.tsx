@@ -95,6 +95,9 @@ export default function AppLayout(): JSX.Element {
         }
         sidebar={<SideRail collapsed={shellState.sidebarCollapsed} />}
       >
+        {/* The footer sits OUTSIDE the scroller, pinned to the bottom of the
+            content column, which is where it was before this shell rewrite.
+            Moving it inside would make it scroll away with the page. */}
         <Box
           ref={mainRef}
           sx={{
@@ -104,13 +107,12 @@ export default function AppLayout(): JSX.Element {
             display: "flex",
             flexDirection: "column",
             overflow: "auto",
+            p: 3,
           }}
         >
-          <Box sx={{ flex: 1, p: 3 }}>
-            <Outlet />
-          </Box>
-          <AppFooter />
+          <Outlet />
         </Box>
+        <AppFooter />
       </AppShellLayout>
 
       {waffleOpen && <WaffleOverlay onClose={() => setWaffleOpen(false)} />}

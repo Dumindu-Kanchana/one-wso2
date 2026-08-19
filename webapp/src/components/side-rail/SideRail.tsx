@@ -54,6 +54,37 @@ const crossId = (key: string) => `cross-${key}`;
 /** Id for the perspective's own landing route. */
 const OVERVIEW_ID = "perspective-overview";
 
+// Left padding for a sub-item, so its label lines up with its parent's label
+// rather than with the parent's icon.
+//
+// Oxygen indents a nested row by depth alone — `paddingLeft: spacing(2 + depth*2)`
+// — which puts a depth-1 label 40px from the rail edge (8 margin + 32 padding).
+// But a parent row carries an icon, so ITS label starts at 60px:
+//   8 margin + 16 padding + 20 icon + 16 icon gutter.
+// Left at the default, every sub-item hangs 20px to the left of the item it
+// belongs to. spacing(6.5) = 52px, so 8 + 52 lands the sub-label at exactly 60.
+//
+// Only applies to expanded rows: Oxygen renders nested items through a popover,
+// not this list, when the rail is collapsed.
+const NESTED_LABEL_PL = 6.5;
+
+// Oxygen's ItemLabel sets `overflow: hidden; white-space: nowrap` but no
+// `text-overflow`, so a label wider than the rail is cut mid-glyph — it reads
+// as a typo ("Active employee repor") rather than as truncation. Rail labels
+// should be short enough not to need this, but it's the difference between a
+// graceful degrade and a bug report the next time one grows.
+// `display: block` is load-bearing, not tidying: MUI renders the primary text
+// as an inline <span>, and `text-overflow` has no effect on an inline box — the
+// property applies but never renders an ellipsis. Verified in a browser.
+const ELLIPSIS_SX = {
+  "& .MuiListItemText-primary": {
+    display: "block",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+} as const;
+
 export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   const active = useActivePerspective();
   const userInfo = useUserInfo();
@@ -148,10 +179,30 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
     }
   };
 
-  // Anchor-only rows arrive here (route rows navigate through their own
-  // wrapping link). Unknown ids — e.g. the inert Settings row — are ignored.
+  // Every routable id in the current perspective, so `onSelect` can navigate
+  // for rows that aren't wrapped in an anchor (see LeafItem: nested rows can't
+  // be, because Oxygen clones them to inject `depth`).
+  const pathById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of sections) {
+      if (s.path) map.set(s.id, s.path);
+      for (const c of s.children ?? []) {
+        if (c.path) map.set(c.id, c.path);
+      }
+    }
+    return map;
+  }, [sections]);
+
+  // Top-level route rows navigate through their own wrapping anchor; nested
+  // rows and scroll-anchors arrive here. Unknown ids — e.g. the inert Settings
+  // row — are ignored.
   const onSelect = (id: string) => {
     if (id === OVERVIEW_ID || id.startsWith("cross-") || id === "settings") return;
+    const path = pathById.get(id);
+    if (path) {
+      navigate(path);
+      return;
+    }
     scrollToSection(id);
   };
 
@@ -215,7 +266,7 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
                   <Sidebar.ItemIcon>
                     <p.icon />
                   </Sidebar.ItemIcon>
-                  <Sidebar.ItemLabel>{p.label}</Sidebar.ItemLabel>
+                  <Sidebar.ItemLabel sx={ELLIPSIS_SX}>{p.label}</Sidebar.ItemLabel>
                 </Sidebar.Item>
               </RouteItem>
             ))}
@@ -303,9 +354,18 @@ function SectionNode({
         sx={locked ? { cursor: "default", "&:hover": { bgcolor: "transparent" } } : undefined}
       >
         <Sidebar.ItemIcon>{section.icon ? <section.icon /> : null}</Sidebar.ItemIcon>
-        <Sidebar.ItemLabel>{section.label}</Sidebar.ItemLabel>
+        <Sidebar.ItemLabel sx={ELLIPSIS_SX}>{section.label}</Sidebar.ItemLabel>
+        {/* Literal Sidebar.Item elements, NOT a wrapper component. Oxygen
+            renders a group's children with
+            `cloneElement(child, { depth: depth + 1 })` and separately reads
+            `child.props.id` / `extractItemContent(child.props.children)` to
+            build the collapsed-rail flyout. Any wrapper — a Link, or one of
+            our own components — swallows the injected `depth` and hides the
+            label from that flyout. These rows navigate via `onSelect`. */}
         {visible.map((c) => (
-          <LeafItem key={c.id} id={c.id} label={c.label} to={c.path} />
+          <Sidebar.Item key={c.id} id={c.id} sx={{ pl: NESTED_LABEL_PL }}>
+            <Sidebar.ItemLabel sx={ELLIPSIS_SX}>{c.label}</Sidebar.ItemLabel>
+          </Sidebar.Item>
         ))}
       </Sidebar.Item>
     );
@@ -323,7 +383,14 @@ function SectionNode({
   );
 }
 
-/** A single row. `href` → outbound; `to` → a route; otherwise a scroll-anchor. */
+/**
+ * A single TOP-LEVEL row. `href` → outbound; `to` → a route; otherwise a
+ * scroll-anchor.
+ *
+ * Only safe at the top level: this is a wrapper component, and Oxygen clones a
+ * group's children to inject `depth`, which a wrapper would swallow. Nested
+ * rows are written as literal `Sidebar.Item` elements at the call site instead.
+ */
 function LeafItem({
   id,
   label,
@@ -349,7 +416,7 @@ function LeafItem({
       ) : null}
       {/* Plain string: Oxygen derives the collapsed-rail tooltip from
           String(ItemLabel.children). */}
-      <Sidebar.ItemLabel>{label}</Sidebar.ItemLabel>
+      <Sidebar.ItemLabel sx={ELLIPSIS_SX}>{label}</Sidebar.ItemLabel>
       {/* The one affordance that says this leaves the app. Without it an
           outbound item is indistinguishable from a route until it has already
           opened a tab. */}

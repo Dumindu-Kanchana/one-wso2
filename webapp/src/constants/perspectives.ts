@@ -93,8 +93,8 @@ function appsToSections(apps: readonly MenuApp[]): PerspectiveSection[] {
 // to onboard next — each a "coming soon" card on the overview page (see
 // PeopleOpsPage) until its backend lands.
 export const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
-  { id: "people-active-employee-report", label: "Active employee report", icon: UserRoundIcon },
-  { id: "people-resignation-report", label: "Resignation report", icon: UserRoundMinusIcon },
+  { id: "people-active-employee-report", label: "Active employees", icon: UserRoundIcon },
+  { id: "people-resignation-report", label: "Resignations", icon: UserRoundMinusIcon },
   { id: "people-master-data", label: "Master data", icon: DatabaseIcon },
 ];
 
