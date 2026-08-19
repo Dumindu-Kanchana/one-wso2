@@ -213,6 +213,7 @@ export default function SideRail() {
               section={s}
               resolveVisible={resolveVisible}
               opened={effectiveOpened}
+              locked={activeGroupIds.has(s.id)}
               onToggle={toggle}
               onScroll={scrollToSection}
             />
@@ -289,12 +290,18 @@ function SectionNode({
   section,
   resolveVisible,
   opened,
+  locked,
   onToggle,
   onScroll,
 }: {
   section: PerspectiveSection;
   resolveVisible: (section: PerspectiveSection) => boolean;
   opened: Set<string>;
+  // True while this group contains the current route — it's forced open
+  // (see activeGroupIds in SideRail) and toggling it is a no-op. Rendered
+  // as non-interactive rather than passed through to a click handler that
+  // silently does nothing, which otherwise reads as "the rail is broken".
+  locked: boolean;
   onToggle: (id: string) => void;
   onScroll: (id: string) => void;
 }) {
@@ -325,8 +332,18 @@ function SectionNode({
     return (
       <>
         <ListItemButton
-          onClick={() => onToggle(section.id)}
-          sx={{ borderRadius: 1.125, py: 0.75, px: 1.25 }}
+          onClick={locked ? undefined : () => onToggle(section.id)}
+          disableRipple={locked}
+          aria-disabled={locked}
+          sx={{
+            borderRadius: 1.125,
+            py: 0.75,
+            px: 1.25,
+            ...(locked && {
+              cursor: "default",
+              "&:hover": { bgcolor: "transparent" },
+            }),
+          }}
         >
           <Box sx={{ width: 18, mr: 1.25, fontSize: 13, textAlign: "center" }}>{section.emoji}</Box>
           <ListItemText
