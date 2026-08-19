@@ -221,6 +221,259 @@ export const expenseServiceUrls = {
     `${expenseBackendUrl}/claims/transactions/receipts/file/${encodeURIComponent(fileName)}`,
 };
 
+// ---- marketing-ops backend -------------------------------------------------
+//
+// The Marketing Ops backend (digiops-marketing/agents/marketing-ops) is a
+// Python/FastAPI service — the first non-Ballerina backend this app talks to —
+// and it stays exactly as it is: this perspective is a frontend migration only.
+//
+// Two things differ from every sibling above, both worth knowing before adding
+// an endpoint:
+//
+//  1. Its routes are namespaced under `/api/*`, and the Choreo proxy PRESERVES
+//     that prefix, so every URL here carries it. Verified 2026-08-17 against
+//     staging: `/api/me` → 200, `/me` → 404.
+//  2. It authenticates purely from the gateway's `x-jwt-assertion` header and
+//     never inspects the Asgardeo token itself, so the standard authedGet /
+//     authedPost helpers work unmodified — no per-backend header quirk like
+//     par-app's `x-user-timezone-offset`.
+//
+// A router with no root route 404s on its own prefix (`/api/settings` and
+// `/api/events` both do) — always name the sub-path.
+//
+// Empty string = not configured; MarketingOpsShell renders a "not connected"
+// state rather than firing broken requests.
+// Trailing slashes stripped, because every builder below concatenates "/api/..."
+// onto this — a configured value ending in "/" produced "//api/..." on all 52 of
+// them, and whether that 404s depends on the gateway.
+export const marketingOpsBackendUrl: string = (
+  window.config?.ONE_WSO2_MARKETINGOPS_BACKEND_URL ?? ""
+).replace(/\/+$/, "");
+
+export function isMarketingOpsBackendConfigured(): boolean {
+  return Boolean(marketingOpsBackendUrl);
+}
+
+export const marketingOpsServiceUrls = {
+  // GET /api/me — identity + the authorization decision. Authenticated but
+  // NOT gated: an authenticated non-member still gets a 200 with
+  // `authorized: false`, which is what lets the SPA render an honest
+  // "you don't have access" state instead of a bare 403.
+  me: `${marketingOpsBackendUrl}/api/me`,
+  // ---- settings: the admin-maintained dropdown values the utilities run on ----
+  //
+  // Reads return the FULL lists (including disabled values, ids and sort order).
+  // Consumers filter to enabled-only themselves; the admin panels need the rest.
+  //
+  // Writes are PUT with the COMPLETE `{ entries: [...] }` array — a replace, not
+  // a patch. That's the backend's contract and it's the right one: these are
+  // ordered lists where the order is meaningful, so there's no coherent partial
+  // update. It also means a stale client can't silently drop a value another
+  // admin just added — it overwrites with what it last read, which the panel's
+  // review-before-save dialog makes visible.
+  settingsUtm: `${marketingOpsBackendUrl}/api/settings/utm`,
+  settingsAssetName: `${marketingOpsBackendUrl}/api/settings/asset-name`,
+  settingsUtmParameter: (parameter: string) =>
+    `${marketingOpsBackendUrl}/api/settings/utm/${encodeURIComponent(parameter)}`,
+  settingsAssetNameField: (assetType: string, field: string) =>
+    `${marketingOpsBackendUrl}/api/settings/asset-name/${encodeURIComponent(assetType)}/${encodeURIComponent(field)}`,
+  // GET /api/access-map — admin-only. Which Asgardeo group each capability
+  // requires, for THIS environment. Diagnostic only: never derive a gate from
+  // it client-side, because the group names carry an environment suffix
+  // (`-stg`) that differs per deployment. Gate on `/api/me`.capabilities.
+  accessMap: `${marketingOpsBackendUrl}/api/access-map`,
+  // ---- ad campaigns → analytics ---------------------------------------------
+  //
+  // Note these are POSTs even though they are READS. Each `/run` endpoint takes
+  // a report config in the body and computes the answer live from Google Ads /
+  // LinkedIn / Salesforce; nothing is persisted and nothing changes server-side.
+  // They're POSTs only because the config is too large and structured to be a
+  // query string. Consumers should therefore treat them as queries (useQuery
+  // with a POST queryFn), not mutations — see useAdAnalytics.
+  //
+  // ⚠️ `/roi/run` and `/linkedin-roi/run` can answer **HTTP 200 with
+  // `status: "failed"`** and the reason in `error_message`. A 200 is not
+  // sufficient to conclude success.
+  adAnalyticsRoiOptions: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/roi/options`,
+  adAnalyticsRoiRun: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/roi/run`,
+  adAnalyticsLinkedInRoiRun: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/linkedin-roi/run`,
+  adAnalyticsDashboardRun: `${marketingOpsBackendUrl}/api/ad-campaigns/analytics/dashboard/run`,
+
+  // ---- email workbench -------------------------------------------------------
+  //
+  // The template library (approved HTML + thumbnail), per-user drafts, the
+  // Advanced editor's block catalog, and the Pardot send defaults.
+  //
+  // Two things differ from every other builder here:
+  //  - `emailWorkbenchTemplateThumbnail` returns an IMAGE, not JSON. It needs the
+  //    Authorization header like everything else, so it can't be an <img src>;
+  //    fetch it as a blob (see fetchWithReauth in @api/http and the precedent in
+  //    @features/finance/util/financeReceipts).
+  //  - `emailWorkbenchStructure` is the one AI-backed endpoint in the whole
+  //    Marketing Ops migration — it maps a plain-text draft onto a template's
+  //    block structure. Everything else in this perspective is deterministic.
+  emailWorkbenchTemplates: `${marketingOpsBackendUrl}/api/email-workbench/templates`,
+  emailWorkbenchTemplate: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/templates/${encodeURIComponent(id)}`,
+  emailWorkbenchTemplateThumbnail: (id: string, version?: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/templates/${encodeURIComponent(id)}/thumbnail${
+      version ? `?v=${encodeURIComponent(version)}` : ""
+    }`,
+  emailWorkbenchCategories: `${marketingOpsBackendUrl}/api/email-workbench/categories`,
+  emailWorkbenchDrafts: `${marketingOpsBackendUrl}/api/email-workbench/drafts`,
+  emailWorkbenchDraft: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/drafts/${encodeURIComponent(id)}`,
+  // Create the template in Pardot (draft → Completed).
+  emailWorkbenchDraftPush: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/drafts/${encodeURIComponent(id)}/push`,
+  // Update an already-pushed Pardot template. 409 if the draft was never pushed.
+  emailWorkbenchDraftUpdatePardot: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/drafts/${encodeURIComponent(id)}/update-pardot`,
+  emailWorkbenchBlocks: `${marketingOpsBackendUrl}/api/email-workbench/blocks`,
+  emailWorkbenchBlock: (id: string) =>
+    `${marketingOpsBackendUrl}/api/email-workbench/blocks/${encodeURIComponent(id)}`,
+  emailWorkbenchSettings: `${marketingOpsBackendUrl}/api/email-workbench/settings`,
+  emailWorkbenchStructure: `${marketingOpsBackendUrl}/api/email-workbench/structure`,
+
+  // ---- events ------------------------------------------------------------------
+  //
+  // Note how SMALL this surface is relative to the feature. Validation, scoring,
+  // deriving and every accept/reject run in the BROWSER (see events/rules/), so the
+  // backend is asked for four things only: reference lists, the model's opinion on
+  // values our rules couldn't resolve, storage, and the review workflow.
+  //
+  // `save` is a whole-payload PUT on a debounce — never on the path of an individual
+  // edit. One blob per submission.
+  //
+  // The two export endpoints return BINARY (a CSV, or every tab zipped server-side),
+  // so they need the blob path rather than authedGet — see events/lib/download.ts.
+  eventsSubmissions: `${marketingOpsBackendUrl}/api/events/submissions`,
+  eventsSubmission: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}`,
+  eventsSubmissionPayload: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/payload`,
+  eventsSubmissionSuggest: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/suggest`,
+  eventsSubmissionSubmit: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/submit`,
+  eventsSubmissionWithdraw: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/withdraw`,
+  eventsSubmissionComments: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/submissions/${encodeURIComponent(id)}/comments`,
+  eventsEventNames: (q: string) =>
+    `${marketingOpsBackendUrl}/api/events/event-names?q=${encodeURIComponent(q)}`,
+  eventsReference: `${marketingOpsBackendUrl}/api/events/reference`,
+  eventsFields: `${marketingOpsBackendUrl}/api/events/fields`,
+  eventsFieldsForTab: (tab: string) =>
+    `${marketingOpsBackendUrl}/api/events/fields/${encodeURIComponent(tab)}`,
+  eventsStatuses: (includeDisabled = false) =>
+    `${marketingOpsBackendUrl}/api/events/statuses${includeDisabled ? "?include_disabled=true" : ""}`,
+  eventsStatus: (name: string) =>
+    `${marketingOpsBackendUrl}/api/events/statuses/${encodeURIComponent(name)}`,
+  eventsStatusDuplicate: (source: string) =>
+    `${marketingOpsBackendUrl}/api/events/statuses/${encodeURIComponent(source)}/duplicate`,
+  // ---- events: review (gated by the separate `events-review` capability) ----
+  eventsReviewQueue: `${marketingOpsBackendUrl}/api/events/review/queue`,
+  eventsReviewSubmission: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}`,
+  eventsReviewComments: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/comments`,
+  eventsReviewApprove: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/approve`,
+  eventsReviewReject: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/reject`,
+  eventsReviewImported: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/imported`,
+  eventsReviewExportTab: (id: string, tab: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/export/${encodeURIComponent(tab)}`,
+  eventsReviewExportAll: (id: string) =>
+    `${marketingOpsBackendUrl}/api/events/review/submissions/${encodeURIComponent(id)}/export`,
+
+  // ---- crm-upload ----------------------------------------------------------------
+  //
+  // Two schedulers (leads, accounts) ingest enriched records into Salesforce through
+  // the Entity Service. Everything here is either a paged list, a trigger, or the
+  // resolution of one duplicate — the pipeline itself runs server side on a schedule.
+  //
+  // The list endpoints all take their filters as query params (page, limit, status,
+  // record_type, source_system, search, batch_id, run_id, from_date), so the builders
+  // take a ready-made URLSearchParams rather than enumerating a dozen optional
+  // arguments each.
+  crmUploadRuns: (params?: URLSearchParams) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/runs${query(params)}`,
+  crmUploadRun: (id: string) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/runs/${encodeURIComponent(id)}`,
+  crmUploadRecords: (params?: URLSearchParams) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/records${query(params)}`,
+  // Deleting one ingested record. Hard delete with a required reason — it exists for
+  // data-subject erasure requests, and removes the row from this platform only.
+  crmUploadRecord: (recordType: "lead" | "account", id: string) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/records/${recordType}/${encodeURIComponent(id)}`,
+  crmUploadDuplicates: (params?: URLSearchParams) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/duplicates${query(params)}`,
+  // The Salesforce record an incoming one collided with. A separate call because it
+  // reaches the Entity Service rather than this backend's own tables.
+  crmUploadDuplicateExisting: (id: string) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/duplicates/${encodeURIComponent(id)}/existing`,
+  crmUploadDuplicateResolve: (id: string) =>
+    `${marketingOpsBackendUrl}/api/crm-upload/duplicates/${encodeURIComponent(id)}/resolve`,
+  crmUploadTrigger: (kind: "leads" | "accounts") =>
+    `${marketingOpsBackendUrl}/api/crm-upload/triggers/${kind}`,
+
+  // The remaining operation root — /api/audit — gets its builders added by the phase
+  // that ports it, so this object never lists a URL nothing calls.
+};
+
+// `?a=b` when there is anything to append, otherwise nothing — a bare trailing "?"
+// is harmless but ends up in query keys and logs, and reads as a bug.
+function query(params?: URLSearchParams): string {
+  const s = params?.toString();
+  return s ? `?${s}` : "";
+}
+
+// Base URL of the Pardot UI, for deep-linking to a template after it's pushed.
+// Not an API — a link target. Defaults to Pardot's own host, which is correct for
+// every WSO2 environment today; the key exists so a sandbox can point elsewhere.
+//
+// Trailing slashes are stripped so pardotTemplateUrl() can concatenate safely.
+export const pardotBaseUrl: string = (
+  window.config?.ONE_WSO2_PARDOT_BASE_URL ?? "https://pi.pardot.com"
+).replace(/\/+$/, "");
+
+export function pardotTemplateUrl(id: number | string): string {
+  return `${pardotBaseUrl}/emailTemplate/read/id/${encodeURIComponent(String(id))}`;
+}
+
+// Base URL of the Salesforce Lightning UI, for deep-linking to the record an
+// incoming one collided with. Not an API — a link target, opened in a new tab from
+// the CRM Upload review queue.
+//
+// Marketing Ops read this from a build-time `VITE_SF_BASE_URL` and rendered a dead
+// "#" href when it was unset. One WSO2 resolves backend URLs at runtime, so it moves
+// to window.config — and it carries WSO2's own Lightning host as the default, since
+// an unset key producing a link that goes nowhere is worse than one that works
+// everywhere but a sandbox.
+export const salesforceBaseUrl: string = (
+  window.config?.ONE_WSO2_SALESFORCE_BASE_URL ?? "https://wso2.lightning.force.com"
+).replace(/\/+$/, "");
+
+export function salesforceRecordUrl(object: "Lead" | "Account", id: string): string {
+  return `${salesforceBaseUrl}/lightning/r/${object}/${encodeURIComponent(id)}/view`;
+}
+
+// ISAC — a separate marketing application, not part of this webapp and not a
+// Marketing Ops operation. It appears at the top of the Marketing Ops rail as an
+// outbound link because that is where the people who use it look for it, not
+// because One WSO2 hosts any of it.
+//
+// Empty string = not configured, and the rail then omits the item entirely rather
+// than showing one that goes nowhere. Same contract as leaveWebAppUrl above.
+export const isacUrl: string = window.config?.ONE_WSO2_MARKETINGOPS_ISAC_URL ?? "";
+
+export function isIsacConfigured(): boolean {
+  return Boolean(isacUrl);
+}
+
 export const promotionServiceUrls = {
   // GET /employee-info?employeeWorkEmail=<email> — returns the caller's
   // EmployeeInfoWithLead (startDate, jobBand, lastPromotedDate, reportingLead,

@@ -22,6 +22,7 @@ import { CROSS_PERSPECTIVES, FUNCTIONAL_PERSPECTIVES, type PerspectiveSection } 
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
+import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
 
 // Context-sensitive left rail. Header = the active perspective; body =
 // its sections (jump-anchor to canvas ids); footer = For you (My +
@@ -46,8 +47,22 @@ export default function SideRail() {
   // "Approve Submissions". Only fetch those roles while Finance is active.
   const isFinance = active.key === "finance";
   const financeGate = useFinanceGate(isFinance);
-  const resolveVisible = (s: PerspectiveSection): boolean =>
-    isFinance ? financeGate.canSee(s.id) : sectionAllowed(s.requires, caps);
+
+  // Marketing Ops needs the same treatment for the same reason, against its own
+  // backend: its access comes from Asgardeo group membership
+  // (app-marketingops-*), which has no relationship to the people-app privilege
+  // numbers `caps` is built from. Gating its items on `caps` would show a
+  // people-app admin every marketing screen — including ones the marketing
+  // backend will 403 — and hide them from an actual Marketing Ops admin who
+  // happens not to be a people-app admin.
+  const isMarketingOps = active.key === "marketing";
+  const marketingOpsGate = useMarketingOpsGate(isMarketingOps);
+
+  const resolveVisible = (s: PerspectiveSection): boolean => {
+    if (isFinance) return financeGate.canSee(s.id);
+    if (isMarketingOps) return marketingOpsGate.canSee(s.id);
+    return sectionAllowed(s.requires, caps);
+  };
 
   // App groups start collapsed; a group id in this set is expanded.
   const [opened, setOpened] = useState<Set<string>>(new Set());
@@ -385,8 +400,11 @@ function SectionNode({
     <Leaf
       label={section.label}
       emoji={section.emoji}
-      bullet
+      // An outbound leaf keeps its emoji as its marker; the bullet is for the
+      // scroll-anchor leaves, which have none.
+      bullet={!section.externalUrl}
       to={section.path}
+      href={section.externalUrl}
       onClick={() => onScroll(section.id)}
     />
   );
@@ -397,6 +415,7 @@ function Leaf({
   emoji,
   bullet,
   to,
+  href,
   onClick,
 }: {
   label: string;
@@ -405,6 +424,10 @@ function Leaf({
   // When present, render as a route link (active-highlighted); otherwise
   // an onClick button (scroll-anchor).
   to?: string;
+  // An address outside One WSO2 — rendered as a new-tab anchor rather than a
+  // route. Never active-highlighted: no route of ours is current once the user
+  // is over there, and highlighting it would claim otherwise.
+  href?: string;
   onClick: () => void;
 }) {
   const inner = (
@@ -418,6 +441,25 @@ function Leaf({
       />
     </>
   );
+  if (href) {
+    return (
+      <ListItemButton
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ borderRadius: 1.125, py: 0.75, px: 1.25 }}
+      >
+        {inner}
+        {/* The one affordance that says this leaves the app. Without it an
+            outbound item is indistinguishable from a route until it has already
+            opened a tab. */}
+        <Box component="span" sx={{ fontSize: 11, color: "text.disabled", ml: 0.5 }}>
+          ↗
+        </Box>
+      </ListItemButton>
+    );
+  }
   if (to) {
     return (
       <ListItemButton
