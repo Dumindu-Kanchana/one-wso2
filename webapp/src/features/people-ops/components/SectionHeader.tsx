@@ -17,14 +17,14 @@
 import { Box, Typography } from "@wso2/oxygen-ui";
 import type { ReactNode } from "react";
 
-// Small caps section divider with hairline rules on either side. Used to
-// separate Hiring / Candidates / Performance / People / Ops within the
-// People Ops canvas. The id becomes an anchor target for the side rail.
+// Small caps section divider with hairline rules on either side. When a
+// rail entry scrolls to this section, `id` is the anchor target it jumps
+// to — omit it for a header that's purely a visual divider.
 export default function SectionHeader({
   id,
   children,
 }: {
-  id: string;
+  id?: string;
   children: ReactNode;
 }) {
   return (

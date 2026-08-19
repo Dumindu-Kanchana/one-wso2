@@ -71,24 +71,24 @@ export default function MyProfilePage() {
 
       <ProfileHero userInfo={userInfo} employee={employee} isLoading={isLoading} />
 
-      <SectionHeader id="my-general">General information</SectionHeader>
+      <SectionHeader>General information</SectionHeader>
       <GeneralInfo employee={employee} isLoading={isLoading} />
 
-      <SectionHeader id="my-personal">Personal information</SectionHeader>
+      <SectionHeader>Personal information</SectionHeader>
       <PersonalInfo
         personalInfo={personalInfo}
         employeeId={userInfo?.employeeId ?? employee?.employeeId}
         isLoading={isLoading}
       />
 
-      <SectionHeader id="my-emergency">Emergency contacts</SectionHeader>
+      <SectionHeader>Emergency contacts</SectionHeader>
       <EmergencyContacts
         contacts={personalInfo?.emergencyContacts ?? undefined}
         employeeId={userInfo?.employeeId ?? employee?.employeeId}
         isLoading={isLoading}
       />
 
-      <SectionHeader id="my-connected">Connected apps</SectionHeader>
+      <SectionHeader>Connected apps</SectionHeader>
       <ConnectedServices />
     </Box>
   );
