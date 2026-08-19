@@ -27,7 +27,7 @@ import AssetNameGeneratorPage from "@features/marketing-ops/utilities/pages/Asse
 import UtmSettingsPage from "@features/marketing-ops/admin/pages/UtmSettingsPage";
 import AssetNameSettingsPage from "@features/marketing-ops/admin/pages/AssetNameSettingsPage";
 import EmailWorkbenchSettingsPage from "@features/marketing-ops/admin/pages/EmailWorkbenchSettingsPage";
-import BlockCatalogPage from "@features/marketing-ops/admin/pages/BlockCatalogPage";
+import BlockCatalogPage from "@features/marketing-ops/email-workbench/pages/BlockCatalogPage";
 import EventsSettingsPage from "@features/marketing-ops/admin/pages/EventsSettingsPage";
 import {
   EventsMinePage,
@@ -124,6 +124,10 @@ export default function App() {
             path="marketing-ops/email-workbench/manage"
             element={<EmailWorkbenchManagePage />}
           />
+          <Route
+            path="marketing-ops/email-workbench/blocks"
+            element={<BlockCatalogPage />}
+          />
           {/* Ad Campaigns → Analytics. Read-only reports computed on demand. */}
           <Route
             path="marketing-ops/ad-campaigns/analytics"
@@ -144,7 +148,6 @@ export default function App() {
             element={<AssetNameSettingsPage />}
           />
           <Route path="marketing-ops/admin/pardot" element={<EmailWorkbenchSettingsPage />} />
-          <Route path="marketing-ops/admin/blocks" element={<BlockCatalogPage />} />
           <Route path="marketing-ops/admin/events" element={<EventsSettingsPage />} />
           <Route path="marketing-ops/events/mine" element={<EventsMinePage />} />
           <Route path="marketing-ops/events/review" element={<EventsReviewPage />} />

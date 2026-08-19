@@ -54,6 +54,10 @@ const ITEM_CAPABILITY: Record<string, MarketingOpsCapability> = {
   "mops-email-create": "emailworkbench",
   "mops-email-history": "emailworkbench",
   "mops-email-manage": "emailworkbench",
+  // Moved out of Marketing Admin, so it is no longer covered by the isAdmin
+  // branch — without this line the lookup returns undefined and the item hides
+  // from everyone, admins included.
+  "mops-email-blocks": "emailworkbench",
   // Phase 4 — `events` and `events-review` are siblings, not a hierarchy:
   // holding one does not imply the other.
   "mops-events-mine": "events",

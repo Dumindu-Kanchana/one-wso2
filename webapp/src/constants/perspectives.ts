@@ -40,6 +40,8 @@ export interface PerspectiveSection {
   // When set, a leaf item is a route (rail navigates) rather than a
   // scroll-anchor. Used by the native Leave screens.
   path?: string;
+  // Render as a group even with a single visible child — see MenuApp.alwaysGroup.
+  alwaysGroup?: boolean;
   // When set, a leaf item leaves One WSO2 entirely: it renders as an anchor
   // that opens in a new tab, and is never route-highlighted because no route
   // of ours is active while the user is over there. Mutually exclusive with
@@ -56,6 +58,7 @@ function appsToSections(apps: readonly MenuApp[]): PerspectiveSection[] {
     id: `sec-app-${app.key}`,
     label: app.name,
     emoji: app.emoji,
+    alwaysGroup: app.alwaysGroup,
     children: app.items.map((it) => ({
       id: it.id,
       label: it.label,
