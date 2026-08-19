@@ -25,6 +25,9 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { LayoutGridIcon, SearchIcon } from "@wso2/oxygen-ui-icons-react";
+import PinnedTabs from "@features/pinned/components/PinnedTabs";
+import PinThisPageButton from "@features/pinned/components/PinThisPageButton";
+import { usePinnedEntries } from "@features/pinned/usePinned";
 import UserProfileMenu from "./UserProfileMenu";
 
 // Brand lockup sizing. Constrained by https://wso2.com/about/brand, which is
@@ -77,6 +80,9 @@ export default function TopBar({
   onOpenWaffle,
   onOpenAsk,
 }: TopBarProps): JSX.Element {
+  // Only the count matters here — the strip itself renders the entries.
+  const hasPinned = usePinnedEntries().length > 0;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -115,12 +121,18 @@ export default function TopBar({
         </Header.BrandLogo>
       </Header.Brand>
 
-      {/* Ask Novera trigger. Kept as a click target rather than a real input:
-          it opens the palette, which owns the actual query field. */}
+      {/* Palette trigger. A click target rather than a real input: the palette
+          owns the query field.
+
+          Fixed responsive widths rather than `flex: 1` so the flexible slot
+          belongs to PinnedTabs, matching csm-portal's header. It also narrows
+          once anything is pinned, since the two share that row — at `xs` it
+          collapses to an icon. */}
       <Box
         role="button"
         tabIndex={0}
         onClick={onOpenAsk}
+        aria-label="Search or jump to a page"
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -128,34 +140,39 @@ export default function TopBar({
           }
         }}
         sx={{
-          flex: 1,
-          minWidth: 0,
-          maxWidth: 680,
-          mx: "auto",
+          flexShrink: 0,
+          width: hasPinned
+            ? { xs: 40, sm: 200, md: 260, lg: 320 }
+            : { xs: 40, sm: 280, md: 400, lg: 520 },
           display: "flex",
           alignItems: "center",
+          justifyContent: { xs: "center", sm: "flex-start" },
           gap: 1.25,
           bgcolor: "action.hover",
           border: 1,
           borderColor: "divider",
           borderRadius: 1.5,
-          px: 1.75,
+          px: { xs: 0, sm: 1.75 },
           py: 0.75,
           color: "text.secondary",
           cursor: "text",
-          transition: "border-color .15s",
+          transition: "border-color .15s, width .15s",
           "&:hover": { borderColor: "text.disabled" },
           "&:focus-visible": { outline: 2, outlineStyle: "solid", outlineColor: "primary.main" },
         }}
       >
         <SearchIcon size={16} style={{ flexShrink: 0 }} />
-        <Typography variant="body2" noWrap>
-          Ask Novera or search…
+        {/* Deliberately not "Ask Novera": the palette is a navigation surface
+            today and the assistant isn't shipping yet, so promising it here
+            would repeat the prototype's "looks functional, does nothing" problem.
+            Put Novera back in this copy when there's an assistant behind it. */}
+        <Typography variant="body2" noWrap sx={{ display: { xs: "none", sm: "block" } }}>
+          Search or jump to…
         </Typography>
         <Box
           sx={{
             ml: "auto",
-            display: { xs: "none", sm: "block" },
+            display: { xs: "none", md: "block" },
             bgcolor: "background.paper",
             border: 1,
             borderColor: "divider",
@@ -168,12 +185,17 @@ export default function TopBar({
         </Box>
       </Box>
 
+      {/* Takes the flexible middle slot, collapsing to a plain spacer when
+          nothing is pinned. */}
+      <PinnedTabs />
+
       <Header.Actions>
         <Tooltip title="Switch app">
           <IconButton onClick={onOpenWaffle} size="small" aria-label="Switch app">
             <LayoutGridIcon size={20} />
           </IconButton>
         </Tooltip>
+        <PinThisPageButton />
         {/* Oxygen's own 3-state cycle: light → dark → system. */}
         <ColorSchemeToggle size="small" />
         <UserProfileMenu />

@@ -15,17 +15,34 @@
 // under the License.
 
 import { useEffect, useRef } from "react";
-import { Box, Typography } from "@wso2/oxygen-ui";
+import {
+  Box,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+} from "@wso2/oxygen-ui";
+import { useNavigate } from "react-router";
+import { PIN_KIND_META } from "@features/pinned/pinKinds";
+import { usePinnedEntries } from "@features/pinned/usePinned";
 
 interface AskNoveraPaletteProps {
   onClose: () => void;
 }
 
-// The ⌘K palette. Ask Novera isn't shipping anytime soon, so this is an
-// honest "coming soon" state — the earlier prototype's pre-filled query +
-// canned response looked functional but did nothing real when used.
+// The ⌘K palette — the app's "search or jump to" surface.
+//
+// Novera itself isn't shipping anytime soon, so this makes no claim about an
+// assistant (the earlier prototype's pre-filled query + canned response looked
+// functional but did nothing when used). What it does do is list the pinned
+// working set, which makes it useful today and gives the eventual search and
+// assistant somewhere to slot in.
 export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const pinned = usePinnedEntries();
+  const hasFocusableContent = pinned.length > 0;
 
   useEffect(() => {
     // There's no input to autofocus anymore (the placeholder has no
@@ -36,12 +53,17 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
     const previouslyFocused = document.activeElement as HTMLElement | null;
     panelRef.current?.focus();
 
+
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
-      } else if (e.key === "Tab") {
-        // No focusable content inside — keep focus pinned to the panel
-        // instead of letting Tab/Shift+Tab escape to the background.
+      } else if (e.key === "Tab" && !hasFocusableContent) {
+        // Nothing inside to reach — keep focus pinned to the panel instead of
+        // letting Tab/Shift+Tab escape to the background.
+        //
+        // Conditional now: with pinned entries listed, the panel DOES have
+        // focusable content, and trapping Tab here would make those rows
+        // keyboard-unreachable. This is the assumption the pinned list broke.
         e.preventDefault();
         panelRef.current?.focus();
       }
@@ -51,7 +73,7 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
       window.removeEventListener("keydown", handler);
       previouslyFocused?.focus();
     };
-  }, [onClose]);
+  }, [onClose, hasFocusableContent]);
 
   return (
     <Box
@@ -69,7 +91,7 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Ask Novera"
+        aria-label="Search or jump to"
         onClick={(e) => e.stopPropagation()}
         sx={{
           position: "absolute",
@@ -109,7 +131,9 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
               flexShrink: 0,
             }}
           />
-          <Typography sx={{ flex: 1, fontSize: 15, fontWeight: 600 }}>Ask Novera</Typography>
+          <Typography sx={{ flex: 1, fontSize: 15, fontWeight: 600 }}>
+            Search or jump to
+          </Typography>
           <Box
             sx={{
               fontSize: 11,
@@ -125,11 +149,51 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
           </Box>
         </Box>
 
+        {/* The pinned working set. The header strip shows the same entries but
+            caps out at the visible width, so this is where the full set stays
+            reachable — and it is the seam this palette grows along: live search
+            and, eventually, Novera itself slot in above and below. */}
+        {pinned.length > 0 && (
+          <Box sx={{ py: 1 }}>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              component="h2"
+              sx={{ display: "block", px: 2.25, pb: 0.5 }}
+            >
+              Pinned
+            </Typography>
+            <List disablePadding>
+              {pinned.map((entry) => {
+                const Icon = PIN_KIND_META[entry.kind].icon;
+                return (
+                  <ListItemButton
+                    key={`${entry.kind}-${entry.id}`}
+                    onClick={() => {
+                      navigate(entry.href);
+                      onClose();
+                    }}
+                    sx={{ px: 2.25, py: 0.875 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 0, mr: 1.5 }}>
+                      <Icon size={16} />
+                    </ListItemIcon>
+                    <ListItemText primary={entry.label} />
+                  </ListItemButton>
+                );
+              })}
+            </List>
+          </Box>
+        )}
+
         <Box sx={{ p: "28px 22px", textAlign: "center" }}>
-          <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>
-          <Typography sx={{ fontSize: 13, color: "text.secondary", maxWidth: 360, mx: "auto" }}>
-            Hi! I'm Novera, WSO2's internal AI agent. Soon you'll be able to ask me things in plain
-            English and get answers scoped to what you're working on.
+          <Typography sx={{ fontWeight: 600, mb: 0.75 }}>
+            Search is coming soon
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360, mx: "auto" }}>
+            {pinned.length > 0
+              ? "For now this lists your pinned pages. Use the pin button in the top bar to add one."
+              : "Nothing pinned yet — use the pin button in the top bar to keep a page one click away."}
           </Typography>
         </Box>
       </Box>

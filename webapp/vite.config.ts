@@ -99,6 +99,10 @@ const vitestConfig = defineVitestConfig({
           "@wso2/oxygen-ui",
           "@wso2/oxygen-ui-icons-react",
           "@asgardeo/browser",
+          // Oxygen re-exports MUI X DataGrid, which ships a bare `.css` import
+          // Node can't resolve. Rendering ANY Oxygen component pulls it in, so
+          // this is required for component tests, not just data-grid ones.
+          "@mui/x-data-grid",
         ],
       },
     },
