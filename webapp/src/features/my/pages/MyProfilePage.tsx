@@ -23,7 +23,7 @@ import ConnectedServices from "../components/ConnectedServices";
 import SectionHeader from "../../people-ops/components/SectionHeader";
 import { isPeopleBackendConfigured, useMeProfile } from "../api/useMeProfile";
 
-// The Me home landing: own profile + the cross-app "Connected apps"
+// The Me home landing: own profile + the cross-app "More about you"
 // aggregation.
 export default function MyProfilePage() {
   const backendConfigured = isPeopleBackendConfigured();
@@ -82,7 +82,9 @@ export default function MyProfilePage() {
         isLoading={isLoading}
       />
 
-      <SectionHeader>Connected apps</SectionHeader>
+      {/* Main dropped the dead scroll-anchor ids from these headers; the rail
+          never targeted them. Only the label changes here. */}
+      <SectionHeader>More about you</SectionHeader>
       <ConnectedServices />
     </Box>
   );

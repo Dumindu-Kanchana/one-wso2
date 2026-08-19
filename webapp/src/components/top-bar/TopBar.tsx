@@ -27,6 +27,36 @@ import {
 import { LayoutGridIcon, SearchIcon } from "@wso2/oxygen-ui-icons-react";
 import UserProfileMenu from "./UserProfileMenu";
 
+// Brand lockup sizing. Constrained by https://wso2.com/about/brand, which is
+// stricter than it looks — check there before changing any of this:
+//
+//  - "Icon should not be isolated." The pulse mark may not be used apart from
+//    the wordmark, so the full logo asset is the only option here. (csm-portal
+//    does use an isolated mark; that isn't a precedent to copy.)
+//  - The logo "is strictly monochrome": black on light, white on dark. Orange
+//    (#F14E23) is approved for the icon on DARK backgrounds only, so it can't be
+//    used on this header, whose background is `background.paper`.
+//  - The padding inside the SVG is not slack to be cropped out — it is the
+//    mandated clear space ("4x padding"). Leave it alone.
+//
+// Sizing: the visible letters are half the height set here (artwork occupies
+// y 163.7-490.6 of a 0-654.2 viewBox). "One" is one word of the two-word name,
+// so it has to render at the same letter height as "WSO2" beside it — these two
+// constants move together. Inter at weight 600 has a 0.7375x cap height,
+// measured in a browser:
+//
+//   title px   cap height   logo px to match
+//   18         13.27        26.5   <- Oxygen's own BrandTitle token
+//   22         16.22        32.4   <- chosen; the pair scaled up for presence
+//   24         17.70        35.4
+//
+// UNRESOLVED: the brand minimum for digital use is 180x72px, which at this
+// aspect means a 72px-tall logo. The Oxygen toolbar is 56px (xs) / 64px (sm+),
+// so no compliant-minimum logo fits. Needs a ruling from the brand owner on
+// what applies to product chrome; every value here is below that minimum.
+const BRAND_TITLE_PX = 22;
+const BRAND_LOGO_PX = 32;
+
 interface TopBarProps {
   collapsed: boolean;
   onToggleSidebar: () => void;
@@ -63,14 +93,23 @@ export default function TopBar({
       <Header.Toggle collapsed={collapsed} onToggle={onToggleSidebar} />
 
       <Header.Brand sx={{ flexShrink: 0 }}>
-        <Header.BrandTitle sx={{ whiteSpace: "nowrap" }}>One</Header.BrandTitle>
-        <Header.BrandLogo>
-          {/* Oxygen swaps the source on the resolved colour scheme, so the app
-              no longer needs its own light/dark mode context just for this. */}
+        {/* Overrides Oxygen's 16→18px token, paired with BRAND_LOGO_PX above:
+            "One" is one word of the name, so its size is set by the lockup
+            rather than by the app-name token. */}
+        <Header.BrandTitle sx={{ whiteSpace: "nowrap", fontSize: BRAND_TITLE_PX }}>
+          One
+        </Header.BrandTitle>
+        {/* Negative margin so "One" and the WSO2 logo read as one lockup rather
+            than two adjacent elements. */}
+        <Header.BrandLogo sx={{ ml: "-4px" }}>
+          {/* The full logo, monochrome per brand rules — black on light, white
+              on dark. ColorSchemeImage picks the variant from the resolved
+              colour scheme. alt="" because "One" beside it plus the wordmark
+              already read as the product name. */}
           <ColorSchemeImage
             src={{ light: "/wso2-logo-black.svg", dark: "/wso2-logo-white.svg" }}
-            alt="WSO2"
-            height={26}
+            alt=""
+            height={BRAND_LOGO_PX}
             width="auto"
           />
         </Header.BrandLogo>
