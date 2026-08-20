@@ -19,7 +19,9 @@ import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
+import MyTeamComingSoonPage from "@features/my/pages/MyTeamComingSoonPage";
 import FinancePage from "@features/finance/pages/FinancePage";
+import WorkspacePage from "@features/workspace/pages/WorkspacePage";
 import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
 import AdCampaignsAnalyticsPage from "@features/marketing-ops/ad-campaigns/pages/AdCampaignsAnalyticsPage";
 import UtmGeneratorPage from "@features/marketing-ops/utilities/pages/UtmGeneratorPage";
@@ -71,7 +73,10 @@ export default function App() {
           {/* Default landing = the Me home (own profile + connected apps). */}
           <Route index element={<Navigate to="/me" replace />} />
           {/* Me home — the full profile page including Connected apps. */}
-          <Route path="me" element={<MyProfilePage variant="home" />} />
+          <Route path="me" element={<MyProfilePage />} />
+          {/* My Team — placeholder for now; the real subordinates view is on
+              hold this iteration (mirrors people-app's lead-only nav item). */}
+          <Route path="me/my-team" element={<MyTeamComingSoonPage />} />
           {/* Me → Leave: native screens ported from leave-app. Lives here
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}
@@ -81,29 +86,32 @@ export default function App() {
           {/* Sabbatical use cases (apply/approve/report) are on hold this
               iteration — placeholder links out to the Leave app instead. */}
           <Route path="me/leave/sabbatical" element={<LeaveSabbaticalComingSoonPage />} />
+          {/* Me → digiops-finance claim apps: native screens ported from the
+              three finance apps (opd-claims, cc-expenses, expense-claims).
+              Moved in from the Finance perspective — same rationale as
+              Leave, an employee submits/tracks these for themself (a
+              lead/finance-approver subset of items approves others'). The
+              Finance perspective itself is now just a skeleton tile (see
+              FinancePage) — these apps don't live there anymore. */}
+          <Route path="me/opd/new" element={<OpdNewClaimPage />} />
+          <Route path="me/opd/history" element={<OpdHistoryPage />} />
+          <Route path="me/opd/approvals" element={<OpdApprovalsPage />} />
+          <Route path="me/cc/new" element={<CcNewTransactionsPage />} />
+          <Route path="me/cc/pending" element={<CcPendingPage />} />
+          <Route path="me/cc/approve" element={<CcApprovePage />} />
+          <Route path="me/cc/history" element={<CcHistoryPage />} />
+          <Route path="me/cc/settings" element={<CcSettingsPage />} />
+          <Route path="me/expense/new" element={<ExpenseNewClaimPage />} />
+          <Route path="me/expense/history" element={<ExpenseHistoryPage />} />
+          <Route path="me/expense/lead-approvals" element={<ExpenseLeadApprovalsPage />} />
+          <Route path="me/expense/finance-approvals" element={<ExpenseFinanceApprovalsPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
-          {/* People Ops → Me: the people-app profile sections only (no
-              Connected apps — that lives on the Me home). */}
-          <Route path="people-ops/me" element={<MyProfilePage variant="peopleOps" />} />
-          {/* Finance perspective — overview + native screens ported from the
-              three digiops-finance apps (opd-claims, cc-expenses,
-              expense-claims). */}
+          {/* Finance perspective — skeleton "coming soon" tile; the actual
+              claim apps are the me/opd, me/cc, me/expense routes above. */}
           <Route path="finance" element={<FinancePage />} />
-          {/* OPD claims */}
-          <Route path="finance/opd/new" element={<OpdNewClaimPage />} />
-          <Route path="finance/opd/history" element={<OpdHistoryPage />} />
-          <Route path="finance/opd/approvals" element={<OpdApprovalsPage />} />
-          {/* Credit-card expenses */}
-          <Route path="finance/cc/new" element={<CcNewTransactionsPage />} />
-          <Route path="finance/cc/pending" element={<CcPendingPage />} />
-          <Route path="finance/cc/approve" element={<CcApprovePage />} />
-          <Route path="finance/cc/history" element={<CcHistoryPage />} />
-          <Route path="finance/cc/settings" element={<CcSettingsPage />} />
-          {/* Expense claims */}
-          <Route path="finance/expense/new" element={<ExpenseNewClaimPage />} />
-          <Route path="finance/expense/history" element={<ExpenseHistoryPage />} />
-          <Route path="finance/expense/lead-approvals" element={<ExpenseLeadApprovalsPage />} />
-          <Route path="finance/expense/finance-approvals" element={<ExpenseFinanceApprovalsPage />} />
+          {/* Workspace perspective — office-amenity apps split out of People
+              Ops (starting with the cafeteria Menu app). */}
+          <Route path="workspace" element={<WorkspacePage />} />
           {/* Marketing Ops perspective — overview + the Phase 1 Utilities
               screens, ported from the Marketing Ops frontend. The remaining
               operations (Ad Campaigns, Email Workbench, Events, CRM Upload)

@@ -18,8 +18,9 @@ import { useMemo, useState } from "react";
 import { Box, ListItemButton, ListItemText, Typography } from "@wso2/oxygen-ui";
 import { matchPath, NavLink, useLocation, useNavigate } from "react-router";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
-import { CROSS_PERSPECTIVES, FUNCTIONAL_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
+import { CROSS_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
+import { FINANCE_ITEM_IDS } from "@constants/financeApps";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
 import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
@@ -41,12 +42,13 @@ export default function SideRail() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Finance items gate on each finance app's OWN backend roles (cc/opd/
-  // expense), not the coarse people-app capabilities — so someone who is a
-  // people-app lead but not a cc-expenses lead/finance doesn't see
-  // "Approve Submissions". Only fetch those roles while Finance is active.
-  const isFinance = active.key === "finance";
-  const financeGate = useFinanceGate(isFinance);
+  // Finance items (OPD/credit-card/expense, surfaced under Me) gate on each
+  // finance app's OWN backend roles, not the coarse people-app capabilities
+  // — so someone who is a people-app lead but not a cc-expenses lead/finance
+  // doesn't see "Approve Submissions". Dispatched per item id rather than
+  // per perspective since Finance items are just some of Me's sections now.
+  // Only fetch those roles while Me is active.
+  const financeGate = useFinanceGate(active.key === "me");
 
   // Marketing Ops needs the same treatment for the same reason, against its own
   // backend: its access comes from Asgardeo group membership
@@ -59,27 +61,22 @@ export default function SideRail() {
   const marketingOpsGate = useMarketingOpsGate(isMarketingOps);
 
   const resolveVisible = (s: PerspectiveSection): boolean => {
-    if (isFinance) return financeGate.canSee(s.id);
+    if (FINANCE_ITEM_IDS.has(s.id)) return financeGate.canSee(s.id);
     if (isMarketingOps) return marketingOpsGate.canSee(s.id);
     return sectionAllowed(s.requires, caps);
   };
 
-  // App groups start collapsed; a group id in this set is expanded.
-  const [opened, setOpened] = useState<Set<string>>(new Set());
-  const toggle = (id: string) =>
-    setOpened((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Manual open/close choices for groups the user has explicitly clicked,
+  // for when they're NOT the group containing the current route (see
+  // activeGroupIds below, which always wins over this while it applies).
+  const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map());
 
-  // Whichever group contains the current route is always shown expanded,
-  // regardless of manual toggle state — otherwise landing on e.g. Reports
-  // via a direct link, browser back/forward, or the Waffle overlay (i.e.
-  // any path that doesn't go through manually clicking the group open)
-  // renders that group collapsed while you're actively on one of its own
-  // pages, hiding both where you are and its sibling links.
+  // Whichever group contains the current route is ALWAYS shown expanded —
+  // no override, manual or otherwise, can suppress this. Otherwise landing
+  // on e.g. Reports via a direct link, browser back/forward, or the Waffle
+  // overlay (i.e. any path that doesn't go through manually clicking the
+  // group open) renders that group collapsed while you're actively on one
+  // of its own pages, hiding both where you are and its sibling links.
   const activeGroupIds = useMemo(() => {
     const ids = new Set<string>();
     for (const s of active.sections ?? []) {
@@ -91,10 +88,27 @@ export default function SideRail() {
     }
     return ids;
   }, [active.sections, location.pathname]);
-  const effectiveOpened = useMemo(
-    () => new Set([...opened, ...activeGroupIds]),
-    [opened, activeGroupIds],
-  );
+  const effectiveOpened = useMemo(() => {
+    const ids = new Set(activeGroupIds);
+    for (const [id, isOpen] of overrides) {
+      if (activeGroupIds.has(id)) continue; // active route always wins
+      if (isOpen) ids.add(id);
+    }
+    return ids;
+  }, [activeGroupIds, overrides]);
+
+  // No-op while the group contains the current route — you can't collapse
+  // the group you're actively browsing (activeGroupIds always wins over
+  // any override anyway), so recording one here would just silently arm a
+  // collapse for later with no visible effect now: click "Leave" while on
+  // one of its own pages, nothing looks like it changed, then navigating
+  // to an unrelated page "mysteriously" collapses it. Outside its own
+  // route, toggling is a normal, immediately-visible open/close.
+  const toggle = (id: string) => {
+    if (activeGroupIds.has(id)) return;
+    const isOpen = effectiveOpened.has(id);
+    setOverrides((prev) => new Map(prev).set(id, !isOpen));
+  };
 
   // Scroll a canvas anchor into view. If we're on a sub-route of the
   // perspective (e.g. a Leave screen) rather than its overview page, jump
@@ -117,9 +131,10 @@ export default function SideRail() {
   const sections = active.sections ?? [];
   const crossPerspectives = CROSS_PERSPECTIVES.filter((p) => p.access && p.path);
   // The Home perspective (cross group) is itself the "Me" landing, so a
-  // "For you → Me" link there is redundant — show the Apps launcher instead.
-  // Inside an App (functional group) we keep "For you → Me" so the user can
-  // jump home.
+  // "For you → Me" link there is redundant. Inside an App (functional
+  // group) we keep "For you → Me" so the user can jump home. Switching
+  // between Apps is the waffle's job (top-right) — the rail doesn't
+  // duplicate that launcher.
   const onHome = active.group === "cross";
 
   // The perspective eyebrow ("FINANCE", "PEOPLE OPS", …). When the
@@ -198,6 +213,7 @@ export default function SideRail() {
               section={s}
               resolveVisible={resolveVisible}
               opened={effectiveOpened}
+              locked={activeGroupIds.has(s.id)}
               onToggle={toggle}
               onScroll={scrollToSection}
             />
@@ -238,46 +254,6 @@ export default function SideRail() {
             ))}
           </>
         )}
-
-        {/* On Home: the Apps launcher — jump into any App. Unlocked ones
-            navigate; locked ones show a padlock. */}
-        {onHome && (
-          <>
-            <Typography sx={railHeaderSx}>Apps</Typography>
-            {FUNCTIONAL_PERSPECTIVES.map((p) =>
-              p.access && p.path ? (
-                <ListItemButton
-                  key={p.key}
-                  component={NavLink}
-                  to={p.path}
-                  sx={{
-                    borderRadius: 1.125,
-                    py: 0.75,
-                    px: 1.25,
-                    "&.active": {
-                      bgcolor: "primary.light",
-                      color: "primary.main",
-                      "& .MuiListItemText-primary": { fontWeight: 600 },
-                    },
-                  }}
-                >
-                  <Box sx={{ width: 18, mr: 1.25, fontSize: 13, textAlign: "center" }}>{p.emoji}</Box>
-                  <ListItemText primary={p.label} primaryTypographyProps={{ fontSize: 13.5, fontWeight: 500 }} />
-                </ListItemButton>
-              ) : (
-                <ListItemButton
-                  key={p.key}
-                  disabled
-                  sx={{ borderRadius: 1.125, py: 0.75, px: 1.25, opacity: 0.55 }}
-                >
-                  <Box sx={{ width: 18, mr: 1.25, fontSize: 13, textAlign: "center" }}>{p.emoji}</Box>
-                  <ListItemText primary={p.label} primaryTypographyProps={{ fontSize: 13.5, fontWeight: 500 }} />
-                  <Box component="span" sx={{ fontSize: 11 }}>🔒</Box>
-                </ListItemButton>
-              ),
-            )}
-          </>
-        )}
       </Box>
 
       {/* Settings — pinned to the rail's viewport bottom, same treatment as
@@ -314,12 +290,18 @@ function SectionNode({
   section,
   resolveVisible,
   opened,
+  locked,
   onToggle,
   onScroll,
 }: {
   section: PerspectiveSection;
   resolveVisible: (section: PerspectiveSection) => boolean;
   opened: Set<string>;
+  // True while this group contains the current route — it's forced open
+  // (see activeGroupIds in SideRail) and toggling it is a no-op. Rendered
+  // as non-interactive rather than passed through to a click handler that
+  // silently does nothing, which otherwise reads as "the rail is broken".
+  locked: boolean;
   onToggle: (id: string) => void;
   onScroll: (id: string) => void;
 }) {
@@ -350,8 +332,18 @@ function SectionNode({
     return (
       <>
         <ListItemButton
-          onClick={() => onToggle(section.id)}
-          sx={{ borderRadius: 1.125, py: 0.75, px: 1.25 }}
+          onClick={locked ? undefined : () => onToggle(section.id)}
+          disableRipple={locked}
+          aria-disabled={locked}
+          sx={{
+            borderRadius: 1.125,
+            py: 0.75,
+            px: 1.25,
+            ...(locked && {
+              cursor: "default",
+              "&:hover": { bgcolor: "transparent" },
+            }),
+          }}
         >
           <Box sx={{ width: 18, mr: 1.25, fontSize: 13, textAlign: "center" }}>{section.emoji}</Box>
           <ListItemText

@@ -23,14 +23,9 @@ import ConnectedServices from "../components/ConnectedServices";
 import SectionHeader from "../../people-ops/components/SectionHeader";
 import { isPeopleBackendConfigured, useMeProfile } from "../api/useMeProfile";
 
-// The same profile screen serves two places:
-//  - "home"      → the Me home landing: the full page, including the
-//                  cross-app "Connected apps" aggregation.
-//  - "peopleOps" → People Ops → Me: only the people-app profile sections
-//                  (hero + general + personal + emergency), no Connected apps.
-export type MyProfileVariant = "home" | "peopleOps";
-
-export default function MyProfilePage({ variant = "home" }: { variant?: MyProfileVariant }) {
+// The Me home landing: own profile + the cross-app "Connected apps"
+// aggregation.
+export default function MyProfilePage() {
   const backendConfigured = isPeopleBackendConfigured();
   const { data, isLoading, isError, error, refetch, isFetching } = useMeProfile();
 
@@ -39,22 +34,16 @@ export default function MyProfilePage({ variant = "home" }: { variant?: MyProfil
   const personalInfo = data?.personalInfo;
   const firstName = employee?.firstName ?? userInfo?.firstName ?? "";
 
-  const isHome = variant === "home";
-  const eyebrow = isHome ? "✦ Me" : "✦ My profile";
-  const title = isHome
-    ? `Welcome back${firstName ? `, ${firstName}` : ""}`
-    : "My profile";
-
   return (
     <Box>
       <Chip
-        label={eyebrow}
+        label="✦ Me"
         color="primary"
         size="small"
         sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
       />
       <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 2.25 }}>
-        {title}
+        Welcome back{firstName ? `, ${firstName}` : ""}
       </Typography>
 
       {!backendConfigured && (
@@ -82,32 +71,25 @@ export default function MyProfilePage({ variant = "home" }: { variant?: MyProfil
 
       <ProfileHero userInfo={userInfo} employee={employee} isLoading={isLoading} />
 
-      <SectionHeader id="my-general">General information</SectionHeader>
+      <SectionHeader>General information</SectionHeader>
       <GeneralInfo employee={employee} isLoading={isLoading} />
 
-      <SectionHeader id="my-personal">Personal information</SectionHeader>
+      <SectionHeader>Personal information</SectionHeader>
       <PersonalInfo
         personalInfo={personalInfo}
         employeeId={userInfo?.employeeId ?? employee?.employeeId}
         isLoading={isLoading}
       />
 
-      <SectionHeader id="my-emergency">Emergency contacts</SectionHeader>
+      <SectionHeader>Emergency contacts</SectionHeader>
       <EmergencyContacts
         contacts={personalInfo?.emergencyContacts ?? undefined}
         employeeId={userInfo?.employeeId ?? employee?.employeeId}
         isLoading={isLoading}
       />
 
-      {/* Connected apps is the cross-app aggregation (Performance, Bank,
-          Vehicles) — Home only. People Ops → Me is the people-app profile
-          proper, so it stops at emergency contacts. */}
-      {isHome && (
-        <>
-          <SectionHeader id="my-connected">Connected apps</SectionHeader>
-          <ConnectedServices />
-        </>
-      )}
+      <SectionHeader>Connected apps</SectionHeader>
+      <ConnectedServices />
     </Box>
   );
 }

@@ -14,36 +14,44 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Box, Chip, Typography } from "@wso2/oxygen-ui";
-import InsightCard from "../components/InsightCard";
-import KpiRow from "../components/KpiRow";
-import AppMenuBoard from "@components/app-menu/AppMenuBoard";
-import { PEOPLE_OPS_APPS } from "@constants/peopleOpsApps";
-import { INSIGHT_TEXT, INSIGHT_SOURCE } from "../constants/data";
+import { Box, Card, Typography } from "@wso2/oxygen-ui";
+import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
+import SectionHeader from "../components/SectionHeader";
+
+// This perspective's prior content (People/Visitor/Careers app menus, the
+// mock hiring/performance dashboard) was retired per restructuring
+// feedback. These three are the reports planned to onboard next — each a
+// placeholder until its backend lands. Ids match PEOPLE_OPS_SECTIONS in
+// @constants/perspectives so the left rail scrolls to the right card.
+const REPORTS = [
+  { id: "people-active-employee-report", emoji: "🧍", label: "Active employee report" },
+  { id: "people-resignation-report", emoji: "📤", label: "Resignation report" },
+  { id: "people-master-data", emoji: "🗂️", label: "Master data" },
+] as const;
 
 export default function PeopleOpsPage() {
   return (
     <Box>
-      {/* Perspective tag */}
-      <Chip
-        label="✦ People Ops perspective"
-        color="primary"
-        size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
+      <PerspectiveHeader
+        eyebrow="People Ops perspective"
+        title="People Operations"
+        subtitle="This perspective is being rebuilt. Here's what's coming next."
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
-        People Operations
-      </Typography>
-      <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "68ch" }}>
-        Every people-ops-suite app in one place — jump to any app's section from the
-        left rail. What you see is scoped to your role.
-      </Typography>
 
-      <InsightCard text={INSIGHT_TEXT} source={INSIGHT_SOURCE} />
-
-      <KpiRow />
-
-      <AppMenuBoard apps={PEOPLE_OPS_APPS} />
+      {REPORTS.map((r) => (
+        <Box key={r.id}>
+          <SectionHeader id={r.id}>
+            <span style={{ fontSize: 14 }}>{r.emoji}</span>
+            {r.label}
+          </SectionHeader>
+          <Card variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
+            <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>
+            <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+              {r.label} isn't available yet — check back once it ships.
+            </Typography>
+          </Card>
+        </Box>
+      ))}
     </Box>
   );
 }

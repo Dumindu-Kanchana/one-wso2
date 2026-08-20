@@ -19,7 +19,7 @@ import type { Employee } from "../api/types";
 import { DASH, display, formatDate, fullName, serviceLength } from "../api/derive";
 import FieldGrid, { type FieldDef } from "./FieldGrid";
 
-// Renders the 22-field grid the people-app profile shows for General
+// Renders the 23-field grid the people-app profile shows for General
 // information. Values come straight from the Employee DTO. When the DTO
 // is absent we distinguish two states: (a) still loading — render a
 // skeleton grid so the layout doesn't jump; (b) finished but no data —
@@ -50,6 +50,7 @@ export default function GeneralInfo({
     { label: "EPF", value: display(employee.epf) },
 
     { label: "Designation", value: display(employee.designation) },
+    { label: "External designation", value: display(employee.externalDesignation) },
     { label: "Job band", value: display(employee.jobBand) },
     { label: "Business unit", value: display(employee.businessUnit) },
     { label: "Team", value: display(employee.team) },
