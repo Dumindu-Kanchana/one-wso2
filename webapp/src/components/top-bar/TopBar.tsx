@@ -132,7 +132,7 @@ export default function TopBar({
         role="button"
         tabIndex={0}
         onClick={onOpenAsk}
-        aria-label="Search or jump to a page"
+        aria-label="Ask Novera or search"
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -162,12 +162,11 @@ export default function TopBar({
         }}
       >
         <SearchIcon size={16} style={{ flexShrink: 0 }} />
-        {/* Deliberately not "Ask Novera": the palette is a navigation surface
-            today and the assistant isn't shipping yet, so promising it here
-            would repeat the prototype's "looks functional, does nothing" problem.
-            Put Novera back in this copy when there's an assistant behind it. */}
+        {/* Names Novera deliberately: it is a committed part of the product, and
+            the palette states plainly that the assistant is still coming rather
+            than implying it already answers. */}
         <Typography variant="body2" noWrap sx={{ display: { xs: "none", sm: "block" } }}>
-          Search or jump to…
+          Ask Novera or search…
         </Typography>
         <Box
           sx={{

@@ -31,13 +31,16 @@ interface AskNoveraPaletteProps {
   onClose: () => void;
 }
 
-// The ⌘K palette — the app's "search or jump to" surface.
+// The ⌘K palette. Two things live here:
 //
-// Novera itself isn't shipping anytime soon, so this makes no claim about an
-// assistant (the earlier prototype's pre-filled query + canned response looked
-// functional but did nothing when used). What it does do is list the pinned
-// working set, which makes it useful today and gives the eventual search and
-// assistant somewhere to slot in.
+//  - The pinned working set, which is real and usable today.
+//  - Novera's "coming soon" state. Named openly rather than hidden behind
+//    generic "search" copy — the assistant is a committed part of the product,
+//    and stating that it is still coming is honest in a way the earlier
+//    prototype's pre-filled query and canned response were not.
+//
+// As live search and then the assistant land, they slot in above and below the
+// pinned group without the surface changing shape.
 export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -52,7 +55,6 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
     // whatever triggered the palette (the ⌘K/Ask Novera control) on close.
     const previouslyFocused = document.activeElement as HTMLElement | null;
     panelRef.current?.focus();
-
 
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -91,7 +93,7 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Search or jump to"
+        aria-label="Ask Novera"
         onClick={(e) => e.stopPropagation()}
         sx={{
           position: "absolute",
@@ -132,7 +134,7 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
             }}
           />
           <Typography sx={{ flex: 1, fontSize: 15, fontWeight: 600 }}>
-            Search or jump to
+            Ask Novera
           </Typography>
           <Box
             sx={{
@@ -187,13 +189,10 @@ export default function AskNoveraPalette({ onClose }: AskNoveraPaletteProps) {
         )}
 
         <Box sx={{ p: "28px 22px", textAlign: "center" }}>
-          <Typography sx={{ fontWeight: 600, mb: 0.75 }}>
-            Search is coming soon
-          </Typography>
+          <Typography sx={{ fontWeight: 600, mb: 0.75 }}>Coming soon</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360, mx: "auto" }}>
-            {pinned.length > 0
-              ? "For now this lists your pinned pages. Use the pin button in the top bar to add one."
-              : "Nothing pinned yet — use the pin button in the top bar to keep a page one click away."}
+            Hi! I&apos;m Novera, WSO2&apos;s internal AI agent. Soon you&apos;ll be able to ask me
+            things and get answers.
           </Typography>
         </Box>
       </Box>
