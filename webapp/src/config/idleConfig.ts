@@ -14,35 +14,34 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Idle-session timings.
+// Idle-session handling.
 //
-// The idle sign-out exists for threat-model risk ONEWSO2-R1: without it the
-// effective session window is just the Asgardeo token TTL. The deadline is
-// deployment-configurable via `window.config.ONE_WSO2_IDLE_TIMEOUT_MINUTES`,
-// but bounded here rather than trusted blindly — a deployment can tighten the
-// window, not opt out of it.
+// The timer and the "still there?" dialog ALWAYS run: after 25 minutes of
+// inactivity the dialog appears and waits to be answered. One config key,
+// `ONE_WSO2_IDLE_AUTO_SIGN_OUT`, decides what happens if it is ignored:
+//
+//   off (default) — nothing. The dialog sits there until answered and the
+//                   session survives, matching csm-portal.
+//   on            — the session ends at the 30-minute mark.
+//
+// Note what "off" costs: it does not satisfy threat-model risk ONEWSO2-R1, which
+// wants an idle timeout under 30 minutes. A dialog is not a timeout — it can be
+// left unanswered indefinitely, with the page still on screen behind it.
+// Deployments that need R1 must set the flag.
 
-/** Deadline when the deployment doesn't configure one. */
-export const DEFAULT_TIMEOUT_MINUTES = 20;
+/** Total idle window. Reaching it signs the user out, if that is enabled. */
+export const TIMEOUT_MINUTES = 30;
 
-/** How long before the deadline the "still there?" dialog appears. */
+/**
+ * How long before the deadline the dialog appears — so at 25 minutes idle.
+ * Applies whether or not sign-out is enabled; the dialog is the same either way,
+ * only its wording and its consequence differ.
+ */
 export const WARNING_MINUTES = 5;
 
 /**
- * Floor. The dialog needs to be on screen for its full warning window, so the
- * deadline has to exceed it — a 5-minute timeout would prompt at t=0.
- */
-export const MIN_TIMEOUT_MINUTES = WARNING_MINUTES + 1;
-
-/**
- * Ceiling, from ONEWSO2-R1: the security checklist wants an idle timeout under
- * 30 minutes, so a deployment can't widen the window past that.
- */
-export const MAX_TIMEOUT_MINUTES = 30;
-
-/**
- * How often the activity listeners may fire, in ms. The previous hand-rolled
- * timer re-armed a `setTimeout` on every single `mousemove`; react-idle-timer
+ * How often the activity listeners may fire, in ms. The hand-rolled timer this
+ * replaced re-armed a `setTimeout` on every single `mousemove`; react-idle-timer
  * throttles instead.
  */
 export const THROTTLE_MS = 500;
@@ -50,39 +49,32 @@ export const THROTTLE_MS = 500;
 /** How often tabs reconcile their timers, in ms. */
 export const CROSS_TAB_SYNC_MS = 2_000;
 
-function resolveTimeoutMinutes(): number {
-  const configured = window.config?.ONE_WSO2_IDLE_TIMEOUT_MINUTES;
-  if (configured === undefined) return DEFAULT_TIMEOUT_MINUTES;
-
-  if (typeof configured !== "number" || !Number.isFinite(configured)) {
+function resolveAutoSignOut(): boolean {
+  const configured = window.config?.ONE_WSO2_IDLE_AUTO_SIGN_OUT;
+  if (configured === undefined) return false;
+  if (typeof configured !== "boolean") {
+    // A loose check would read the string "false" as truthy and silently enable
+    // sign-out for someone trying to disable it. config.js is hand-edited per
+    // deployment, so this is a realistic mistake rather than a theoretical one.
     console.warn(
-      `[idle] ONE_WSO2_IDLE_TIMEOUT_MINUTES must be a number, got ${typeof configured}. ` +
-        `Falling back to ${DEFAULT_TIMEOUT_MINUTES} minutes.`,
+      `[idle] ONE_WSO2_IDLE_AUTO_SIGN_OUT must be a boolean, got ${typeof configured}. ` +
+        `Treating it as false (dialog only, no sign-out).`,
     );
-    return DEFAULT_TIMEOUT_MINUTES;
+    return false;
   }
-
-  const clamped = Math.min(Math.max(configured, MIN_TIMEOUT_MINUTES), MAX_TIMEOUT_MINUTES);
-  if (clamped !== configured) {
-    console.warn(
-      `[idle] ONE_WSO2_IDLE_TIMEOUT_MINUTES=${configured} is outside the allowed ` +
-        `${MIN_TIMEOUT_MINUTES}–${MAX_TIMEOUT_MINUTES} minute range (ONEWSO2-R1). ` +
-        `Using ${clamped}.`,
-    );
-  }
-  return clamped;
+  return configured;
 }
 
-const timeoutMinutes = resolveTimeoutMinutes();
-
 export const idleConfig = {
-  /** Total idle time before sign-out. */
-  timeoutMs: timeoutMinutes * 60_000,
-  /** Portion of that window spent showing the warning dialog. */
+  /**
+   * Whether ignoring the dialog ends the session. NOT a master switch — the
+   * timer and dialog run regardless.
+   */
+  autoSignOut: resolveAutoSignOut(),
+  /** Total idle window. */
+  timeoutMs: TIMEOUT_MINUTES * 60_000,
+  /** Portion of that window spent showing the dialog. */
   promptBeforeMs: WARNING_MINUTES * 60_000,
   throttleMs: THROTTLE_MS,
   crossTabSyncMs: CROSS_TAB_SYNC_MS,
-  /** For copy — "signed out after N minutes of inactivity". */
-  timeoutMinutes,
-  warningMinutes: WARNING_MINUTES,
 } as const;

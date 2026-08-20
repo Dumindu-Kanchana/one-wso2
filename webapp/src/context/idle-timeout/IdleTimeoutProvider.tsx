@@ -18,7 +18,7 @@ import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } fr
 import { useIdleTimer } from "react-idle-timer";
 import { useAsgardeo } from "@asgardeo/react";
 import SessionWarningDialog from "@components/session-warning/SessionWarningDialog";
-import { idleConfig } from "@config/idleConfig";
+import { idleConfig, WARNING_MINUTES } from "@config/idleConfig";
 import { useSecureSignOut } from "@hooks/useSecureSignOut";
 
 /**
@@ -40,19 +40,21 @@ interface IdleTimeoutProviderProps {
 /**
  * Idle-session handling: warn first, then sign out.
  *
- * Replaces the hand-rolled `useIdleLogout`, which signed the user out with no
- * warning and had two defects worth naming:
+ * Two properties are deliberate, and both were bugs in the hand-rolled timer
+ * this replaced:
  *
- *  - **Background tabs signed you out.** Activity listeners are per-window but
- *    `signOut()` ends the Asgardeo session globally, so a second tab left open
- *    while you worked in the first would hit its own deadline and log you out
- *    of both. `crossTab` + `syncTimers` makes every tab share one deadline, and
- *    activity in any tab resets it.
- *  - **It re-armed a `setTimeout` on every `mousemove`.** Now throttled.
+ *  - **One deadline shared across tabs.** Activity listeners are per-window but
+ *    `signOut()` ends the Asgardeo session globally, so per-tab timers meant a
+ *    background tab could log you out of the tab you were working in.
+ *    `crossTab` + `syncTimers` gives every tab one deadline that any tab's
+ *    activity resets.
+ *  - **Throttled activity handling**, rather than re-arming a timer on every
+ *    single `mousemove`.
  *
- * Modelled on csm-portal's `IdleTimeoutProvider`, but `onIdle` is wired here.
- * csm-portal carries a TODO noting that its dialog only prompts and its session
- * is never actually terminated — which would fail ONEWSO2-R1 for this app.
+ * The timer and the dialog always run: WARNING_MINUTES before the deadline the
+ * dialog appears and waits. `ONE_WSO2_IDLE_AUTO_SIGN_OUT` decides only what
+ * happens when it is ignored — nothing (default, matching csm-portal, whose
+ * `onIdle` is deliberately unwired) or sign-out at the deadline.
  */
 export default function IdleTimeoutProvider({
   children,
@@ -60,9 +62,9 @@ export default function IdleTimeoutProvider({
   const { isSignedIn } = useAsgardeo();
   const secureSignOut = useSecureSignOut();
   const [promptOpen, setPromptOpen] = useState(false);
-  // Explicit <number>: idleConfig is `as const`, so the initial value would
-  // otherwise narrow the state type to the literal 5.
-  const [remainingMinutes, setRemainingMinutes] = useState<number>(idleConfig.warningMinutes);
+  // Explicit <number>: WARNING_MINUTES is a literal, so the initial value would
+  // otherwise narrow the state type to 5.
+  const [remainingMinutes, setRemainingMinutes] = useState<number>(WARNING_MINUTES);
 
   // Guards against a double sign-out: `onIdle` can coincide with the user
   // clicking "Sign out" as the countdown expires.
@@ -75,7 +77,7 @@ export default function IdleTimeoutProvider({
     secureSignOut();
   }, [secureSignOut]);
 
-  const { activate, getRemainingTime, isPrompted } = useIdleTimer({
+  const { activate, getRemainingTime } = useIdleTimer({
     timeout: idleConfig.timeoutMs,
     promptBeforeIdle: idleConfig.promptBeforeMs,
     throttle: idleConfig.throttleMs,
@@ -84,20 +86,22 @@ export default function IdleTimeoutProvider({
     crossTab: true,
     syncTimers: idleConfig.crossTabSyncMs,
     leaderElection: true,
-    // Only run the timer for a signed-in user: no point counting down on the
-    // sign-in redirect, and `disabled` stops the listeners entirely.
+    // Runs for any signed-in user regardless of the sign-out flag, since the
+    // dialog is raised either way. `disabled` stops the activity listeners
+    // entirely rather than just ignoring their results.
     disabled: !isSignedIn,
     onPrompt: () => {
       setRemainingMinutes(toMinutes(getRemainingTime()));
       setPromptOpen(true);
     },
     onIdle: () => {
-      // The half csm-portal leaves unimplemented.
-      if (isSignedIn) signOutOnce();
+      // The flag's only consequence. Without it the dialog simply stays up.
+      if (isSignedIn && idleConfig.autoSignOut) signOutOnce();
     },
-    // Fires when activity resumes in ANY tab, including via a cross-tab
-    // message — so answering the prompt in one tab dismisses it in the others.
-    onActive: () => setPromptOpen(false),
+    // Deliberately NO onActive handler. It would fire on the first mousemove —
+    // including one over the dialog's own backdrop — and dismiss the prompt
+    // before it could be read. Continue and Logout are the only ways out, which
+    // is how csm-portal behaves too.
   });
 
   // No effect needed to hide the prompt on sign-out: the dialog's own `open`
@@ -107,8 +111,11 @@ export default function IdleTimeoutProvider({
   // Keep the figure current while the dialog is open. Doubles as a safety net:
   // a tab suspended past its deadline won't have fired `onIdle` on time, so a
   // zero here ends the session on the next poll.
+  //
+  // Only meaningful when there is a deadline to count down to — with sign-out
+  // off there is no number on screen and nothing to enforce.
   useEffect(() => {
-    if (!promptOpen) return;
+    if (!promptOpen || !idleConfig.autoSignOut) return;
     const id = window.setInterval(() => {
       const left = getRemainingTime();
       setRemainingMinutes(toMinutes(left));
@@ -126,8 +133,13 @@ export default function IdleTimeoutProvider({
   return (
     <>
       <SessionWarningDialog
-        open={promptOpen && isSignedIn && isPrompted()}
-        remainingMinutes={remainingMinutes}
+        // Deliberately not gated on `isPrompted()`: with sign-out off, the
+        // prompt window closes once the deadline passes, which would hide a
+        // dialog that is meant to wait indefinitely.
+        open={promptOpen && isSignedIn}
+        // Omitted when nothing happens at the deadline, so the dialog drops its
+        // countdown rather than promising a sign-out that never comes.
+        remainingMinutes={idleConfig.autoSignOut ? remainingMinutes : undefined}
         onContinue={handleContinue}
         onLogout={signOutOnce}
       />

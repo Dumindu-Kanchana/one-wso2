@@ -26,11 +26,11 @@ declare global {
       ONE_WSO2_AUTH_SIGN_IN_REDIRECT_URL: string;
       ONE_WSO2_AUTH_SIGN_OUT_REDIRECT_URL: string;
       ONE_WSO2_THEME?: string;
-      // Minutes of inactivity before the session is signed out. Optional —
-      // defaults to 20. Bounded to 6-30 minutes by src/config/idleConfig.ts:
-      // the warning dialog needs room below the deadline, and ONEWSO2-R1 caps
-      // the window at 30 minutes.
-      ONE_WSO2_IDLE_TIMEOUT_MINUTES?: number;
+      // Whether idle sessions are warned about and then signed out. Optional —
+      // defaults to false, meaning no idle handling at all. Set true to enforce
+      // the idle timeout the security checklist (ONEWSO2-R1) wants: 30 minutes,
+      // with a "still there?" dialog for the last 5.
+      ONE_WSO2_IDLE_AUTO_SIGN_OUT?: boolean;
       // Base URL for the people-ops-suite people-app backend (the same
       // SERVICE_BASE_URL people-app's own webapp reads). Used to fetch the
       // current user's Employee + EmployeePersonalInfo records on the

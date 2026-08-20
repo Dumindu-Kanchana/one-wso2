@@ -29,8 +29,12 @@ export interface SessionWarningDialogProps {
   /**
    * Whole minutes left before automatic sign-out, rounded up by the caller so
    * the last partial minute still reads as "1 minute" rather than "0".
+   *
+   * Omitted when auto sign-out is off. Nothing happens at the deadline then, so
+   * the dialog must not claim otherwise — it asks the question and waits instead
+   * of counting down to an event that never arrives.
    */
-  remainingMinutes: number;
+  remainingMinutes?: number;
   onContinue: () => void;
   onLogout: () => void;
 }
@@ -67,8 +71,16 @@ export default function SessionWarningDialog({
         {/* aria-live so the minute count is announced as it changes; the dialog
             itself is only announced once, when it opens. */}
         <Typography color="text.secondary" aria-live="polite">
-          It looks like you&apos;ve been inactive for a while. Signing out in{" "}
-          {remainingMinutes} {remainingMinutes === 1 ? "minute" : "minutes"}.
+          It looks like you&apos;ve been inactive for a while.{" "}
+          {remainingMinutes === undefined ? (
+            // csm-portal's exact wording, for when nothing follows.
+            <>Would you like to continue?</>
+          ) : (
+            <>
+              Signing out in {remainingMinutes}{" "}
+              {remainingMinutes === 1 ? "minute" : "minutes"}.
+            </>
+          )}
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
