@@ -24,15 +24,20 @@ import { pickAccessibleText } from "@utils/contrastText";
  * One WSO2 had no equivalent, so every text/outlined `color="primary"` control
  * was failing WCAG AA in light mode.
  *
- * The brand accent is fine as white-on-orange (contained buttons) and as
- * orange-on-dark, but as *text or border on a light surface* it fails AA:
- * measured, One WSO2's `#F14E23` is 3.59:1 on white — better than csm-portal's
- * `#fa7b3f` at 2.63:1, and enough for large text, but still short of the 4.5:1
- * small-text floor. Rather than darken the brand fill (which would dull the
- * contained CTA) or patch each call site, shift only the text/border colour of
- * text & outlined primary controls to `primary.dark` (`#B93816`, 5.77:1), and
- * only in the light colour scheme via `applyStyles("light", …)`; dark mode,
- * where orange-on-dark already passes, is untouched.
+ * The brand accent passes as orange-on-dark, but as *text or border on a light
+ * surface* it fails AA: measured, `#F14E23` is 3.59:1 on white — enough for
+ * large text, short of the 4.5:1 small-text floor. Rather than darken the brand
+ * fill or patch each call site, shift only the text/border colour of text &
+ * outlined primary controls to `primary.dark` (`#B93816`, 5.77:1), and only in
+ * the light colour scheme via `applyStyles("light", …)`; dark mode is untouched.
+ *
+ * What this does NOT fix: white-on-orange in *contained* primary controls,
+ * which measures the same 3.59:1 and so fails AA for label text. This overlay
+ * deliberately leaves it alone, because both remedies change the brand rather
+ * than the code — near-black labels reach 5.52:1 but look unlike any other WSO2
+ * product, and keeping white labels needs the fill darkened to about `#C93D18`
+ * (5.04:1), which abandons the brand hex. That is a brand-owner decision and is
+ * tracked as one; it is not an oversight here.
  *
  * Kept theme-agnostic — it reads `primary.dark` from whatever theme is active,
  * so it survives a theme swap rather than being a separate named theme.

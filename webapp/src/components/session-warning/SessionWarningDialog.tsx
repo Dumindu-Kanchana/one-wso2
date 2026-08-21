@@ -43,10 +43,10 @@ export interface SessionWarningDialogProps {
  * Dialog that asks "Are you still there?" when the user has been idle.
  * Continue resets the idle timer; Logout signs the user out.
  *
- * Copy, layout, and button treatment are kept identical to csm-portal's
- * `SessionWarningDialog` so the two apps read the same. The behavioural
- * difference lives in the provider, not here: ignoring this dialog actually
- * ends the session (see IdleTimeoutProvider).
+ * Whether ignoring this dialog ends the session is configuration, not layout:
+ * with `ONE_WSO2_IDLE_AUTO_SIGN_OUT` enabled the session is signed out at the
+ * deadline; with it off — the default — this is a prompt only and the session
+ * stays open. That behaviour lives in IdleTimeoutProvider, not here.
  */
 export default function SessionWarningDialog({
   open,
