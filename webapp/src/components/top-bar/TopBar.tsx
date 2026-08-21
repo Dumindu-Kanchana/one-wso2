@@ -30,6 +30,24 @@ import PinThisPageButton from "@features/pinned/components/PinThisPageButton";
 import { usePinnedEntries } from "@features/pinned/usePinned";
 import UserProfileMenu from "./UserProfileMenu";
 
+// The shortcut hint has to name a key the reader actually has: the handler
+// below accepts Cmd *or* Ctrl, so a hardcoded "⌘K" misinforms every
+// Windows and Linux user.
+//
+// `navigator.platform` is formally deprecated, and that is not a reason to
+// replace it here: no engine intends to remove it (too much of the web reads
+// it), while its stated successor `navigator.userAgentData` is unimplemented in
+// Firefox and Safari and absent from TypeScript's DOM lib. A layered check
+// would therefore fall through to this same call on two of three engines while
+// costing an ambient type declaration. Read once — the platform cannot change
+// at runtime. iPadOS reporting as Mac is correct rather than a bug: an iPad
+// with a keyboard has a Cmd key.
+const IS_APPLE_PLATFORM =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** No "+" in either form, matching the badge's compact style. */
+const SHORTCUT_HINT = IS_APPLE_PLATFORM ? "⌘K" : "Ctrl K";
+
 // Brand lockup sizing. Constrained by https://wso2.com/about/brand, which is
 // stricter than it looks — check there before changing any of this:
 //
@@ -180,7 +198,7 @@ export default function TopBar({
             flexShrink: 0,
           }}
         >
-          <Typography variant="caption">⌘K</Typography>
+          <Typography variant="caption">{SHORTCUT_HINT}</Typography>
         </Box>
       </Box>
 
