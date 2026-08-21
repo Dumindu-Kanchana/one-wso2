@@ -24,6 +24,7 @@ import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu"
 import { FINANCE_ITEM_IDS } from "@constants/financeApps";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
+import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
 
 // Context-sensitive left rail, built on Oxygen's compound `Sidebar`.
 //
@@ -99,8 +100,24 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // per perspective since Finance items are just some of Me's sections now.
   // Only fetch those roles while Me is active.
   const financeGate = useFinanceGate(active.key === "me");
-  const resolveVisible = (s: PerspectiveSection): boolean =>
-    FINANCE_ITEM_IDS.has(s.id) ? financeGate.canSee(s.id) : sectionAllowed(s.requires, caps);
+
+  // Marketing Ops is the same shape of problem and needs the same treatment:
+  // its rail gates on the MARKETING OPS backend's own Asgardeo groups
+  // (app-marketingops-*), which bear no relation to the people-app privilege
+  // numbers `caps` is built from. Reading `requires` against `caps` would show
+  // a people-app admin every marketing screen — including ones the marketing
+  // backend then 403s — and hide them from an actual Marketing Ops admin who
+  // happens not to be a people-app admin. The registry says as much at
+  // @constants/perspectives: the `requires` on those sections is a coarse hint,
+  // and whatever renders them has to ask this gate.
+  const isMarketingOps = active.key === "marketing";
+  const marketingOpsGate = useMarketingOpsGate(isMarketingOps);
+
+  const resolveVisible = (s: PerspectiveSection): boolean => {
+    if (FINANCE_ITEM_IDS.has(s.id)) return financeGate.canSee(s.id);
+    if (isMarketingOps) return marketingOpsGate.canSee(s.id);
+    return sectionAllowed(s.requires, caps);
+  };
 
   // Memoised because `?? []` would otherwise hand a fresh array to the
   // dependency lists below on every render, defeating both useMemos.
@@ -371,6 +388,11 @@ function SectionNode({
     return (
       <Sidebar.Item
         id={section.id}
+        // `aria-disabled` alongside the visual treatment: the row stays a
+        // focusable button whose activation is a no-op (onToggleExpand refuses
+        // to collapse the group you're browsing), and without this a keyboard
+        // or screen-reader user gets no signal that pressing it does nothing.
+        aria-disabled={containsActiveRoute || undefined}
         sx={
           containsActiveRoute
             ? { cursor: "default", "&:hover": { bgcolor: "transparent" } }
