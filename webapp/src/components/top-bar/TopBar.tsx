@@ -82,7 +82,10 @@ const BRAND_LOGO_PX = 32;
 interface TopBarProps {
   collapsed: boolean;
   onToggleSidebar: () => void;
-  onOpenWaffle: () => void;
+  /** Receives the button element, so the launcher can hang off it. */
+  onToggleWaffle: (anchor: HTMLElement) => void;
+  /** Whether the launcher is currently showing, for aria-expanded. */
+  waffleOpen: boolean;
   onOpenAsk: () => void;
 }
 
@@ -96,7 +99,8 @@ interface TopBarProps {
 export default function TopBar({
   collapsed,
   onToggleSidebar,
-  onOpenWaffle,
+  onToggleWaffle,
+  waffleOpen,
   onOpenAsk,
 }: TopBarProps): JSX.Element {
   // Only the count matters here — the strip itself renders the entries.
@@ -209,7 +213,13 @@ export default function TopBar({
 
       <Header.Actions>
         <Tooltip title="Switch app">
-          <IconButton onClick={onOpenWaffle} size="small" aria-label="Switch app">
+          <IconButton
+            onClick={(e) => onToggleWaffle(e.currentTarget)}
+            size="small"
+            aria-label="Switch app"
+            aria-haspopup="dialog"
+            aria-expanded={waffleOpen}
+          >
             <LayoutGridIcon size={20} />
           </IconButton>
         </Tooltip>

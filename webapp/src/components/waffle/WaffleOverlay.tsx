@@ -14,8 +14,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import type { JSX } from "react";
-import { Box, Dialog, DialogContent, Tooltip, Typography } from "@wso2/oxygen-ui";
+import { useEffect, useRef, type JSX } from "react";
+import { Box, Paper, Tooltip, Typography } from "@wso2/oxygen-ui";
+// Oxygen 0.6.0 re-exports neither of these (checked against its dist), and
+// @mui/material is already a direct dependency that the theme files import from.
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import Popper from "@mui/material/Popper";
 import { LockIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import {
@@ -27,19 +31,56 @@ import { useActivePerspective } from "@context/perspective/PerspectiveContext";
 import { perspectiveHue } from "@config/perspectiveHues";
 
 interface WaffleOverlayProps {
+  /** The launcher button. The panel hangs off it and closes back onto it. */
+  anchorEl: HTMLElement;
   onClose: () => void;
 }
 
-// The app switcher. Grid of tiles: functional (persona) on top, cross
-// (Me / Service Requests) below. Locked tiles show a padlock and don't navigate.
+// The app switcher: a panel hanging off the launcher button, functional
+// (persona) apps on top, cross (Me / Service Requests) below. Locked tiles show
+// a padlock and don't navigate.
 //
-// Now a real MUI `Dialog` rather than a hand-rolled `position: fixed` div, so
-// focus trapping, focus restore on close, Escape handling, scroll lock, and
-// `aria-modal` all come from the library instead of being partially
-// reimplemented here.
-export default function WaffleOverlay({ onClose }: WaffleOverlayProps): JSX.Element {
+// Deliberately NOT modal, which is the whole point of the `Popper`. A launcher
+// is a place you glance at, so the page behind it stays scrollable and
+// clickable and nothing is dimmed. That trade is real and worth naming: a modal
+// would give focus containment and hide the background from assistive tech for
+// free, and this gives up both. What replaces them:
+//
+//  - Escape closes, and a click outside closes (ClickAwayListener).
+//  - Focus moves into the panel on open and returns to the button on close.
+//  - Tab is free to leave the panel, which is correct here — trapping focus in
+//    a surface the user can click straight past would strand them.
+//  - `role="dialog"` WITHOUT `aria-modal`. Claiming aria-modal on a non-modal
+//    surface tells a screen reader the rest of the page is inert when it isn't.
+export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps): JSX.Element {
   const navigate = useNavigate();
   const active = useActivePerspective();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Captured at setup, not read in the cleanup: by teardown the ref may
+    // already be detached, which would silently skip the focus restore below.
+    const panel = panelRef.current;
+    // Focus the panel rather than the first tile: landing on "People Ops"
+    // would read as though it were selected.
+    panel?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      // Only pull focus back if it is still inside the panel. If the user
+      // clicked into the page behind, yanking focus to the button would undo
+      // the very interaction this panel exists to allow.
+      if (panel?.contains(document.activeElement)) {
+        anchorEl.focus();
+      }
+    };
+  }, [onClose, anchorEl]);
 
   const pick = (p: PerspectiveDef) => {
     if (!p.access || !p.path) return;
@@ -48,30 +89,59 @@ export default function WaffleOverlay({ onClose }: WaffleOverlayProps): JSX.Elem
   };
 
   return (
-    <Dialog
-      open
-      onClose={onClose}
-      maxWidth="xs"
-      fullWidth
-      aria-labelledby="waffle-title"
+    <ClickAwayListener
+      onClickAway={(event) => {
+        // The button owns its own toggle. Without this, clicking it while open
+        // would close here and immediately reopen there.
+        if (anchorEl.contains(event.target as Node)) return;
+        onClose();
+      }}
     >
-      <DialogContent>
-        <Typography id="waffle-title" variant="overline" color="text.secondary" component="h2">
-          Apps
-        </Typography>
-        <WaffleGroup items={FUNCTIONAL_PERSPECTIVES} activeKey={active.key} onPick={pick} />
-
-        <Typography
-          variant="overline"
-          color="text.secondary"
-          component="h2"
-          sx={{ display: "block", mt: 2 }}
+      <Popper
+        open
+        anchorEl={anchorEl}
+        placement="bottom-start"
+        // Keep it beside the button rather than sliding along the viewport, and
+        // let it flip above if the window is short.
+        modifiers={[
+          { name: "offset", options: { offset: [0, 8] } },
+          { name: "preventOverflow", options: { padding: 8 } },
+        ]}
+        sx={{ zIndex: (theme) => theme.zIndex.modal }}
+      >
+        <Paper
+          ref={panelRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-label="All apps"
+          elevation={8}
+          sx={{
+            width: 336,
+            maxWidth: "calc(100vw - 16px)",
+            p: 1.5,
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 2,
+            "&:focus": { outline: "none" },
+          }}
         >
-          For you
-        </Typography>
-        <WaffleGroup items={CROSS_PERSPECTIVES} activeKey={active.key} onPick={pick} />
-      </DialogContent>
-    </Dialog>
+          <Typography variant="overline" color="text.secondary" component="h2">
+            Apps
+          </Typography>
+          <WaffleGroup items={FUNCTIONAL_PERSPECTIVES} activeKey={active.key} onPick={pick} />
+
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            component="h2"
+            sx={{ display: "block", mt: 1.5 }}
+          >
+            For you
+          </Typography>
+          <WaffleGroup items={CROSS_PERSPECTIVES} activeKey={active.key} onPick={pick} />
+        </Paper>
+      </Popper>
+    </ClickAwayListener>
   );
 }
 
