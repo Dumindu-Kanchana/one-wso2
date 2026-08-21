@@ -63,5 +63,9 @@ export function pinKindsInOrder(): PinKind[] {
 }
 
 export function isPinKind(value: unknown): value is PinKind {
-  return typeof value === "string" && value in PIN_KIND_META;
+  // `hasOwn` rather than `in`, and load-bearing: this is the validation
+  // boundary for hand-editable localStorage. `in` also matches inherited names
+  // such as "toString", which would pass here and then resolve to an undefined
+  // icon at the render site — the crash the validation exists to prevent.
+  return typeof value === "string" && Object.hasOwn(PIN_KIND_META, value);
 }

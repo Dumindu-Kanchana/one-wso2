@@ -158,6 +158,29 @@ describe("corrupt storage", () => {
     );
     expect(readEntries().map((e) => e.id)).toEqual(["/ok"]);
   });
+
+  // A kind that names an inherited Object.prototype member used to pass
+  // validation, because the check was `kind in PIN_KIND_META`. It then resolved
+  // to an undefined icon at the render site, so hand-editing localStorage broke
+  // the app rather than dropping the entry.
+  it("drops a kind that only exists on the prototype chain", () => {
+    resolveActiveUser("user-a");
+    localStorage.setItem(
+      "one-wso2.pinned.v1.user-a",
+      JSON.stringify([
+        { kind: "page", id: "/ok", label: "Ok", href: "/ok", visitedAt: "2026-01-01" },
+        { kind: "toString", id: "/x", label: "X", href: "/x", visitedAt: "2026-01-01" },
+        {
+          kind: "constructor",
+          id: "/y",
+          label: "Y",
+          href: "/y",
+          visitedAt: "2026-01-01",
+        },
+      ]),
+    );
+    expect(readEntries().map((e) => e.id)).toEqual(["/ok"]);
+  });
 });
 
 describe("sign-out", () => {

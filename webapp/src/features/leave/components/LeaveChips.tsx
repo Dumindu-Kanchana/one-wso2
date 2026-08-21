@@ -53,9 +53,13 @@ export function StatusChip({ status }: { status: LeaveStatus | null }) {
 
 // Best-effort mapping of a raw leaveType string to a known type; unknown
 // values fall through to the raw label.
+//
+// `hasOwn` rather than `in`: `leaveType` comes from the backend, and `in` also
+// matches inherited names such as "toString" — which would resolve `Icon` to a
+// function and crash the render rather than fall through to the fallback.
 function normalizeType(raw: string | null): { label: string; Icon: LucideIcon } {
   const t = raw as LeaveType | null;
-  if (t && t in LEAVE_TYPE_LABEL) {
+  if (t && Object.hasOwn(LEAVE_TYPE_LABEL, t)) {
     return { label: LEAVE_TYPE_LABEL[t], Icon: LEAVE_TYPE_ICON[t] };
   }
   return { label: raw ?? "—", Icon: LEAVE_TYPE_ICON_FALLBACK };

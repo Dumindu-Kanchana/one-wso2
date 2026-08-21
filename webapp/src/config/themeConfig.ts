@@ -44,7 +44,10 @@ export const THEME_OPTIONS: { key: ThemeKey; label: string }[] = [
 ];
 
 export function isThemeKey(value: unknown): value is ThemeKey {
-  return typeof value === "string" && value in THEMES;
+  // `hasOwn` rather than `in`: `in` also matches inherited names such as
+  // "toString", which would pass as a theme key and hand a function to
+  // withA11yOverrides.
+  return typeof value === "string" && Object.hasOwn(THEMES, value);
 }
 
 /** The theme key configured for this deployment, falling back to the default. */
