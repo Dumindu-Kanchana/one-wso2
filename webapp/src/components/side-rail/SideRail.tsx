@@ -167,15 +167,27 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // perspective (e.g. a Leave screen) rather than its overview page, jump to
   // the overview first, then scroll once its DOM has mounted.
   const scrollToSection = (id: string) => {
-    const doScroll = () => {
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const tryScroll = () => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      return true;
+    };
+    // Retry across frames rather than guessing a delay. A fixed timeout has to
+    // be long enough for the slowest render, and when it isn't, the scroll
+    // silently never happens and the user just lands at the top of the
+    // overview. This also stays correct when routes become lazy-loaded, which
+    // is exactly when a guessed delay would start being too short. Bounded so
+    // an id that never mounts can't spin forever.
+    const scrollWhenReady = (attemptsLeft: number) => {
+      if (tryScroll() || attemptsLeft === 0) return;
+      requestAnimationFrame(() => scrollWhenReady(attemptsLeft - 1));
     };
     if (active.path && location.pathname !== active.path) {
       navigate(active.path);
-      // Give the overview page a beat to render its anchor cards.
-      window.setTimeout(doScroll, 80);
+      scrollWhenReady(30);
     } else {
-      doScroll();
+      tryScroll();
     }
   };
 
