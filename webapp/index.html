@@ -2,7 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Scheme-aware favicon: the square pulse mark on its own, in black or
+         white, the way csm-portal does it. A favicon slot is ~16px and square,
+         so it takes the symbol only — never the wordmark lockup, which is
+         2.5:1 and would render as a 16x6px smudge.
+
+         Monochrome per https://wso2.com/about/brand: black on light, white on
+         dark. A single orange mark was wrong on the light tab strip most
+         browsers show by default, since orange is approved on dark only.
+
+         Dark is declared first deliberately: a browser that ignores `media` on
+         an icon link generally takes the last one, and the black mark is the
+         safer default against a light tab strip. -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon-white.svg"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon-black.svg"
+      media="(prefers-color-scheme: light)"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Limit referrer leakage across origins. (Content-Security-Policy is
          injected on production builds only — see vite.config.ts — so it
