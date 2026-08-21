@@ -24,6 +24,7 @@ import {
   type PerspectiveDef,
 } from "@constants/perspectives";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
+import { perspectiveHue } from "@config/perspectiveHues";
 
 interface WaffleOverlayProps {
   onClose: () => void;
@@ -92,6 +93,9 @@ function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Elemen
     >
       {items.map((p) => {
         const isActive = p.key === activeKey;
+        // Undefined for a perspective with no hue yet, which degrades to the
+        // neutral treatment rather than breaking the grid.
+        const tint = perspectiveHue(p.key);
         const tile = (
           <Box
             component="button"
@@ -108,47 +112,70 @@ function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Elemen
               // 38.7px for "CSM" against 90.6px for "Marketing Ops" — and
               // `aspectRatio` then derived a different height for each.
               width: "100%",
-              aspectRatio: "1",
-              border: 1,
-              borderStyle: "solid",
-              borderColor: isActive ? "primary.main" : "divider",
               borderRadius: 1.5,
               position: "relative",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "flex-start",
               gap: 0.75,
               px: 0.75,
+              py: 1,
               textAlign: "center",
-              // Same "you are here" language the rail uses: a selected wash
-              // plus weight, never brand orange behind small text.
-              bgcolor: isActive ? "action.selected" : "transparent",
               color: "text.primary",
-              // Dimmed rather than hidden: a not-yet-available destination is
-              // worth advertising, so people stop hunting for it.
-              opacity: p.access ? 1 : 0.45,
+              // No border and no fill on the tile itself: the coloured badge below
+              // is the object, and a grid of outlined boxes reads as a form rather
+              // than a set of apps.
               cursor: p.access ? "pointer" : "not-allowed",
-              transition: "border-color .15s, background-color .15s",
-              "&:hover:not(:disabled)": {
-                borderColor: "primary.main",
-                bgcolor: "action.hover",
-              },
+              transition: "background-color .15s",
+              "&:hover:not(:disabled)": { bgcolor: "action.hover" },
               "&:focus-visible": {
                 outline: 2,
                 outlineStyle: "solid",
                 outlineColor: "primary.main",
                 outlineOffset: 2,
               },
+              // Locked tiles desaturate rather than fade. `opacity` composites the
+              // glyph and its wash toward the page together, which measured 1.82:1
+              // and fails WCAG 1.4.11; removing the hue holds at 4.63:1.
+              ...(p.access ? {} : { filter: "grayscale(1) contrast(0.9)" }),
             }}
           >
-            {/* Every tile must have identical internal geometry, or the icons
+            {/* Every tile must have identical internal geometry, or the badges
                 sit at different heights across the grid. Three rules do that:
-                the icon never shrinks; the label always occupies exactly two
+                the badge never shrinks; the label always occupies exactly two
                 lines whether or not it wraps ("Leave" vs "Marketing Ops"); and
                 the padlock is taken out of flow so a locked tile doesn't have
                 an extra flex child to centre around. */}
-            <p.icon size={20} style={{ flexShrink: 0 }} />
+            <Box
+              sx={(theme) => ({
+                width: 48,
+                height: 48,
+                flexShrink: 0,
+                borderRadius: "30%",
+                display: "grid",
+                placeItems: "center",
+                // The rounded container is what makes a line glyph read as an app
+                // icon rather than a toolbar button — lucide ships no filled set,
+                // so the wash supplies the visual mass instead.
+                bgcolor: tint?.light.bg ?? "action.hover",
+                color: tint?.light.fg ?? "text.primary",
+                ...theme.applyStyles("dark", {
+                  bgcolor: tint?.dark.bg ?? theme.palette.action.hover,
+                  color: tint?.dark.fg ?? theme.palette.text.primary,
+                }),
+                // Selection is a neutral ring, never the brand accent: an orange
+                // ring around Me's orange wash measures 3.00:1 and disappears.
+                // Ink against the washes holds at 12.9-14.5:1.
+                ...(isActive && {
+                  outline: "2px solid",
+                  outlineColor: "text.primary",
+                  outlineOffset: 2,
+                }),
+              })}
+            >
+              <p.icon size={24} />
+            </Box>
             <Typography
               variant="caption"
               sx={{
