@@ -36,20 +36,33 @@ export type PinnableEntry = Omit<PinnedEntry, "visitedAt" | "pinned">;
  * reads "OPD Claims · Claim History", while a top-level section that needs no
  * disambiguation stays "My Team".
  */
+/**
+ * Drop a trailing slash so "/me/opd/history/" resolves like "/me/opd/history".
+ * React Router matches both, so both reach here; without this the registry
+ * lookup misses, the label falls back to a guess, and the same page pins a
+ * second time alongside its canonical entry. SideRail gets this for free from
+ * `matchPath` — this file compares strings, so it has to normalise first.
+ * "/" itself has no trailing slash to drop.
+ */
+function normalizePath(pathname: string): string {
+  return pathname.length > 1 ? pathname.replace(/\/+$/, "") || "/" : pathname;
+}
+
 export function pinnableRoute(pathname: string, search = ""): PinnableEntry {
-  const match = findRoute(pathname);
+  const path = normalizePath(pathname);
+  const match = findRoute(path);
   // A query string means filter/view state, so distinct views pin separately.
   // Nothing in One WSO2 puts filters in the URL yet; csm-portal does, and this
   // is the seam that will already be correct when it lands.
   const kind: PinKind = search && search !== "?" ? "search" : "page";
-  const href = pathname + (kind === "search" ? search : "");
+  const href = path + (kind === "search" ? search : "");
 
   return {
     kind,
     // Full href as the id, so /me/opd/history and a filtered variant of it are
     // separate pins rather than one overwriting the other.
     id: href,
-    label: match ?? fallbackLabel(pathname),
+    label: match ?? fallbackLabel(path),
     href,
   };
 }
@@ -100,5 +113,5 @@ function fallbackLabel(pathname: string): string {
 
 /** True when the registry recognises this route — i.e. the label isn't guessed. */
 export function isKnownRoute(pathname: string): boolean {
-  return findRoute(pathname) !== undefined;
+  return findRoute(normalizePath(pathname)) !== undefined;
 }

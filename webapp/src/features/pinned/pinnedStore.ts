@@ -81,6 +81,17 @@ function storageKey(): string {
 }
 
 /**
+ * Whether a `StorageEvent.key` belongs to this store.
+ *
+ * `null` means another tab called localStorage.clear(), which does affect us.
+ * Any other unrelated key — the sidebar collapse flag, Asgardeo's session
+ * entries — does not, so listeners can ignore it instead of re-reading.
+ */
+export function isPinnedStorageKey(key: string | null): boolean {
+  return key === null || key.startsWith(`${STORAGE_KEY_BASE}.`);
+}
+
+/**
  * Point reads/writes at `userKey`, migrating anything written to the "pending"
  * bucket before identity resolved. Returns true if the active bucket changed.
  */
@@ -142,6 +153,16 @@ export function readEntries(): PinnedEntry[] {
   return readKey(storageKey());
 }
 
+/**
+ * Replace the bucket and announce the change.
+ *
+ * Known and accepted: mutations read a snapshot and write the whole list back,
+ * so two tabs mutating in the same instant lose the earlier write. localStorage
+ * has no transaction, so closing that gap means a Web Locks critical section or
+ * a mergeable oplog — real machinery for a race whose worst outcome is one pin
+ * missing from a capped list of eight, recovered by clicking pin again. Revisit
+ * if pins ever carry state that can't be trivially recreated.
+ */
 function commit(entries: PinnedEntry[]): void {
   writeKey(storageKey(), entries);
   try {

@@ -19,8 +19,7 @@ import type { JSX } from "react";
 import { useAsgardeo } from "@asgardeo/react";
 import { useLocation, useNavigate } from "react-router";
 import { PIN_KIND_META } from "@features/pinned/pinKinds";
-import { togglePin } from "@features/pinned/pinnedStore";
-import { usePinnedEntries } from "@features/pinned/usePinned";
+import { usePinnedEntries, useTogglePin } from "@features/pinned/usePinned";
 import type { PinnedEntry } from "@features/pinned/pinnedStore";
 
 /**
@@ -48,6 +47,10 @@ export default function PinnedTabs(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const pinned = usePinnedEntries();
+  // The hook, not the store function directly: it points the store at the
+  // resolved identity first, so a delete that lands before some other
+  // component's identity effect has run still writes to the right bucket.
+  const togglePin = useTogglePin();
 
   if (!isSignedIn || pinned.length === 0) {
     return <Box sx={{ flexGrow: 1 }} />;

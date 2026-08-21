@@ -61,6 +61,23 @@ describe("pinnableRoute", () => {
     expect(pinnableRoute("/some/unknown-page").label).toBe("Unknown page");
     expect(pinnableRoute("/").label).toBe("Page");
   });
+
+  // React Router matches a trailing slash, so the URL reaches here either way.
+  // Without normalizing, the registry lookup missed: the label degraded to a
+  // guess and the id/href differed, so the same page pinned twice.
+  it("resolves a route with a trailing slash to its canonical entry", () => {
+    expect(pinnableRoute("/me/opd/history/")).toMatchObject({
+      kind: "page",
+      id: "/me/opd/history",
+      label: "OPD Claims · Claim History",
+      href: "/me/opd/history",
+    });
+    expect(pinnableRoute("/me/opd/history/")).toEqual(pinnableRoute("/me/opd/history"));
+  });
+
+  it("keeps the root path intact when normalizing", () => {
+    expect(pinnableRoute("/").href).toBe("/");
+  });
 });
 
 describe("isKnownRoute", () => {
@@ -68,5 +85,9 @@ describe("isKnownRoute", () => {
     expect(isKnownRoute("/people-ops")).toBe(true);
     expect(isKnownRoute("/me/leave/apply")).toBe(true);
     expect(isKnownRoute("/some/unknown-page")).toBe(false);
+  });
+
+  it("recognises a route with a trailing slash", () => {
+    expect(isKnownRoute("/me/leave/apply/")).toBe(true);
   });
 });
