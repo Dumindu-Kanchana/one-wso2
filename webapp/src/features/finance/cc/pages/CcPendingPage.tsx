@@ -21,11 +21,12 @@ import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { CcTxnTable } from "../CcTxnTable";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function CcPendingPage() {
   return (
     <FinanceShell
-      eyebrow="💳 Credit Card Expenses"
+      eyebrow={FINANCE_EYEBROW.cc}
       title="Pending submissions"
       subtitle="Your card transactions awaiting lead or finance approval."
       configured={isCcBackendConfigured()}

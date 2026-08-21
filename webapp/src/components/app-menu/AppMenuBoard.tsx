@@ -15,6 +15,7 @@
 // under the License.
 
 import { Box, Card, Chip, Stack, Typography } from "@wso2/oxygen-ui";
+import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { useUserInfo } from "@api/useUserInfo";
 import {
   CAPABILITY_LABEL,
@@ -41,7 +42,7 @@ export default function AppMenuBoard({ apps }: { apps: readonly MenuApp[] }) {
         if (items.length === 0) return null;
         return (
           <Box key={app.key}>
-            <SectionHeader id={`sec-app-${app.key}`} emoji={app.emoji} label={app.name} />
+            <SectionHeader id={`sec-app-${app.key}`} icon={app.icon} label={app.name} />
             <Typography sx={{ fontSize: 12.5, color: "text.secondary", mb: 1.5, mt: -0.5 }}>
               {app.purpose}
             </Typography>
@@ -63,7 +64,7 @@ export default function AppMenuBoard({ apps }: { apps: readonly MenuApp[] }) {
   );
 }
 
-function SectionHeader({ id, emoji, label }: { id: string; emoji: string; label: string }) {
+function SectionHeader({ id, icon: Icon, label }: { id: string; icon: LucideIcon; label: string }) {
   return (
     <Typography
       id={id}
@@ -84,7 +85,7 @@ function SectionHeader({ id, emoji, label }: { id: string; emoji: string; label:
       }}
     >
       <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
-        <span style={{ fontSize: 14 }}>{emoji}</span>
+        <Icon size={14} />
         {label}
       </Box>
     </Typography>

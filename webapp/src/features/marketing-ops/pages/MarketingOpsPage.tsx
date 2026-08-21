@@ -15,6 +15,7 @@
 // under the License.
 
 import { Box, Card, Typography } from "@wso2/oxygen-ui";
+import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { NavLink } from "react-router";
 import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 import { isIsacConfigured, isacUrl } from "@config/apiConfig";
@@ -84,7 +85,7 @@ export default function MarketingOpsPage() {
           return (
             <OperationTile
               key={app.key}
-              emoji={app.emoji}
+              icon={app.icon}
               name={app.name}
               items={items}
             />
@@ -137,11 +138,11 @@ const linkSx = {
 } as const;
 
 function OperationTile({
-  emoji,
+  icon: Icon,
   name,
   items,
 }: {
-  emoji: string;
+  icon: LucideIcon;
   name: string;
   items: (typeof MARKETING_OPS_APPS)[number]["items"];
 }) {
@@ -159,7 +160,7 @@ function OperationTile({
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
         <Box sx={glyphSx} aria-hidden="true">
-          {emoji}
+          <Icon size={18} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography component="h2" sx={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.015em" }}>

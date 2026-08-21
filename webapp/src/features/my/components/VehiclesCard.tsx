@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, IconButton, Skeleton, Stack, Tooltip, Typography } from "@wso2/oxygen-ui";
+import { BikeIcon, CarIcon, type LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import DetailRow from "@components/detail-row/DetailRow";
 import Pager from "@features/people-ops/components/Pager";
 import type { Vehicle, VehicleType } from "../api/types";
@@ -24,7 +25,12 @@ import AddVehicleDialog from "./AddVehicleDialog";
 import DeleteVehicleDialog from "./DeleteVehicleDialog";
 
 const PAGE_SIZE = 2;
-const TYPE_ICON: Record<VehicleType, string> = { CAR: "🚗", MOTORCYCLE: "🏍" };
+function VehicleIcon({ type }: { type: VehicleType }) {
+  const Icon = TYPE_ICON[type] ?? CarIcon;
+  return <Icon size={14} />;
+}
+
+const TYPE_ICON: Record<VehicleType, LucideIcon> = { CAR: CarIcon, MOTORCYCLE: BikeIcon };
 const TYPE_LABEL: Record<VehicleType, string> = { CAR: "Car", MOTORCYCLE: "Motorcycle" };
 
 // Live vehicles card in the ConnectedServices strip on the My profile.
@@ -103,7 +109,7 @@ export default function VehiclesCard({ ownerEmail }: { ownerEmail?: string }) {
         visible.map((v, idx) => (
           <DetailRow
             key={v.vehicleId}
-            icon={TYPE_ICON[v.vehicleType] ?? "🚗"}
+            icon={<VehicleIcon type={v.vehicleType} />}
             title={v.vehicleRegistrationNumber}
             meta={TYPE_LABEL[v.vehicleType] ?? v.vehicleType}
             trailing={
@@ -171,4 +177,3 @@ function TrashIcon() {
     </svg>
   );
 }
-

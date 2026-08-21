@@ -29,6 +29,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
+import { CheckIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { describeError } from "../util/financeError";
 import { money, formatNice } from "../util/financeFormat";
@@ -325,7 +326,10 @@ function AttachmentField({
           {busy ? "Uploading…" : fileName ? "Replace" : "Upload"}
         </Button>
         <Typography sx={{ fontSize: 12, color: fileName ? "success.main" : "text.disabled" }} noWrap>
-          {fileName ? "✓ attached" : "none"}
+          {fileName && (
+            <CheckIcon size={13} style={{ color: "var(--oxygen-palette-success-main)", flexShrink: 0 }} />
+          )}
+          {fileName ? "attached" : "none"}
         </Typography>
       </Stack>
     </Box>

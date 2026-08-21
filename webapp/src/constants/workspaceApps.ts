@@ -20,13 +20,14 @@
 // App → items shape as @constants/financeApps; see that file's header for
 // the general rationale.
 
+import { UtensilsIcon } from "@wso2/oxygen-ui-icons-react";
 import type { MenuApp } from "@constants/appMenu";
 
 export const WORKSPACE_APPS: readonly MenuApp[] = [
   {
     key: "menu",
     name: "Menu",
-    emoji: "🍽️",
+    icon: UtensilsIcon,
     purpose: "Cafeteria menu, feedback, and dinner orders.",
     items: [
       { id: "menu-home", label: "Home", desc: "View the cafeteria menu, submit feedback, order dinner." },

@@ -94,7 +94,7 @@ export default function ProfileHero({
         {isLoading && !name ? (
           <Skeleton variant="text" width={220} height={32} sx={{ mb: 0.5 }} />
         ) : (
-          <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.375 }}>
+          <Typography variant="h5" sx={{ mb: 0.375 }}>
             {name || display(null)}
           </Typography>
         )}

@@ -32,6 +32,7 @@ import { daysAgoIso, todayIso } from "../../util/financeFormat";
 import { CcTxnTable } from "../CcTxnTable";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcTxnStatus } from "../ccTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 const PERIODS = [
   { days: 7, label: "Last 7 days" },
@@ -51,7 +52,7 @@ const STATUSES: { value: CcTxnStatus | "all"; label: string }[] = [
 export default function CcHistoryPage() {
   return (
     <FinanceShell
-      eyebrow="💳 Credit Card Expenses"
+      eyebrow={FINANCE_EYEBROW.cc}
       title="Card transaction history"
       subtitle="Your past card submissions, filterable by status and period."
       configured={isCcBackendConfigured()}

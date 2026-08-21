@@ -30,6 +30,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
+import { CheckIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { isOpdBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
@@ -41,13 +42,14 @@ import { useDraftAutosave } from "../../util/useDraftAutosave";
 import { useOpdAppData, useOpdUserInfo } from "../useOpd";
 import { useOpdDraftSync, useOpdReceiptUpload, useSubmitOpdClaim } from "../useOpdMutations";
 import { OPD_ROLE, opdHasRole, type OpdTransaction } from "../opdTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 const COMMENT_MAX = 100;
 
 export default function OpdNewClaimPage() {
   return (
     <FinanceShell
-      eyebrow="🏥 OPD Claims"
+      eyebrow={FINANCE_EYEBROW.opd}
       title="New OPD claim"
       subtitle="Add each outpatient bill as a line — bill date, amount, a short description and its receipt — then submit the whole claim to finance. Your remaining OPD balance is shown as you go."
       configured={isOpdBackendConfigured()}
@@ -197,7 +199,7 @@ function NewClaimBody() {
                   onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
                   sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
                 >
-                  ✕
+                  <XIcon size={15} />
                 </IconButton>
               </Box>
             ))}
@@ -369,7 +371,10 @@ function AddBillDialog({
                 {uploading ? "Uploading…" : receiptUrl ? "Replace file" : "Upload receipt"}
               </Button>
               <Typography sx={{ fontSize: 12, color: receiptUrl ? "success.main" : "text.disabled" }} noWrap>
-                {receiptUrl ? `✓ ${fileName}` : `JPG, PNG or PDF · max ${maxSizeLabel(OPD_RECEIPT_MAX_BYTES)}`}
+                {receiptUrl && (
+                  <CheckIcon size={13} style={{ color: "var(--oxygen-palette-success-main)", flexShrink: 0 }} />
+                )}
+                {receiptUrl ? fileName : `JPG, PNG or PDF · max ${maxSizeLabel(OPD_RECEIPT_MAX_BYTES)}`}
               </Typography>
             </Stack>
           </Box>

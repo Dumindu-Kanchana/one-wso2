@@ -16,7 +16,7 @@
 
 import { Box, LinearProgress, Skeleton, Stack, Tooltip, Typography } from "@wso2/oxygen-ui";
 import {
-  LEAVE_TYPE_EMOJI,
+  LEAVE_TYPE_ICON,
   LEAVE_TYPE_LABEL,
   LEAVE_TYPE_POLICY_KEY,
   LEAVE_TYPE_TOOLTIP,
@@ -63,12 +63,14 @@ export default function LeaveBalanceSummary({
         const progress = !isUnlimited && entitled > 0 ? Math.min((consumed / entitled) * 100, 100) : 0;
         const isOverLimit = !isUnlimited && entitled > 0 && consumed > entitled;
         const tooltip = LEAVE_TYPE_TOOLTIP[t];
+        const TypeIcon = LEAVE_TYPE_ICON[t];
 
         return (
           <Box key={t} sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, p: 1.5 }}>
             <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.75 }}>
+              <TypeIcon size={13} style={{ flexShrink: 0 }} />
               <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
-                {LEAVE_TYPE_EMOJI[t]} {LEAVE_TYPE_LABEL[t]}
+                {LEAVE_TYPE_LABEL[t]}
               </Typography>
               {tooltip && (
                 <Tooltip title={tooltip}>

@@ -14,8 +14,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect, useRef } from "react";
-import { Box, Typography } from "@wso2/oxygen-ui";
+import type { JSX } from "react";
+import { Box, Dialog, DialogContent, Tooltip, Typography } from "@wso2/oxygen-ui";
+import { LockIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import {
   FUNCTIONAL_PERSPECTIVES,
@@ -28,30 +29,16 @@ interface WaffleOverlayProps {
   onClose: () => void;
 }
 
-// The 9-dots perspective switcher. Grid of tiles: functional (persona) on
-// top, cross (My / Requests) below. Locked tiles show 🔒 and don't
-// navigate.
+// The app switcher. Grid of tiles: functional (persona) on top, cross
+// (Me / Service Requests) below. Locked tiles show a padlock and don't navigate.
 //
-// Keyboard support: Escape dismisses; tiles are real <button> elements so
-// Tab moves between them and Enter/Space activates. Focus lands on the
-// first accessible tile when the overlay opens so a keyboard user isn't
-// stranded outside the modal.
-export default function WaffleOverlay({ onClose }: WaffleOverlayProps) {
+// Now a real MUI `Dialog` rather than a hand-rolled `position: fixed` div, so
+// focus trapping, focus restore on close, Escape handling, scroll lock, and
+// `aria-modal` all come from the library instead of being partially
+// reimplemented here.
+export default function WaffleOverlay({ onClose }: WaffleOverlayProps): JSX.Element {
   const navigate = useNavigate();
   const active = useActivePerspective();
-  const firstTileRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    firstTileRef.current?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const pick = (p: PerspectiveDef) => {
     if (!p.access || !p.path) return;
@@ -60,109 +47,91 @@ export default function WaffleOverlay({ onClose }: WaffleOverlayProps) {
   };
 
   return (
-    <Box
-      onClick={onClose}
-      sx={{
-        position: "fixed",
-        inset: 0,
-        bgcolor: "rgba(10,10,11,.4)",
-        backdropFilter: "blur(3px)",
-        zIndex: 1300,
-      }}
+    <Dialog
+      open
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      aria-labelledby="waffle-title"
     >
-      <Box
-        onClick={(e) => e.stopPropagation()}
-        sx={{
-          position: "absolute",
-          top: 54,
-          right: 120,
-          width: 340,
-          bgcolor: "background.paper",
-          border: 1,
-          borderColor: "divider",
-          borderRadius: 2,
-          boxShadow: 8,
-          p: 1.75,
-        }}
-      >
-        <WaffleGroup
-          title="Apps"
-          items={FUNCTIONAL_PERSPECTIVES}
-          activeKey={active.key}
-          onPick={pick}
-          firstTileRef={firstTileRef}
-        />
-        <WaffleGroup
-          title="For you"
-          items={CROSS_PERSPECTIVES}
-          activeKey={active.key}
-          onPick={pick}
-        />
-      </Box>
-    </Box>
+      <DialogContent>
+        <Typography id="waffle-title" variant="overline" color="text.secondary" component="h2">
+          Apps
+        </Typography>
+        <WaffleGroup items={FUNCTIONAL_PERSPECTIVES} activeKey={active.key} onPick={pick} />
+
+        <Typography
+          variant="overline"
+          color="text.secondary"
+          component="h2"
+          sx={{ display: "block", mt: 2 }}
+        >
+          For you
+        </Typography>
+        <WaffleGroup items={CROSS_PERSPECTIVES} activeKey={active.key} onPick={pick} />
+      </DialogContent>
+    </Dialog>
   );
 }
 
 interface WaffleGroupProps {
-  title: string;
   items: readonly PerspectiveDef[];
   activeKey: string;
   onPick: (p: PerspectiveDef) => void;
-  firstTileRef?: React.RefObject<HTMLButtonElement | null>;
 }
 
-function WaffleGroup({ title, items, activeKey, onPick, firstTileRef }: WaffleGroupProps) {
-  let firstAccessibleIndex = items.findIndex((p) => p.access);
-  if (firstAccessibleIndex < 0) firstAccessibleIndex = 0;
+function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Element {
   return (
-    <>
-      <Typography
-        sx={{
-          fontSize: 10.5,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "text.disabled",
-          fontWeight: 600,
-          m: "10px 4px 8px",
-        }}
-      >
-        {title}
-      </Typography>
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 1 }}>
-        {items.map((p, i) => (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: 1,
+        mt: 1,
+      }}
+    >
+      {items.map((p) => {
+        const isActive = p.key === activeKey;
+        const tile = (
           <Box
-            key={p.key}
             component="button"
             type="button"
-            ref={firstTileRef && i === firstAccessibleIndex ? firstTileRef : undefined}
             onClick={() => onPick(p)}
             disabled={!p.access}
-            aria-label={p.access ? `Switch to ${p.label}` : `${p.label} (locked)`}
-            aria-current={p.key === activeKey ? "page" : undefined}
+            aria-label={p.access ? `Switch to ${p.label}` : `${p.label} — not available yet`}
+            aria-current={isActive ? "page" : undefined}
             sx={{
               all: "unset",
               boxSizing: "border-box",
+              // `all: unset` leaves the button shrink-to-fit, so without an
+              // explicit width every tile sized to its own label — measured
+              // 38.7px for "CSM" against 90.6px for "Marketing Ops" — and
+              // `aspectRatio` then derived a different height for each.
+              width: "100%",
               aspectRatio: "1",
               border: 1,
               borderStyle: "solid",
-              borderColor: p.key === activeKey ? "primary.main" : "divider",
-              borderRadius: 1.375,
+              borderColor: isActive ? "primary.main" : "divider",
+              borderRadius: 1.5,
+              position: "relative",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
               gap: 0.75,
-              fontSize: 11,
-              fontWeight: 600,
-              color: p.access ? "text.primary" : "text.disabled",
-              opacity: p.access ? 1 : 0.4,
+              px: 0.75,
+              textAlign: "center",
+              // Same "you are here" language the rail uses: a selected wash
+              // plus weight, never brand orange behind small text.
+              bgcolor: isActive ? "action.selected" : "transparent",
+              color: "text.primary",
+              // csm-portal's treatment for a not-yet-available destination.
+              opacity: p.access ? 1 : 0.45,
               cursor: p.access ? "pointer" : "not-allowed",
-              bgcolor: p.key === activeKey ? "primary.light" : "transparent",
               transition: "border-color .15s, background-color .15s",
               "&:hover:not(:disabled)": {
                 borderColor: "primary.main",
-                color: "primary.main",
-                bgcolor: "primary.light",
+                bgcolor: "action.hover",
               },
               "&:focus-visible": {
                 outline: 2,
@@ -170,17 +139,50 @@ function WaffleGroup({ title, items, activeKey, onPick, firstTileRef }: WaffleGr
                 outlineColor: "primary.main",
                 outlineOffset: 2,
               },
-              px: 0.75,
-              py: 0.75,
-              textAlign: "center",
             }}
           >
-            <Box sx={{ fontSize: 18 }}>{p.emoji}</Box>
-            {p.label}
-            {!p.access && <Box sx={{ fontSize: 10 }}>🔒</Box>}
+            {/* Every tile must have identical internal geometry, or the icons
+                sit at different heights across the grid. Three rules do that:
+                the icon never shrinks; the label always occupies exactly two
+                lines whether or not it wraps ("Leave" vs "Marketing Ops"); and
+                the padlock is taken out of flow so a locked tile doesn't have
+                an extra flex child to centre around. */}
+            <p.icon size={20} style={{ flexShrink: 0 }} />
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: isActive ? 600 : 400,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                lineHeight: 1.25,
+                height: "2.5em",
+                width: "100%",
+              }}
+            >
+              {p.label}
+            </Typography>
+            {!p.access && (
+              <LockIcon
+                size={11}
+                aria-hidden
+                style={{ position: "absolute", top: 6, right: 6 }}
+              />
+            )}
           </Box>
-        ))}
-      </Box>
-    </>
+        );
+
+        // A disabled button emits no pointer events, so the tooltip needs a
+        // wrapper to hang off — same shape csm-portal uses for its WIP nav rows.
+        return p.access ? (
+          <Box key={p.key}>{tile}</Box>
+        ) : (
+          <Tooltip key={p.key} title={`${p.label} isn't available yet`}>
+            <Box sx={{ display: "block" }}>{tile}</Box>
+          </Tooltip>
+        );
+      })}
+    </Box>
   );
 }

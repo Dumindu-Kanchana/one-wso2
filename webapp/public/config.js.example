@@ -81,4 +81,11 @@ window.config = {
   // API. Optional; defaults to https://wso2.lightning.force.com. Set it only
   // for a sandbox org.
   // ONE_WSO2_SALESFORCE_BASE_URL: "https://wso2.lightning.force.com",
+
+  // Idle handling. Optional — defaults to false. The "Are you still there?"
+  // dialog appears after 25 minutes of inactivity either way; this decides only
+  // what happens if it is ignored. False leaves it waiting and the session
+  // alive; true signs out at 30 minutes, which is what the security checklist
+  // (ONEWSO2-R1) asks for.
+  // ONE_WSO2_IDLE_AUTO_SIGN_OUT: false,
 };

@@ -17,6 +17,7 @@
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
+import { SIGNING_OUT_EVENT } from "@constants/appEvents";
 
 // Sign out AND purge client-held state. React Query keeps fetched profile /
 // leave / finance data in memory; Asgardeo signOut() alone leaves it there
@@ -32,6 +33,11 @@ export function useSecureSignOut(): () => void {
       qc.clear();
     } catch {
       // best effort — never block sign-out on a cache-clear failure
+    }
+    try {
+      window.dispatchEvent(new CustomEvent(SIGNING_OUT_EVENT));
+    } catch {
+      // best effort — a listener throwing must not strand the user signed in
     }
     void signOut();
   }, [qc, signOut]);

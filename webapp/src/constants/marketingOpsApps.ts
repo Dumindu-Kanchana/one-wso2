@@ -54,13 +54,21 @@
 // Workbench, Ad Campaigns, Events, CRM Upload, then Utilities, with Marketing
 // Admin last because it configures the rest. Don't sort it.
 
+import {
+  ChartNoAxesCombinedIcon,
+  MegaphoneIcon,
+  RefreshCwIcon,
+  SettingsIcon,
+  TicketIcon,
+  WrenchIcon,
+} from "@wso2/oxygen-ui-icons-react";
 import type { MenuApp } from "@constants/appMenu";
 
 export const MARKETING_OPS_APPS: readonly MenuApp[] = [
   {
     key: "email-workbench",
     name: "Email Workbench",
-    emoji: "📣",
+    icon: MegaphoneIcon,
     purpose:
       "Compose marketing emails from reusable blocks and sync them to Pardot with a faithful plain-text alternative.",
     items: [
@@ -108,7 +116,7 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
   {
     key: "ad-campaigns",
     name: "Ad Campaigns",
-    emoji: "📊",
+    icon: ChartNoAxesCombinedIcon,
     // Analytics is the first of several screens planned here, so the rail keeps
     // "Ad Campaigns" expandable with "Analytics" nested under it rather than
     // collapsing the two into one entry.
@@ -133,7 +141,7 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
   {
     key: "events",
     name: "Events",
-    emoji: "🎪",
+    icon: TicketIcon,
     purpose:
       "Turn event attendee workbooks into validated, reviewable lists ready for Pardot import.",
     items: [
@@ -160,7 +168,7 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
   {
     key: "crm-upload",
     name: "CRM Upload",
-    emoji: "🔄",
+    icon: RefreshCwIcon,
     purpose:
       "Ingest lead and contact records into the CRM through validated pipelines with a duplicate review step.",
     items: [
@@ -206,7 +214,7 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
   {
     key: "utilities",
     name: "Utilities",
-    emoji: "🧰",
+    icon: WrenchIcon,
     purpose:
       "Everyday marketing generators — build consistent UTM links and asset names from the admin-maintained parameter lists.",
     items: [
@@ -231,7 +239,7 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
   {
     key: "admin",
     name: "Marketing Admin",
-    emoji: "⚙️",
+    icon: SettingsIcon,
     purpose:
       "Administer the parameter lists, send defaults and import contracts the Marketing Ops operations run on.",
     items: [

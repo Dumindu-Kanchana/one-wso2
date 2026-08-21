@@ -16,6 +16,7 @@
 
 import type { ReactNode } from "react";
 import { Alert, Box, Chip, Typography } from "@wso2/oxygen-ui";
+import { TreePalmIcon } from "@wso2/oxygen-ui-icons-react";
 import { isLeaveBackendConfigured } from "@config/apiConfig";
 
 // Shared page frame for the four Leave screens: the "Leave" eyebrow, a
@@ -35,16 +36,18 @@ export default function LeaveShell({
   return (
     <Box>
       <Chip
-        label="🌴 Leave"
+        icon={<TreePalmIcon size={14} />}
+        label="Leave"
         color="primary"
         size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
+        variant="outlined"
+        sx={{ mb: 0.5 }}
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
+      <Typography variant="h5" sx={{ mb: 0.5 }}>
         {title}
       </Typography>
       {subtitle && (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "70ch" }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2.25, maxWidth: "70ch" }}>
           {subtitle}
         </Typography>
       )}

@@ -16,18 +16,16 @@
 
 import { Box, Card, Typography } from "@wso2/oxygen-ui";
 import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
+import { PEOPLE_OPS_SECTIONS } from "@constants/perspectives";
 import SectionHeader from "../components/SectionHeader";
 
 // This perspective's prior content (People/Visitor/Careers app menus, the
 // mock hiring/performance dashboard) was retired per restructuring
 // feedback. These three are the reports planned to onboard next — each a
-// placeholder until its backend lands. Ids match PEOPLE_OPS_SECTIONS in
-// @constants/perspectives so the left rail scrolls to the right card.
-const REPORTS = [
-  { id: "people-active-employee-report", emoji: "🧍", label: "Active employee report" },
-  { id: "people-resignation-report", emoji: "📤", label: "Resignation report" },
-  { id: "people-master-data", emoji: "🗂️", label: "Master data" },
-] as const;
+// placeholder until its backend lands. Read straight from PEOPLE_OPS_SECTIONS
+// rather than restating them here, so the rail's anchors and these cards
+// cannot drift apart.
+const REPORTS = PEOPLE_OPS_SECTIONS;
 
 export default function PeopleOpsPage() {
   return (
@@ -41,12 +39,12 @@ export default function PeopleOpsPage() {
       {REPORTS.map((r) => (
         <Box key={r.id}>
           <SectionHeader id={r.id}>
-            <span style={{ fontSize: 14 }}>{r.emoji}</span>
+            {r.icon ? <r.icon size={14} /> : null}
             {r.label}
           </SectionHeader>
           <Card variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
-            <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.75 }}>Coming soon</Typography>
-            <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+            <Typography sx={{ fontWeight: 600, mb: 0.75 }}>Coming soon</Typography>
+            <Typography variant="body2" color="text.secondary">
               {r.label} isn't available yet — check back once it ships.
             </Typography>
           </Card>

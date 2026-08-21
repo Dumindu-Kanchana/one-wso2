@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Alert, Box, Button, Chip, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Button, Typography } from "@wso2/oxygen-ui";
 import ProfileHero from "../components/ProfileHero";
 import GeneralInfo from "../components/GeneralInfo";
 import PersonalInfo from "../components/PersonalInfo";
@@ -23,7 +23,7 @@ import ConnectedServices from "../components/ConnectedServices";
 import SectionHeader from "../../people-ops/components/SectionHeader";
 import { isPeopleBackendConfigured, useMeProfile } from "../api/useMeProfile";
 
-// The Me home landing: own profile + the cross-app "Connected apps"
+// The Me home landing: own profile + the cross-app "More about you"
 // aggregation.
 export default function MyProfilePage() {
   const backendConfigured = isPeopleBackendConfigured();
@@ -36,13 +36,7 @@ export default function MyProfilePage() {
 
   return (
     <Box>
-      <Chip
-        label="✦ Me"
-        color="primary"
-        size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
-      />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 2.25 }}>
+      <Typography variant="h5" sx={{ mb: 2.25 }}>
         Welcome back{firstName ? `, ${firstName}` : ""}
       </Typography>
 
@@ -88,7 +82,9 @@ export default function MyProfilePage() {
         isLoading={isLoading}
       />
 
-      <SectionHeader>Connected apps</SectionHeader>
+      {/* Main dropped the dead scroll-anchor ids from these headers; the rail
+          never targeted them. Only the label changes here. */}
+      <SectionHeader>More about you</SectionHeader>
       <ConnectedServices />
     </Box>
   );

@@ -63,19 +63,21 @@ export default function MarketingOpsShell({
       <Chip
         label={eyebrow}
         color="primary"
+        // Outlined, not filled: white-on-orange at chip text sizes is ~3.6:1 and
+        // fails WCAG AA. Outlined routes through the a11y overlay, which shifts
+        // the label and border to primary.dark in light mode. Matches the
+        // Finance and Leave shells.
+        variant="outlined"
         size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
+        sx={{ mb: 0.5 }}
       />
       {/* An h1, not a styled div: it is the page's heading, and a screen-reader
           user navigating by headings had nothing to land on. */}
-      <Typography
-        component="h1"
-        sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5, mt: 0 }}
-      >
+      <Typography component="h1" variant="h5" sx={{ mb: 0.5, mt: 0 }}>
         {title}
       </Typography>
       {subtitle && (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "70ch" }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2.25, maxWidth: "70ch" }}>
           {subtitle}
         </Typography>
       )}
@@ -122,7 +124,7 @@ function MarketingOpsBody({
     return (
       <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", mt: 2 }}>
         <CircularProgress size={16} />
-        <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+        <Typography variant="body2" color="text.secondary">
           Checking your Marketing Ops access…
         </Typography>
       </Stack>

@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, Skeleton, Stack, Tooltip, Typography } from "@wso2/oxygen-ui";
+import { LandmarkIcon } from "@wso2/oxygen-ui-icons-react";
 import DetailRow from "@components/detail-row/DetailRow";
 import Pager from "@features/people-ops/components/Pager";
 import type { AccountType, BankAccount } from "../api/types";
@@ -100,7 +101,7 @@ export default function BankAccountsCard({ ownerEmail }: { ownerEmail?: string }
         visible.map((a, idx) => (
           <DetailRow
             key={a.accountId}
-            icon="🏦"
+            icon={<LandmarkIcon size={14} />}
             title={`${a.bankName ?? "Bank"} · ${TYPE_LABEL[a.accountType] ?? a.accountType}`}
             meta={`${maskAccountNumber(a.accountNumber)}${a.branchName ? ` · ${a.branchName}` : ""}`}
             last={idx === visible.length - 1}

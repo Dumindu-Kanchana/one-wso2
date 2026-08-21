@@ -22,6 +22,7 @@ import { describeError } from "../../util/financeError";
 import { useExpenseAppData, useExpenseClaims } from "../useExpense";
 import { ExpenseClaimDetailsDialog } from "../ExpenseClaimDetailsDialog";
 import { ClaimsTable } from "./ExpenseHistoryPage";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 import {
   FINANCE_TABS,
   LEAD_TABS,
@@ -53,7 +54,7 @@ export function ExpenseFinanceApprovalsPage() {
 function ApprovalsScreen({ view, title, subtitle }: { view: ApproverView; title: string; subtitle: string }) {
   return (
     <FinanceShell
-      eyebrow="🧾 Expense Claims"
+      eyebrow={FINANCE_EYEBROW.expense}
       title={title}
       subtitle={subtitle}
       configured={isExpenseBackendConfigured()}

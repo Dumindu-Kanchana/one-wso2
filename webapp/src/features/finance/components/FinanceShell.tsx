@@ -16,6 +16,7 @@
 
 import type { ReactNode } from "react";
 import { Alert, Box, Chip, Typography } from "@wso2/oxygen-ui";
+import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 
 // Shared page frame for the finance screens: an app eyebrow chip, a title +
 // subtitle, and one place that renders the "backend not connected" state so
@@ -30,7 +31,9 @@ export default function FinanceShell({
   configKey,
   children,
 }: {
-  eyebrow: string; // e.g. "🏥 OPD Claims"
+  // Which finance app this screen belongs to (OPD / Credit Card / Expense).
+  // Informational, not decorative — the shell is shared across all three.
+  eyebrow: { icon: LucideIcon; label: string };
   title: string;
   subtitle?: string;
   configured: boolean;
@@ -40,16 +43,21 @@ export default function FinanceShell({
   return (
     <Box>
       <Chip
-        label={eyebrow}
+        icon={<eyebrow.icon size={14} />}
+        label={eyebrow.label}
         color="primary"
+        // Outlined, not filled: white-on-orange at chip text sizes is ~3.6:1 and
+        // fails WCAG AA. Outlined routes through the a11y overlay, which shifts
+        // the label and border to primary.dark in light mode.
+        variant="outlined"
         size="small"
-        sx={{ mb: 0.5, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}
+        sx={{ mb: 0.5 }}
       />
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 0.5 }}>
+      <Typography variant="h5" sx={{ mb: 0.5 }}>
         {title}
       </Typography>
       {subtitle && (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 2.25, maxWidth: "70ch" }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2.25, maxWidth: "70ch" }}>
           {subtitle}
         </Typography>
       )}

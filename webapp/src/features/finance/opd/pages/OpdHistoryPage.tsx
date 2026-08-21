@@ -39,11 +39,12 @@ import { money, formatNice } from "../../util/financeFormat";
 import { useOpdClaims, useOpdUserInfo } from "../useOpd";
 import { OpdClaimDetailsDialog } from "../OpdClaimDetailsDialog";
 import type { OpdClaim } from "../opdTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function OpdHistoryPage() {
   return (
     <FinanceShell
-      eyebrow="🏥 OPD Claims"
+      eyebrow={FINANCE_EYEBROW.opd}
       title="My OPD claims"
       subtitle="Your submitted OPD claims and where each one stands. Open a claim to see its bills and receipts."
       configured={isOpdBackendConfigured()}

@@ -18,6 +18,25 @@
 // from this — one edit here changes every entry point.
 
 import { isIsacConfigured, isacUrl } from "@config/apiConfig";
+import {
+  BriefcaseBusinessIcon,
+  ChartNoAxesCombinedIcon,
+  DatabaseIcon,
+  HandshakeIcon,
+  HouseIcon,
+  LifeBuoyIcon,
+  MegaphoneIcon,
+  SatelliteDishIcon,
+  ScaleIcon,
+  UserRoundIcon,
+  UserRoundMinusIcon,
+  UsersIcon,
+  UsersRoundIcon,
+  WalletIcon,
+  WrenchIcon,
+  ZapIcon,
+  type LucideIcon,
+} from "@wso2/oxygen-ui-icons-react";
 import type { Capability, MenuApp } from "@constants/appMenu";
 import { WORKSPACE_APPS } from "@constants/workspaceApps";
 import { FINANCE_APPS } from "@constants/financeApps";
@@ -29,10 +48,10 @@ export type PerspectiveGroup = "functional" | "cross";
 export interface PerspectiveSection {
   id: string; // anchor id on the perspective's page (leaf sections)
   label: string;
-  // App groups (Leave, Finance, Workspace) carry an emoji + nested children.
+  // App groups (Leave, Finance, Workspace) carry an icon + nested children.
   // A section with `children` renders as a collapsible group in the rail; a
   // leaf section scrolls to its `id`.
-  emoji?: string;
+  icon?: LucideIcon;
   // Visible when the caller has ANY of these capabilities (OR semantics).
   // Omitted = visible to everyone. Only app-menu registries (Leave, Finance,
   // Workspace) use this.
@@ -58,7 +77,7 @@ function appsToSections(apps: readonly MenuApp[]): PerspectiveSection[] {
   return apps.map((app) => ({
     id: `sec-app-${app.key}`,
     label: app.name,
-    emoji: app.emoji,
+    icon: app.icon,
     alwaysGroup: app.alwaysGroup,
     children: app.items.map((it) => ({
       id: it.id,
@@ -73,10 +92,10 @@ function appsToSections(apps: readonly MenuApp[]): PerspectiveSection[] {
 // restructuring feedback. These three leaf anchors are the reports planned
 // to onboard next — each a "coming soon" card on the overview page (see
 // PeopleOpsPage) until its backend lands.
-const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
-  { id: "people-active-employee-report", label: "Active employee report", emoji: "🧍" },
-  { id: "people-resignation-report", label: "Resignation report", emoji: "📤" },
-  { id: "people-master-data", label: "Master data", emoji: "🗂️" },
+export const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
+  { id: "people-active-employee-report", label: "Active employees", icon: UserRoundIcon },
+  { id: "people-resignation-report", label: "Resignations", icon: UserRoundMinusIcon },
+  { id: "people-master-data", label: "Master data", icon: DatabaseIcon },
 ];
 
 const WORKSPACE_SECTIONS: PerspectiveSection[] = appsToSections(WORKSPACE_APPS);
@@ -101,7 +120,7 @@ const WORKSPACE_SECTIONS: PerspectiveSection[] = appsToSections(WORKSPACE_APPS);
 // nowhere is worse than one that isn't there.
 const MARKETING_OPS_SECTIONS: PerspectiveSection[] = [
   ...(isIsacConfigured()
-    ? [{ id: "mops-isac", label: "ISAC", emoji: "🛰️", externalUrl: isacUrl }]
+    ? [{ id: "mops-isac", label: "ISAC", icon: SatelliteDishIcon, externalUrl: isacUrl }]
     : []),
   ...appsToSections(MARKETING_OPS_APPS),
 ];
@@ -116,7 +135,7 @@ const MARKETING_OPS_SECTIONS: PerspectiveSection[] = [
 // People Ops' HR-team tools: Leave, then the digiops-finance claim apps
 // (OPD/credit-card/expense — moved in from the retired Finance persona).
 const ME_SECTIONS: PerspectiveSection[] = [
-  { id: "me-my-team", label: "My Team", emoji: "🧑‍🤝‍🧑", path: "/me/my-team", requires: ["lead"] },
+  { id: "me-my-team", label: "My Team", icon: UsersRoundIcon, path: "/me/my-team", requires: ["lead"] },
   ...appsToSections(ME_APPS),
   ...appsToSections(FINANCE_APPS),
 ];
@@ -124,7 +143,7 @@ const ME_SECTIONS: PerspectiveSection[] = [
 export interface PerspectiveDef {
   key: string;
   label: string;
-  emoji: string;
+  icon: LucideIcon;
   group: PerspectiveGroup;
   access: boolean;
   path?: string; // route path (undefined for locked perspectives)
@@ -137,7 +156,7 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   {
     key: "people",
     label: "People Ops",
-    emoji: "👥",
+    icon: UsersIcon,
     group: "functional",
     access: true,
     path: "/people-ops",
@@ -150,7 +169,7 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   {
     key: "finance",
     label: "Finance",
-    emoji: "💰",
+    icon: WalletIcon,
     group: "functional",
     access: true,
     path: "/finance",
@@ -161,15 +180,15 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   {
     key: "workspace",
     label: "Workspace",
-    emoji: "🧰",
+    icon: WrenchIcon,
     group: "functional",
     access: true,
     path: "/workspace",
     sections: WORKSPACE_SECTIONS,
   },
-  { key: "csm", label: "CSM", emoji: "🛟", group: "functional", access: false },
-  { key: "revops", label: "Rev Ops", emoji: "⚙️", group: "functional", access: false },
-  { key: "legal", label: "Legal", emoji: "⚖️", group: "functional", access: false },
+  { key: "csm", label: "CSM", icon: LifeBuoyIcon, group: "functional", access: false },
+  { key: "revops", label: "Rev Ops", icon: ChartNoAxesCombinedIcon, group: "functional", access: false },
+  { key: "legal", label: "Legal", icon: ScaleIcon, group: "functional", access: false },
   // Marketing Ops — UNLOCKED. Ported so far: Utilities (UTM + Asset Name
   // generators and their Marketing Admin panels) and Ad Campaigns → Analytics.
   // Still in Marketing Ops itself: Email Workbench, Events, CRM Upload — those
@@ -187,14 +206,14 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   {
     key: "marketing",
     label: "Marketing Ops",
-    emoji: "📣",
+    icon: MegaphoneIcon,
     group: "functional",
     access: true,
     path: "/marketing-ops",
     sections: MARKETING_OPS_SECTIONS,
   },
-  { key: "business", label: "Business", emoji: "💼", group: "functional", access: false },
-  { key: "customer", label: "Customer", emoji: "🤝", group: "functional", access: false },
+  { key: "business", label: "Business", icon: BriefcaseBusinessIcon, group: "functional", access: false },
+  { key: "customer", label: "Customer", icon: HandshakeIcon, group: "functional", access: false },
 
   // Cross-cutting (available to everyone).
   //
@@ -203,7 +222,7 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   {
     key: "me",
     label: "Me",
-    emoji: "🏠",
+    icon: HouseIcon,
     group: "cross",
     access: true,
     path: "/me",
@@ -218,7 +237,7 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   {
     key: "requests",
     label: "Service Requests",
-    emoji: "⚡",
+    icon: ZapIcon,
     group: "cross",
     access: false,
   },

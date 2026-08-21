@@ -24,11 +24,12 @@ import { CcTxnTable } from "../CcTxnTable";
 import { useCcApprove } from "../useCcMutations";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcTransaction } from "../ccTypes";
+import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function CcApprovePage() {
   return (
     <FinanceShell
-      eyebrow="💳 Credit Card Expenses"
+      eyebrow={FINANCE_EYEBROW.cc}
       title="Approve submissions"
       subtitle="Review and approve card transactions submitted by your team. Leads approve pending-lead items; finance gives the final approval."
       configured={isCcBackendConfigured()}

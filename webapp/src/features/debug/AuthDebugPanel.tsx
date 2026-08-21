@@ -27,6 +27,7 @@ import {
   Tooltip,
   Typography,
 } from "@wso2/oxygen-ui";
+import { ShieldCheckIcon } from "@wso2/oxygen-ui-icons-react";
 import { useAsgardeo } from "@asgardeo/react";
 import { peopleBackendUrl } from "@config/apiConfig";
 
@@ -135,8 +136,9 @@ function AuthDebugPanelInner() {
             boxShadow: 4,
             opacity: 0.9,
           }}
+          startIcon={<ShieldCheckIcon size={14} />}
         >
-          🔐 auth
+          auth
         </Button>
       </Tooltip>
 

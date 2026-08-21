@@ -26,6 +26,12 @@ declare global {
       ONE_WSO2_AUTH_SIGN_IN_REDIRECT_URL: string;
       ONE_WSO2_AUTH_SIGN_OUT_REDIRECT_URL: string;
       ONE_WSO2_THEME?: string;
+      // Whether an idle session is signed out automatically. Optional —
+      // defaults to false, which is dialog-only: the "still there?" dialog
+      // still appears after 25 minutes of inactivity, but ignoring it leaves
+      // the session open. Set true to also sign out at the 30-minute deadline,
+      // which is what the security checklist (ONEWSO2-R1) wants.
+      ONE_WSO2_IDLE_AUTO_SIGN_OUT?: boolean;
       // Base URL for the people-ops-suite people-app backend (the same
       // SERVICE_BASE_URL people-app's own webapp reads). Used to fetch the
       // current user's Employee + EmployeePersonalInfo records on the
