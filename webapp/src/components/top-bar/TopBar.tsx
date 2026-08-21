@@ -52,8 +52,9 @@ const SHORTCUT_HINT = IS_APPLE_PLATFORM ? "⌘K" : "Ctrl K";
 // stricter than it looks — check there before changing any of this:
 //
 //  - "Icon should not be isolated." The pulse mark may not be used apart from
-//    the wordmark, so the full logo asset is the only option here. (csm-portal
-//    does use an isolated mark; that isn't a precedent to copy.)
+//    the wordmark, so the full logo asset is the only option here — regardless
+//    of what any other app does. (The favicon is the one exception, because a
+//    ~16px square slot cannot hold a 2.5:1 lockup at all.)
 //  - The logo "is strictly monochrome": black on light, white on dark. Orange
 //    (#F14E23) is approved for the icon on DARK backgrounds only, so it can't be
 //    used on this header, whose background is `background.paper`.
@@ -85,8 +86,8 @@ interface TopBarProps {
   onOpenAsk: () => void;
 }
 
-// The persistent top bar, on Oxygen's compound `Header`. Child order follows
-// csm-portal: Toggle → Brand → (switcher/search) → Spacer → Actions.
+// The persistent top bar, on Oxygen's compound `Header`, in the order the
+// component expects: Toggle → Brand → (switcher/search) → Spacer → Actions.
 //
 // Oxygen supplies the bar's height, background, border, and brand-title
 // typography, so nothing here sets those. The rail-width-matching `width: 260`
@@ -142,10 +143,10 @@ export default function TopBar({
       {/* Palette trigger. A click target rather than a real input: the palette
           owns the query field.
 
-          Fixed responsive widths rather than `flex: 1` so the flexible slot
-          belongs to PinnedTabs, matching csm-portal's header. It also narrows
-          once anything is pinned, since the two share that row — at `xs` it
-          collapses to an icon. */}
+          Fixed responsive widths rather than `flex: 1`, so the flexible slot
+          belongs to PinnedTabs instead — the pinned strip is the part that
+          benefits from spare room. It also narrows once anything is pinned,
+          since the two share that row; at `xs` it collapses to an icon. */}
       <Box
         role="button"
         tabIndex={0}

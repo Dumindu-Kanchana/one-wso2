@@ -50,8 +50,8 @@ function writeCollapsed(collapsed: boolean): void {
 // NOTE: the content scroller deliberately sets no background. It used to paint
 // `background.default`, which covered the <body> entirely and made any
 // canvas-level treatment (Oxygen's radial wash, or ours) invisible in the
-// content area. csm-portal sets no background on its layout boxes either —
-// that's precisely why its wash reaches the content.
+// content area. Layout boxes have to stay transparent for the wash to reach
+// the content at all.
 export default function AppLayout(): JSX.Element {
   const [waffleOpen, setWaffleOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);

@@ -3,9 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <!-- Scheme-aware favicon: the square pulse mark on its own, in black or
-         white, the way csm-portal does it. A favicon slot is ~16px and square,
-         so it takes the symbol only — never the wordmark lockup, which is
-         2.5:1 and would render as a 16x6px smudge.
+         white. A favicon slot is ~16px and square, so it takes the symbol only
+         — never the wordmark lockup, which is 2.5:1 and would render as a
+         16x6px smudge. The mark's viewBox is trimmed to its own bounds so it
+         fills the slot instead of sitting inside 25% transparent padding.
 
          Monochrome per https://wso2.com/about/brand: black on light, white on
          dark. A single orange mark was wrong on the light tab strip most

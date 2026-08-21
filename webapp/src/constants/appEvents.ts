@@ -29,7 +29,6 @@
  *
  * Fired ONLY by a deliberate sign-out — the user menu's action and the idle
  * timeout — never by a silent re-auth or token refresh. Listeners can therefore
- * treat it as "this person is leaving", not "the token moved". Same event name
- * csm-portal uses, so ported listeners need no change.
+ * treat it as "this person is leaving", not "the token moved".
  */
 export const SIGNING_OUT_EVENT = "app:signing-out";

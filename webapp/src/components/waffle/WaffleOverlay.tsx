@@ -125,7 +125,8 @@ function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Elemen
               // plus weight, never brand orange behind small text.
               bgcolor: isActive ? "action.selected" : "transparent",
               color: "text.primary",
-              // csm-portal's treatment for a not-yet-available destination.
+              // Dimmed rather than hidden: a not-yet-available destination is
+              // worth advertising, so people stop hunting for it.
               opacity: p.access ? 1 : 0.45,
               cursor: p.access ? "pointer" : "not-allowed",
               transition: "border-color .15s, background-color .15s",
@@ -174,7 +175,7 @@ function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Elemen
         );
 
         // A disabled button emits no pointer events, so the tooltip needs a
-        // wrapper to hang off — same shape csm-portal uses for its WIP nav rows.
+        // wrapper to hang off.
         return p.access ? (
           <Box key={p.key}>{tile}</Box>
         ) : (

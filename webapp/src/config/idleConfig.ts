@@ -21,7 +21,7 @@
 // `ONE_WSO2_IDLE_AUTO_SIGN_OUT`, decides what happens if it is ignored:
 //
 //   off (default) — nothing. The dialog sits there until answered and the
-//                   session survives, matching csm-portal.
+//                   session survives.
 //   on            — the session ends at the 30-minute mark.
 //
 // Note what "off" costs: it does not satisfy threat-model risk ONEWSO2-R1, which

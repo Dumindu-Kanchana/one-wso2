@@ -14,10 +14,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Theme selection. Mirrors csm-portal's themeConfig.ts shape: this file only
-// picks between shipped Oxygen presets plus One WSO2's own brand theme, and
-// applies the shared accessibility overlay. The brand layer itself (palette,
-// typography, surfaces) lives in brandTheme.ts.
+// Theme selection, and nothing else: this file picks between shipped Oxygen
+// presets plus One WSO2's own brand theme, then applies the accessibility
+// overlay. Keeping selection separate from definition is what stops a theme
+// file accreting palette edits — the brand layer itself (palette, typography,
+// surfaces) lives in brandTheme.ts.
 
 import { ClassicTheme, HighContrastTheme } from "@wso2/oxygen-ui";
 import type { OxygenTheme } from "@wso2/oxygen-ui/styles/Themes/OxygenThemeBase";

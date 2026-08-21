@@ -15,8 +15,9 @@
 // under the License.
 
 // Oxygen's typography asks for "Inter Variable" but the library does not
-// actually load it (its README claims it does) — so both this app and csm-portal
-// have been rendering in the platform system font. Import the face here; the
+// actually load it, despite its README claiming otherwise — so every app that
+// trusts that claim renders in the platform system font instead. Import the
+// face here; the
 // package is already in the tree as an @wso2/oxygen-ui dependency, and the
 // build-time CSP already allows font-src 'self'. Imported by explicit .css
 // path so it type-checks as a stylesheet side-effect import (the package ships
