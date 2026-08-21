@@ -36,7 +36,7 @@ export default function MyProfilePage() {
 
   return (
     <Box>
-      <Typography sx={{ fontSize: 23, fontWeight: 700, letterSpacing: "-0.02em", mb: 2.25 }}>
+      <Typography variant="h5" sx={{ mb: 2.25 }}>
         Welcome back{firstName ? `, ${firstName}` : ""}
       </Typography>
 
