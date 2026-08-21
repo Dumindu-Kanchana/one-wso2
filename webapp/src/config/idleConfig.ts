@@ -28,6 +28,23 @@
 // wants an idle timeout under 30 minutes. A dialog is not a timeout — it can be
 // left unanswered indefinitely, with the page still on screen behind it.
 // Deployments that need R1 must set the flag.
+//
+// Why "off" is nonetheless the default, rather than opt-out:
+//
+// Signing out here is not a local operation. It calls Asgardeo's `signOut()`,
+// which is OIDC RP-initiated logout — a redirect through the IdP's end-session
+// endpoint that terminates the shared Asgardeo session, not just this app's
+// tokens. (The `?state=sign_out_success` landing the AuthGuard has to scrub is
+// that round trip.) So an idle timer here does not quietly log you out of One
+// WSO2; it logs you out of Asgardeo, and every other WSO2 app on that session
+// then demands a fresh sign-in. Defaulting that on would mean one app being
+// idle re-authenticates the user everywhere, which is the wrong trade for an
+// internal suite people keep open in tabs all day.
+//
+// Closing this properly needs a sign-out that clears app session state without
+// ending the IdP session, so re-entry is a silent re-auth rather than a
+// credential prompt. Until that exists, R1 stays an explicit per-deployment
+// opt-in and the dialog carries the reminder.
 
 /** Total idle window. Reaching it signs the user out, if that is enabled. */
 export const TIMEOUT_MINUTES = 30;
