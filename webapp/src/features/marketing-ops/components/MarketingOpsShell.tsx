@@ -19,6 +19,7 @@ import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@
 import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { isMarketingOpsBackendConfigured } from "@config/apiConfig";
 import { useMarketingOpsGate } from "../api/useMarketingOpsGate";
+import MarketingOpsLocked from "./MarketingOpsLocked";
 
 // Shared page frame for every Marketing Ops screen: an operation eyebrow chip,
 // a title + subtitle, and — the reason this exists — ONE place that owns all
@@ -69,6 +70,17 @@ export default function MarketingOpsShell({
   // Only ask the backend who we are once we know there's a backend to ask.
   const gate = useMarketingOpsGate(configured);
 
+  // The header changes on the locked state, so the shell has to know which
+  // branch the body below will take. This mirrors the LAST rung of that ladder —
+  // every earlier rung has to be excluded, or a caller whose /api/me is still in
+  // flight (or failed) would be treated as denied for one render.
+  const isLocked =
+    configured &&
+    requireAuthorized &&
+    !gate.isResolving &&
+    !gate.isError &&
+    !gate.isAuthorized;
+
   return (
     <Box>
       {eyebrow && (
@@ -90,7 +102,12 @@ export default function MarketingOpsShell({
       <Typography component="h1" variant="h5" sx={{ mb: 0.5, mt: 0 }}>
         {title}
       </Typography>
-      {subtitle && (
+      {/* The subtitle sells the screen — "Campaign operations, event lists and
+          CRM ingestion" — which is right on a page you can use and wrong above a
+          panel that is about to refuse you. The locked panel names the operations
+          itself, so this would only be a pitch for something withheld. Dropped on
+          THAT state alone; every screen you can open keeps it. */}
+      {subtitle && !isLocked && (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2.25, maxWidth: "70ch" }}>
           {subtitle}
         </Typography>
@@ -165,14 +182,10 @@ function MarketingOpsBody({
     );
   }
 
+  // Not an Alert: this is a locked door, not a fault. MarketingOpsLocked carries
+  // the reasoning, and `isLocked` above has to agree with this condition.
   if (requireAuthorized && !gate.isAuthorized) {
-    return (
-      <Alert severity="warning" sx={{ mt: 1.5 }}>
-        You don't have access to Marketing Ops. Access is granted through
-        Asgardeo group membership — ask the Marketing Ops admins to add you to
-        the group for the operation you need.
-      </Alert>
-    );
+    return <MarketingOpsLocked />;
   }
 
   return <>{children}</>;
