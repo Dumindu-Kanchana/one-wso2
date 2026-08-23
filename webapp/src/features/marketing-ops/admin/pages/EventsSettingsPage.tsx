@@ -25,6 +25,7 @@ import {
 } from "@wso2/oxygen-ui";
 import { Plus } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import SettingsMasterDetail from "../components/SettingsMasterDetail";
 import {
@@ -112,7 +113,7 @@ export default function EventsSettingsPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="⚙️ Marketing Admin"
+      eyebrow={MARKETING_OPS_EYEBROW.admin}
       title="Events — member statuses & columns"
       subtitle="The import contract. A workbook tab is matched by name, and only the columns listed here are read — so this decides what MOP accepts from every regional marketing manager."
     >

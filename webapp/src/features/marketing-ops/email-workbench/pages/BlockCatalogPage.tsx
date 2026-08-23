@@ -34,6 +34,7 @@ import {
 } from "@wso2/oxygen-ui";
 import { ArrowLeft, Pencil, Plus, Trash2 } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import {
   useBlocks,
@@ -102,7 +103,7 @@ export default function BlockCatalogPage() {
   if (form) {
     return (
       <MarketingOpsShell
-        eyebrow="📣 Email Workbench"
+        eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench}
         title={form.editing ? "Edit block" : "New block"}
         subtitle="The HTML here is inserted verbatim into the email body. Its styling comes from the template's chassis classes, not from this block."
       >
@@ -117,7 +118,7 @@ export default function BlockCatalogPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="📣 Email Workbench"
+      eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench}
       title="Block catalog"
       subtitle="The components the Advanced editor offers. Editing a block changes what gets inserted into every future email — no redeploy needed."
     >

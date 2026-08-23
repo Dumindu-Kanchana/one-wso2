@@ -15,7 +15,7 @@
 // under the License.
 
 import { Box, Card, Typography } from "@wso2/oxygen-ui";
-import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
+import { SatelliteDishIcon, type LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { NavLink } from "react-router";
 import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 import { isIsacConfigured, isacUrl } from "@config/apiConfig";
@@ -47,6 +47,13 @@ import { useMarketingOpsGate } from "../api/useMarketingOpsGate";
 //
 //   - ItemCard's "Not here yet" / "In Marketing Ops ↗" states, which could no
 //     longer render for the same reason.
+//
+//   - The "✦ Marketing Ops perspective" eyebrow chip. Every operation screen now
+//     shows an eyebrow carrying its OWN icon and name, which tells you which of the
+//     six you are in. On this page the chip only restated the title under it, and
+//     PerspectiveHeader dropped the identical sparkle chip from the other
+//     perspective pages for that reason — the rail already says where you are. It
+//     is the one Marketing Ops eyebrow that is removed rather than re-iconed.
 export default function MarketingOpsPage() {
   const gate = useMarketingOpsGate();
 
@@ -59,7 +66,6 @@ export default function MarketingOpsPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="✦ Marketing Ops perspective"
       title="Marketing Ops"
       subtitle="Campaign operations, event lists and CRM ingestion."
     >
@@ -93,7 +99,7 @@ export default function MarketingOpsPage() {
         })}
       </Box>
 
-      {adminItems.length > 0 && <AdminStrip items={adminItems} />}
+      {admin && adminItems.length > 0 && <AdminStrip icon={admin.icon} items={adminItems} />}
     </MarketingOpsShell>
   );
 }
@@ -107,8 +113,6 @@ const glyphSx = {
   borderRadius: 1.25,
   display: "grid",
   placeItems: "center",
-  fontSize: 17,
-  lineHeight: 1,
   bgcolor: "background.default",
   border: 1,
   borderColor: "divider",
@@ -207,7 +211,7 @@ function IsacTile() {
         {/* Tinted rather than neutral: the one tile that leaves One WSO2 is worth
             being able to spot without reading it. */}
         <Box sx={{ ...glyphSx, bgcolor: "primary.light", borderColor: "transparent" }} aria-hidden="true">
-          🛰️
+          <SatelliteDishIcon size={18} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography component="h2" sx={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.015em" }}>
@@ -240,7 +244,13 @@ function IsacTile() {
 // A strip rather than a tile. Its five panels are pills because they're a set you
 // pick one from rather than a list you read — and because at tile size, five rows of
 // panel names outweighed every operation above them.
-function AdminStrip({ items }: { items: (typeof MARKETING_OPS_APPS)[number]["items"] }) {
+function AdminStrip({
+  icon: Icon,
+  items,
+}: {
+  icon: LucideIcon;
+  items: (typeof MARKETING_OPS_APPS)[number]["items"];
+}) {
   return (
     <Card
       variant="outlined"
@@ -255,7 +265,7 @@ function AdminStrip({ items }: { items: (typeof MARKETING_OPS_APPS)[number]["ite
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
         <Box sx={glyphSx} aria-hidden="true">
-          ⚙️
+          <Icon size={18} />
         </Box>
         <Box>
           <Typography component="h2" sx={{ fontSize: 14, fontWeight: 700 }}>

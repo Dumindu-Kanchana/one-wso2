@@ -26,6 +26,7 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { describeError } from "@api/errors";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import {
   usePardotSettings,
@@ -127,7 +128,7 @@ export default function EmailWorkbenchSettingsPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="⚙️ Marketing Admin"
+      eyebrow={MARKETING_OPS_EYEBROW.admin}
       title="Email Workbench — Pardot defaults"
       subtitle="Applied automatically to every email pushed to Pardot. Marketers never see these, so a wrong value here is wrong for every send."
     >

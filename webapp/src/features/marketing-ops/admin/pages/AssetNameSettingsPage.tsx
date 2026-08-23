@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import { Alert, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
 import { describeError } from "@api/errors";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import SettingsMasterDetail, { type NavGroup } from "../components/SettingsMasterDetail";
 import ParameterListManager from "../components/ParameterListManager";
@@ -111,7 +112,7 @@ export default function AssetNameSettingsPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="⚙️ Marketing Admin"
+      eyebrow={MARKETING_OPS_EYEBROW.admin}
       title="Asset Name Generator lists"
       subtitle="The dropdown values offered by each asset-name generator. The name templates and which fields exist are set in code — only the values are editable here."
     >

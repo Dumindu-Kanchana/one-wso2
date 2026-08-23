@@ -16,6 +16,7 @@
 
 import type { ReactNode } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
+import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { isMarketingOpsBackendConfigured } from "@config/apiConfig";
 import { useMarketingOpsGate } from "../api/useMarketingOpsGate";
 
@@ -48,7 +49,17 @@ export default function MarketingOpsShell({
   requireAuthorized = true,
   children,
 }: {
-  eyebrow: string; // e.g. "🧰 Utilities"
+  // Which operation this screen belongs to — informational, not decorative: the
+  // shell is shared by all six. A descriptor rather than a string so the icon is
+  // the operation's OWN registry icon (MARKETING_OPS_EYEBROW) and the chip shows
+  // the same glyph the left rail and the waffle show for it. This replaced a
+  // hardcoded emoji per page ("📣 Email Workbench"), which said nothing the rail
+  // didn't already say, in a different visual language. Same shape as
+  // FinanceShell's eyebrow.
+  //
+  // Optional because the perspective landing page has no single operation to
+  // name, and there the chip only restated the page title — see MarketingOpsPage.
+  eyebrow?: { icon: LucideIcon; label: string };
   title: string;
   subtitle?: string;
   requireAuthorized?: boolean;
@@ -60,17 +71,20 @@ export default function MarketingOpsShell({
 
   return (
     <Box>
-      <Chip
-        label={eyebrow}
-        color="primary"
-        // Outlined, not filled: white-on-orange at chip text sizes is ~3.6:1 and
-        // fails WCAG AA. Outlined routes through the a11y overlay, which shifts
-        // the label and border to primary.dark in light mode. Matches the
-        // Finance and Leave shells.
-        variant="outlined"
-        size="small"
-        sx={{ mb: 0.5 }}
-      />
+      {eyebrow && (
+        <Chip
+          icon={<eyebrow.icon size={14} />}
+          label={eyebrow.label}
+          color="primary"
+          // Outlined, not filled: white-on-orange at chip text sizes is ~3.6:1 and
+          // fails WCAG AA. Outlined routes through the a11y overlay, which shifts
+          // the label and border to primary.dark in light mode. Matches the
+          // Finance and Leave shells.
+          variant="outlined"
+          size="small"
+          sx={{ mb: 0.5 }}
+        />
+      )}
       {/* An h1, not a styled div: it is the page's heading, and a screen-reader
           user navigating by headings had nothing to land on. */}
       <Typography component="h1" variant="h5" sx={{ mb: 0.5, mt: 0 }}>
