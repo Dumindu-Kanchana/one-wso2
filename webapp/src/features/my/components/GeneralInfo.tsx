@@ -76,7 +76,16 @@ export default function GeneralInfo({
       : [{ label: "Employee status", value: DASH }]),
 
     { label: "Start date", value: formatDate(employee.startDate) },
-    { label: "Length of service", value: serviceLength(employee.continuousServiceDate ?? employee.startDate) },
+    {
+      label: "Length of service",
+      // Capped at the final day of employment, so a leaver's tenure stops
+      // when they left instead of counting on to today.
+      value: serviceLength(
+        employee.continuousServiceDate ?? employee.startDate,
+        undefined,
+        employee.finalDayOfEmployment,
+      ),
+    },
     { label: "Probation end date", value: formatDate(employee.probationEndDate) },
     { label: "Subordinates", value: display(employee.subordinateCount) },
 
