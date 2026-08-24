@@ -190,6 +190,39 @@ describe("filterOrgEntities", () => {
     expect(filterOrgEntities(rows, "wso2.com", "all").map((r) => r.id)).toEqual([1, 2]);
   });
 
+  describe("ordering", () => {
+    // The backend returns these ORDER BY name, so alphabetical order has to
+    // survive inside each group — only the active flag reorders anything.
+    const mixed = [
+      entity({ id: 1, name: "Alpha", isActive: true }),
+      entity({ id: 2, name: "Bravo", isActive: false }),
+      entity({ id: 3, name: "Charlie", isActive: true }),
+      entity({ id: 4, name: "Delta", isActive: false }),
+    ];
+
+    it("lists active entities before inactive ones", () => {
+      expect(filterOrgEntities(mixed, "", "all").map((r) => r.id)).toEqual([1, 3, 2, 4]);
+    });
+
+    it("keeps names alphabetical within each group", () => {
+      const names = filterOrgEntities(mixed, "", "all").map((r) => r.name);
+      expect(names).toEqual(["Alpha", "Charlie", "Bravo", "Delta"]);
+    });
+
+    it("leaves a single-status list in its original order", () => {
+      expect(filterOrgEntities(mixed, "", "active").map((r) => r.id)).toEqual([1, 3]);
+      expect(filterOrgEntities(mixed, "", "inactive").map((r) => r.id)).toEqual([2, 4]);
+    });
+
+    it("does not mutate the caller's array", () => {
+      // .sort() sorts in place; this must be sorting the filtered copy, not
+      // the query cache's own array.
+      const original = [...mixed];
+      filterOrgEntities(mixed, "", "all");
+      expect(mixed).toEqual(original);
+    });
+  });
+
   describe("with head names resolved", () => {
     // The table shows heads as people, so searching a name that is visible
     // on screen has to match — matching only the email would make search

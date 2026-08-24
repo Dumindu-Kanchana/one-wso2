@@ -48,7 +48,7 @@ export function filterOrgEntities(
 ): OrgChartEntity[] {
   const query = search.trim().toLowerCase();
 
-  return entities.filter((entity) => {
+  const matched = entities.filter((entity) => {
     if (status === "active" && !entity.isActive) return false;
     if (status === "inactive" && entity.isActive) return false;
     if (!query) return true;
@@ -63,4 +63,13 @@ export function filterOrgEntities(
     const name = email ? headName?.(email) : undefined;
     return Boolean(name && name.toLowerCase().includes(query));
   });
+
+  // Active first, then inactive. Under the "All" filter the two would
+  // otherwise interleave alphabetically, which buries the entities anyone
+  // can actually assign to among archived ones.
+  //
+  // Only the active flag is compared, so the backend's ORDER BY name
+  // survives inside each group — Array.prototype.sort is required to be
+  // stable, so equal elements keep their relative order.
+  return matched.sort((a, b) => Number(b.isActive) - Number(a.isActive));
 }
