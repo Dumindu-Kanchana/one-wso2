@@ -44,6 +44,42 @@ export const peopleServiceUrls = {
   // callers can only fetch their own (backend enforces isSelf check).
   employeeQrCode: (employeeId: string) =>
     `${peopleBackendUrl}/employees/${encodeURIComponent(employeeId)}/qr-code`,
+
+  // POST, but a READ — filters/sort/pagination are too large for a query
+  // string. Consumed with useQuery and the payload in the query key, per the
+  // rule documented further down this file. `leadOnly: true` in the body is
+  // what scopes the result to the caller's own reporting chain; the caller is
+  // resolved server-side from the token, never sent.
+  employeesSearch: `${peopleBackendUrl}/employees/search`,
+
+  // Filter option lists. Five take an optional parent id — narrowing has to be
+  // a round trip because the records carry no parent reference, so it cannot be
+  // derived from lists already held. Omitting the id returns the full list.
+  managers: `${peopleBackendUrl}/employees/managers`,
+  employmentTypes: `${peopleBackendUrl}/employment-types`,
+  businessUnits: `${peopleBackendUrl}/business-units`,
+  careerFunctions: `${peopleBackendUrl}/career-functions`,
+  companies: `${peopleBackendUrl}/companies`,
+  teams: (businessUnitId?: number) =>
+    businessUnitId === undefined
+      ? `${peopleBackendUrl}/teams`
+      : `${peopleBackendUrl}/teams?buId=${businessUnitId}`,
+  subTeams: (teamId?: number) =>
+    teamId === undefined
+      ? `${peopleBackendUrl}/sub-teams`
+      : `${peopleBackendUrl}/sub-teams?teamId=${teamId}`,
+  units: (subTeamId?: number) =>
+    subTeamId === undefined
+      ? `${peopleBackendUrl}/units`
+      : `${peopleBackendUrl}/units?subTeamId=${subTeamId}`,
+  designations: (careerFunctionId?: number) =>
+    careerFunctionId === undefined
+      ? `${peopleBackendUrl}/designations`
+      : `${peopleBackendUrl}/designations?careerFunctionId=${careerFunctionId}`,
+  offices: (companyId?: number) =>
+    companyId === undefined
+      ? `${peopleBackendUrl}/offices`
+      : `${peopleBackendUrl}/offices?companyId=${companyId}`,
 };
 
 // Promotion app backend (digiops-hr/apps/promotion). Separate service from

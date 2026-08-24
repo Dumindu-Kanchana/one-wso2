@@ -22,7 +22,8 @@ import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
-import MyTeamComingSoonPage from "@features/my/pages/MyTeamComingSoonPage";
+import MyTeamPage from "@features/my/my-team/pages/MyTeamPage";
+import TeamMemberPage from "@features/my/my-team/pages/TeamMemberPage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import WorkspacePage from "@features/workspace/pages/WorkspacePage";
 import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
@@ -79,7 +80,10 @@ export default function App() {
           <Route path="me" element={<MyProfilePage />} />
           {/* My Team — placeholder for now; the real subordinates view is on
               hold this iteration (mirrors people-app's lead-only nav item). */}
-          <Route path="me/my-team" element={<MyTeamComingSoonPage />} />
+          {/* My Team — a lead's reporting chain, ported from people-app. The
+              spec and the deviation list are in docs/ported-apps/my-team.md. */}
+          <Route path="me/my-team" element={<MyTeamPage />} />
+          <Route path="me/my-team/:employeeId" element={<TeamMemberPage />} />
           {/* Me → Leave: native screens ported from leave-app. Lives here
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}
