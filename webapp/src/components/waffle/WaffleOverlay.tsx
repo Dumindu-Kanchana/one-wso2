@@ -109,37 +109,55 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
         ]}
         sx={{ zIndex: (theme) => theme.zIndex.modal }}
       >
-        <Paper
-          ref={panelRef}
-          tabIndex={-1}
-          role="dialog"
-          aria-label="All apps"
-          elevation={8}
+        {/* Opaque underlay, and load-bearing. Some themes give every Paper a
+            translucent fill — `background.paper` is literally "#ffffffe1" under
+            Acrylic Purple — which is right for a card resting on the canvas and
+            wrong for a panel floating over arbitrary content: page text shows
+            through the tiles. It also breaks a guarantee, because the tile
+            washes in perspectiveHues.ts are measured against an opaque surface.
+            Compositing the paper over `background.default`, which is opaque in
+            every shipped theme, keeps the intended tint without the bleed. */}
+        <Box
           sx={{
-            width: 336,
-            maxWidth: "calc(100vw - 16px)",
-            p: 1.5,
-            border: 1,
-            borderColor: "divider",
+            bgcolor: "background.default",
             borderRadius: 2,
-            "&:focus": { outline: "none" },
+            overflow: "hidden",
+            boxShadow: 8,
           }}
         >
-          <Typography variant="overline" color="text.secondary" component="h2">
-            Apps
-          </Typography>
-          <WaffleGroup items={FUNCTIONAL_PERSPECTIVES} activeKey={active.key} onPick={pick} />
-
-          <Typography
-            variant="overline"
-            color="text.secondary"
-            component="h2"
-            sx={{ display: "block", mt: 1.5 }}
+          <Paper
+            ref={panelRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-label="All apps"
+            elevation={0}
+            sx={{
+              width: 336,
+              maxWidth: "calc(100vw - 16px)",
+              p: 1.5,
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 2,
+              backgroundImage: "none",
+              "&:focus": { outline: "none" },
+            }}
           >
-            For you
-          </Typography>
-          <WaffleGroup items={CROSS_PERSPECTIVES} activeKey={active.key} onPick={pick} />
-        </Paper>
+            <Typography variant="overline" color="text.secondary" component="h2">
+              Apps
+            </Typography>
+            <WaffleGroup items={FUNCTIONAL_PERSPECTIVES} activeKey={active.key} onPick={pick} />
+
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              component="h2"
+              sx={{ display: "block", mt: 1.5 }}
+            >
+              For you
+            </Typography>
+            <WaffleGroup items={CROSS_PERSPECTIVES} activeKey={active.key} onPick={pick} />
+          </Paper>
+        </Box>
       </Popper>
     </ClickAwayListener>
   );
