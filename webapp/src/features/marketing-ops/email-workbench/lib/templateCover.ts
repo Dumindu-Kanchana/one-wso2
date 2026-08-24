@@ -29,8 +29,8 @@
 // not its colour — this is a set of email templates, not a set of unrelated
 // things needing colour-coding.
 //
-// And the navy is worn as a badge rather than as a full bleed, because a WSO2
-// email HAS a navy header: a tile filled with it looked like a screenshot of one.
+// The navy fills the tile, but under a diagonal hatch — because a WSO2 email HAS
+// a navy header, and a plain navy fill looked like a screenshot of one.
 // GeneratedCover carries that reasoning.
 
 /**
@@ -48,12 +48,19 @@
  * an email — one button in a body of text — and a wall of it at tile size is a
  * different thing entirely.
  *
- * Fixed values, not theme tokens: an email is the same colour whatever theme you
- * read the gallery in, the same reason a real thumbnail keeps a white surface in
- * both. This applies to the BADGE only — the ground it sits on is app chrome and
- * does follow the theme. See GeneratedCover.
+ * Fixed values, not theme tokens: they do not follow light/dark. That matches the
+ * white surface a real thumbnail sits on — the tile shows an artefact, not app
+ * chrome, and an email is the same colour whatever theme you read the gallery in.
+ *
+ * `hatch` is not from the chassis: it is the texture that keeps a navy fill from
+ * reading as a screenshot of a navy email header. White at 5.5% over #17223a, low
+ * enough to be a treatment rather than stripes.
  */
-export const COVER_TONE = { bg: "#17223a", fg: "#ffffff" } as const;
+export const COVER_TONE = {
+  bg: "#17223a",
+  fg: "#ffffff",
+  hatch: "rgba(255, 255, 255, 0.055)",
+} as const;
 
 /**
  * Up to two letters standing in for the template name.

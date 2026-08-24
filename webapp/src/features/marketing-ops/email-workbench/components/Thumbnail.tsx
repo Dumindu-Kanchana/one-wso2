@@ -66,18 +66,20 @@ function useThumbnailUrl(id: string, version: string | undefined, enabled: boole
 // gallery were larger than the thing they preview deserves.
 const COVER_H = 140;
 
-// Drawn when a template has no thumbnail: the template's initials on a navy
-// badge, centred on the app's own canvas.
+// Drawn when a template has no thumbnail: the template's initials on the navy a
+// WSO2 email is built from, under a fine diagonal hatch.
 //
-// The badge is the whole point, and it took a wrong turn to find. A cover filling
-// the tile with flat navy was unmistakably WSO2 — and unmistakably a SCREENSHOT,
-// because a real WSO2 email has a navy header, so the covers stopped being
-// distinguishable from actual thumbnails. Colour could never fix that; form had
-// to. Every real thumbnail is edge-to-edge imagery, so a cover that deliberately
-// does NOT fill its frame reads as different before you have read anything on it.
+// The hatch is the whole point, and it took a wrong turn to find. Flat navy was
+// unmistakably WSO2 — and unmistakably a SCREENSHOT, because a real WSO2 email
+// has a navy header, so covers stopped being tellable from actual thumbnails.
+// Colour could never fix that; surface had to. Texture is the oldest "nothing
+// here" signal there is, and no rendered email carries one, so a hatched field
+// reads as drawn rather than photographed while keeping the full-bleed weight.
 //
-// Which also puts the navy back at the size it works at in an email: a mark
-// rather than a field.
+// Kept deliberately low-contrast: at 6px on 13px it should register as a
+// treatment on the navy, not as stripes competing with the letters. If it ever
+// reads as a compression artefact rather than a pattern, raise the white alpha
+// before changing the geometry.
 function GeneratedCover({ name }: { name: string }) {
   const initials = coverInitials(name);
 
@@ -86,51 +88,54 @@ function GeneratedCover({ name }: { name: string }) {
       sx={{
         height: "100%",
         width: "100%",
+        position: "relative",
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 1,
-        // Theme-following, unlike the white behind a real thumbnail: with the
-        // badge carrying the artefact's colour, this ground is app chrome again
-        // and should sit with the rest of the gallery in both schemes.
-        bgcolor: "background.default",
+        bgcolor: COVER_TONE.bg,
+        backgroundImage: `repeating-linear-gradient(135deg, ${COVER_TONE.hatch} 0 6px, transparent 6px 13px)`,
       }}
     >
-      <Box
-        aria-hidden="true"
-        sx={{
-          width: 46,
-          height: 46,
-          borderRadius: "11px",
-          display: "grid",
-          placeItems: "center",
-          bgcolor: COVER_TONE.bg,
-          color: COVER_TONE.fg,
-        }}
-      >
-        {initials ? (
-          <Typography
-            sx={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1 }}
-          >
-            {initials}
-          </Typography>
-        ) : (
-          // A name with no letters in it at all (digits, punctuation). Rare, but a
-          // badge reading "?" would look like the error state this replaces.
-          <Mail size={20} />
-        )}
-      </Box>
+      {initials ? (
+        <Typography
+          aria-hidden="true"
+          sx={{
+            fontSize: 46,
+            fontWeight: 700,
+            letterSpacing: "-0.05em",
+            lineHeight: 1,
+            userSelect: "none",
+            color: COVER_TONE.fg,
+            // Not full strength: the letters are a mark on the cover, not a
+            // headline competing with the template name under the tile.
+            opacity: 0.72,
+          }}
+        >
+          {initials}
+        </Typography>
+      ) : (
+        // A name with no letters in it at all (digits, punctuation). Rare, but a
+        // cover reading "?" would look like the error state this replaces.
+        <Box sx={{ display: "inline-flex", color: COVER_TONE.fg, opacity: 0.72 }} aria-hidden="true">
+          <Mail size={30} />
+        </Box>
+      )}
 
-      {/* Colour and letters make the tile look deliberate; only the words tell you
-          it IS deliberate, which no icon or badge can do on its own. */}
+      {/* Colour and letters make the tile look deliberate; only the words tell
+          you it IS deliberate, which no icon or texture can do on its own. */}
       <Typography
         sx={{
+          position: "absolute",
+          bottom: 9,
+          left: 0,
+          right: 0,
+          textAlign: "center",
           fontSize: 10,
           fontWeight: 600,
           letterSpacing: "0.07em",
           textTransform: "uppercase",
-          color: "text.secondary",
+          color: COVER_TONE.fg,
+          opacity: 0.6,
         }}
       >
         No preview

@@ -65,7 +65,8 @@ describe("COVER_TONE", () => {
   it("matches the navy variant a WSO2 email button comes in", () => {
     const navy = BTN_VARIANTS.find((v) => v.key === "navy");
     expect(navy, "BTN_VARIANTS no longer has a navy variant").toBeDefined();
-    expect(COVER_TONE).toEqual({ bg: navy!.tdBg, fg: navy!.aColor });
+    expect(COVER_TONE.bg).toBe(navy!.tdBg);
+    expect(COVER_TONE.fg).toBe(navy!.aColor);
   });
 
   it("is not the call-to-action orange", () => {
