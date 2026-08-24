@@ -37,6 +37,7 @@ import {
 } from "@wso2/oxygen-ui";
 import { InboxIcon, PencilIcon, PlusIcon, SearchIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
+import { useNotifications } from "@context/notifications/NotificationsContext";
 import type { OrgChartEntity, OrgEntityKind } from "../api/peopleOpsTypes";
 import {
   ORG_ENTITY_CONFIG,
@@ -55,10 +56,17 @@ import { filterOrgEntities, type StatusFilter } from "./orgEntityFilter";
 // thousands, and the endpoints return them whole with no pagination. Filtering
 // in the browser keeps it instant and avoids a request per keystroke.
 
+// Entity labels are stored lower-case ("sub team") so they read correctly
+// mid-sentence in buttons; a toast opens with one, so it needs a capital.
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export default function OrgEntityTab({ kind }: { kind: OrgEntityKind }) {
   const config = ORG_ENTITY_CONFIG[kind];
   const entities = useOrgChartEntities(kind);
   const createMutation = useCreateOrgChartEntity(kind);
+  const { showSuccess } = useNotifications();
   const updateMutation = useUpdateOrgChartEntity(kind);
 
   const [search, setSearch] = useState("");
@@ -250,8 +258,24 @@ export default function OrgEntityTab({ kind }: { kind: OrgEntityKind }) {
         entity={editing}
         // mutateAsync, not mutate: the dialog awaits these and stays open on
         // failure to show the message, which needs a rejected promise.
-        onCreate={(payload) => createMutation.mutateAsync(payload)}
-        onUpdate={(id, payload) => updateMutation.mutateAsync({ id, payload })}
+        //
+        // The toast is raised here rather than in the dialog because the
+        // dialog is gone by the time it appears — confirmation belongs to
+        // the screen you are left looking at.
+        onCreate={async (payload) => {
+          const result = await createMutation.mutateAsync(payload);
+          showSuccess(`${capitalize(config.label)} "${payload.name}" created`);
+          return result;
+        }}
+        onUpdate={async (id, payload) => {
+          const result = await updateMutation.mutateAsync({ id, payload });
+          // Names the entity by what it is called AFTER the edit, so a
+          // rename confirms the new name rather than the one just replaced.
+          // Not capitalized — this is a proper name, and forcing a capital
+          // would misspell one that is legitimately lower-case.
+          showSuccess(`${capitalize(config.label)} "${payload.name ?? editing?.name}" updated`);
+          return result;
+        }}
       />
     </Box>
   );

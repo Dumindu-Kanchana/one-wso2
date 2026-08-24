@@ -166,14 +166,25 @@ export function useEmployeesBasicInfo(enabled = true) {
   return foldIdentityError(query, subState, retryIdentity);
 }
 
-// Invalidate everything derived from a kind after a write: this screen's own
+// Refresh everything derived from a kind after a write: this screen's own
 // list, and the report filter dropdowns, which read the same entities through
 // useOrgMasterData under a different key and would otherwise show a stale name
 // for up to 30 minutes.
-function useInvalidateOrgData(kind: OrgEntityKind) {
+//
+// This AWAITS a refetch of the visible list rather than firing an
+// invalidation and moving on. The app sets `refetchOnMount: false` globally
+// (see AppWithConfig), so marking data stale is not on its own enough to put
+// new rows on screen — the saved edit would not appear until something else
+// happened to trigger a fetch. Awaiting also means the dialog's spinner is
+// still up while the table reloads, so it closes onto fresh data instead of
+// flashing the old row for a moment.
+//
+// The filter dropdowns are a plain invalidate: they are usually not mounted,
+// nobody is waiting on them, and they will refetch when next opened.
+function useRefreshOrgData(kind: OrgEntityKind) {
   const qc = useQueryClient();
-  return () => {
-    void qc.invalidateQueries({ queryKey: ["people-ops", "org-chart", kind] });
+  return async () => {
+    await qc.refetchQueries({ queryKey: ["people-ops", "org-chart", kind] });
     void qc.invalidateQueries({ queryKey: ["people-ops", "org"] });
   };
 }
@@ -182,7 +193,7 @@ function useInvalidateOrgData(kind: OrgEntityKind) {
 // integer rather than an object.
 export function useCreateOrgChartEntity(kind: OrgEntityKind) {
   const getAccessToken = useAccessToken();
-  const invalidate = useInvalidateOrgData(kind);
+  const refresh = useRefreshOrgData(kind);
 
   return useMutation<number | null, Error, CreateOrgChartEntityPayload>({
     mutationFn: async (payload) => {
@@ -193,7 +204,7 @@ export function useCreateOrgChartEntity(kind: OrgEntityKind) {
         payload,
       );
     },
-    onSuccess: invalidate,
+    onSuccess: refresh,
   });
 }
 
@@ -205,7 +216,7 @@ export function useCreateOrgChartEntity(kind: OrgEntityKind) {
 // between load and save rather than the normal way anyone meets that rule.
 export function useUpdateOrgChartEntity(kind: OrgEntityKind) {
   const getAccessToken = useAccessToken();
-  const invalidate = useInvalidateOrgData(kind);
+  const refresh = useRefreshOrgData(kind);
 
   return useMutation<
     unknown,
@@ -220,6 +231,6 @@ export function useUpdateOrgChartEntity(kind: OrgEntityKind) {
         payload,
       );
     },
-    onSuccess: invalidate,
+    onSuccess: refresh,
   });
 }
