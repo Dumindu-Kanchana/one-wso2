@@ -154,6 +154,26 @@ function EditMappingDialogBody({
                 Turning this off removes {current.name} from {parentLabel} only. It
                 stays available anywhere else it's used.
               </Typography>
+
+              {/* Stated up front rather than left to a failed save.
+
+                  The entity tabs can do better than this — they disable the
+                  toggle and name the number, because the entity endpoints
+                  return activeEmployeeCount. The org-structure tree does not
+                  carry a per-mapping count, so the exact figure isn't
+                  available here and the backend's 400 is the first place the
+                  real answer appears. Saying the rule beforehand at least
+                  stops the refusal being a surprise.
+
+                  If the tree ever returns a count per mapping, replace this
+                  with the entity tabs' treatment: disable the switch and say
+                  how many people are in the way. */}
+              {isActive && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  It can't be turned off while anyone is still assigned to{" "}
+                  {parentLabel} → {current.name}. Move them first.
+                </Typography>
+              )}
             </Box>
           </Box>
         </DialogContent>
