@@ -43,8 +43,9 @@ export default function ActiveEmployeesReportPage() {
         showIncludeMarkedLeaversFilter
         previewAlertText={
           <>
-            Showing the first 10 active employees. Export CSV to download the
-            complete dataset with every selected column.
+            Search or filter to narrow the list, and select an employee to see
+            their full record. Export CSV downloads every matching row with the
+            columns you've chosen.
           </>
         }
       />

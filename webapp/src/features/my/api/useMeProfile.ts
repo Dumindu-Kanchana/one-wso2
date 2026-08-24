@@ -37,7 +37,18 @@ export interface MeProfile {
 //   2. GET /employees/{id}            → org / role / employment record
 //      GET /employees/{id}/personal-info → contact + emergency contacts
 // Steps 2 and 3 run in parallel once employeeId is known.
-export function useMeProfile() {
+//
+// `employeeId` overrides step 1's identity lookup and loads SOMEONE ELSE's
+// profile — the People Ops employee detail page, which is the same read-only
+// reuse people-app makes (its EmployeeDetail is a one-liner rendering the Me
+// view with an id and `readOnly`). /user-info is still fetched, because the
+// caller's own identity is what the backend authorizes against; only the
+// employee record being displayed changes.
+//
+// Access is the backend's call: GET /employees/{id} and /personal-info allow
+// an ADMIN caller to read anyone, and 403 otherwise. Passing an id here is
+// therefore a request, not a grant.
+export function useMeProfile(employeeId?: string) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
   const { state: subState, retry: retryIdentity } = useAsgardeoSub();
@@ -47,8 +58,11 @@ export function useMeProfile() {
 
   const query = useQuery<MeProfile>({
     // userSub is part of the key so cached data is scoped per-user — no
-    // brief cross-user leak on account switch in the same tab.
-    queryKey: ["me-profile", userSub],
+    // brief cross-user leak on account switch in the same tab. employeeId
+    // joins it so viewing one colleague then another doesn't serve the
+    // first one's record from cache; `null` keeps the own-profile key
+    // exactly as it was before this parameter existed.
+    queryKey: ["me-profile", userSub, employeeId ?? null],
     enabled: isSignedIn && backendConfigured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
@@ -63,10 +77,11 @@ export function useMeProfile() {
         queryFn: () => authedGet<UserInfo>(peopleServiceUrls.userInfo, accessToken),
         staleTime: 5 * 60 * 1000,
       });
+      const targetId = employeeId ?? userInfo.employeeId;
       const [employee, personalInfo] = await Promise.all([
-        authedGet<Employee>(peopleServiceUrls.employee(userInfo.employeeId), accessToken),
+        authedGet<Employee>(peopleServiceUrls.employee(targetId), accessToken),
         authedGet<EmployeePersonalInfo>(
-          peopleServiceUrls.employeePersonalInfo(userInfo.employeeId),
+          peopleServiceUrls.employeePersonalInfo(targetId),
           accessToken,
         ),
       ]);

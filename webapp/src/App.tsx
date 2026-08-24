@@ -19,6 +19,7 @@ import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import ActiveEmployeesReportPage from "@features/people-ops/pages/ActiveEmployeesReportPage";
+import EmployeeDetailPage from "@features/people-ops/pages/EmployeeDetailPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamComingSoonPage from "@features/my/pages/MyTeamComingSoonPage";
 import FinancePage from "@features/finance/pages/FinancePage";
@@ -114,6 +115,12 @@ export default function App() {
           <Route
             path="people-ops/reports/active-employees"
             element={<ActiveEmployeesReportPage />}
+          />
+          {/* One employee's record, reached from a report row. Same admin
+              gate; the backend allows an admin to read any employee. */}
+          <Route
+            path="people-ops/employees/:employeeId"
+            element={<EmployeeDetailPage />}
           />
           {/* Finance perspective — skeleton "coming soon" tile; the actual
               claim apps are the me/opd, me/cc, me/expense routes above. */}

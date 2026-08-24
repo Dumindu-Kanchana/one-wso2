@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
   Badge,
@@ -22,6 +22,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  IconButton,
+  InputAdornment,
+  MenuItem,
+  Select,
   Skeleton,
   Snackbar,
   Table,
@@ -30,10 +34,21 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from "@wso2/oxygen-ui";
-import { Columns3Icon, DownloadIcon, FilterIcon, InboxIcon } from "@wso2/oxygen-ui-icons-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Columns3Icon,
+  DownloadIcon,
+  FilterIcon,
+  InboxIcon,
+  SearchIcon,
+  XIcon,
+} from "@wso2/oxygen-ui-icons-react";
+import { Link as RouterLink } from "react-router";
 import { describeError } from "@api/errors";
 import { EmployeeStatus } from "../api/peopleOpsTypes";
 import type { Employee, Filters } from "../api/peopleOpsTypes";
@@ -48,11 +63,15 @@ import ColumnSelectorDialog from "./ColumnSelectorDialog";
 import ReportFilterDialog from "./ReportFilterDialog";
 import { COLUMN_WIDTHS, cellText } from "./reportCells";
 import { getAllKeys, getColumnsForStatus } from "./reportColumns";
+import { employeeDetailPath } from "./reportRoutes";
+import { pageView } from "./reportPaging";
 
-// Rows fetched for the on-screen preview. The point of this screen is the
-// CSV: the table is a "did I filter this right?" check, so it stays small
-// and the full dataset is only ever materialised server-side.
-const PREVIEW_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
+
+// How long typing pauses before the search fires. Long enough that a normal
+// typing burst is one request rather than one per character; short enough
+// that it still feels immediate.
+const SEARCH_DEBOUNCE_MS = 300;
 
 // Columns rendered before the table starts appending a "+N more" marker.
 // Selecting all 26 would produce a table nobody can read horizontally; the
@@ -106,16 +125,55 @@ export default function EmployeeReportTable({
 
   const [appliedFilters, setAppliedFilters] = useState<Filters>(baselineFilters);
 
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  // Two search values: `searchInput` is what's in the box (updates per
+  // keystroke), `searchTerm` is what's been sent (updates after the pause).
+  // Keeping them apart is what stops every character firing a request.
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    const trimmed = searchInput.trim();
+    if (trimmed === searchTerm) return;
+    const timer = setTimeout(() => setSearchTerm(trimmed), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput, searchTerm]);
+
+  // Any change to what's being searched or filtered invalidates the current
+  // page number: page 4 of the old result set is meaningless against a new
+  // one, and asking for it returns an empty page that reads as "no matches".
+  //
+  // Adjusted DURING render rather than in an effect. React's documented
+  // pattern for state derived from a prop/state change, and here it also
+  // avoids fetching page 4 of the new query and then immediately refetching
+  // page 0 — the effect version would have issued both requests.
+  const queryIdentity = JSON.stringify([searchTerm, appliedFilters, pageSize]);
+  const [lastQueryIdentity, setLastQueryIdentity] = useState(queryIdentity);
+  const queryChanged = queryIdentity !== lastQueryIdentity;
+  if (queryChanged) {
+    setLastQueryIdentity(queryIdentity);
+    setPage(0);
+  }
+  // React re-runs this render before committing, so `page` would be 0 by the
+  // time anything below reads it. Spelling that out as its own value keeps
+  // the rest of the component from depending on that subtlety.
+  const effectivePage = queryChanged ? 0 : page;
+
   // Memoised because it is part of the query key — a fresh object per render
   // would look like a new query every time the parent re-rendered.
   const searchPayload = useMemo(
     () => ({
+      // Omitted entirely when empty: the backend treats an absent
+      // searchString differently from an empty one.
+      ...(searchTerm ? { searchString: searchTerm } : {}),
       filters: appliedFilters,
-      pagination: { limit: PREVIEW_LIMIT, offset: 0 },
+      pagination: { limit: pageSize, offset: effectivePage * pageSize },
       sort: { sortField: "employeeId", sortOrder: "ASC" as const },
       leadOnly: false,
     }),
-    [appliedFilters],
+    [appliedFilters, effectivePage, pageSize, searchTerm],
   );
 
   const search = useEmployeeSearch(searchPayload);
@@ -125,6 +183,19 @@ export default function EmployeeReportTable({
 
   const rows: Employee[] = search.data?.employees ?? [];
   const totalCount = search.data?.totalCount ?? null;
+
+  const { canPrev, canNext, rangeLabel } = pageView({
+    page: effectivePage,
+    pageSize,
+    rowCount: rows.length,
+    totalCount,
+  });
+
+  // The CSV generator cannot filter by search text — its payload has no
+  // searchString field and the backend passes nil internally — so an export
+  // taken while searching would quietly contain more rows than the table
+  // shows. Say so rather than letting the file surprise someone.
+  const searchExcludedFromExport = Boolean(searchTerm);
 
   const managerEmails = useMemo(
     () => (managers.data ?? []).map((m) => m.workEmail).sort(),
@@ -182,9 +253,34 @@ export default function EmployeeReportTable({
           mb: 1.5,
         }}
       >
-        <Alert severity="info" sx={{ flex: "1 1 320px", py: 0.25 }}>
-          {previewAlertText}
-        </Alert>
+        <TextField
+          size="small"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by name, ID or email"
+          aria-label="Search employees"
+          sx={{ flex: "1 1 260px", maxWidth: 380 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon size={16} />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    aria-label="Clear search"
+                    onClick={() => setSearchInput("")}
+                  >
+                    <XIcon size={14} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+        />
 
         <Chip
           size="small"
@@ -263,6 +359,18 @@ export default function EmployeeReportTable({
         </Button>
       </Box>
 
+      <Alert severity="info" sx={{ mb: 1.5, py: 0.25 }}>
+        {previewAlertText}
+      </Alert>
+
+      {searchExcludedFromExport && (
+        <Alert severity="warning" sx={{ mb: 1.5, py: 0.25 }}>
+          Your search only narrows the table below. Export CSV applies your
+          filters but not the search text, so the file will contain more rows
+          than you can see here.
+        </Alert>
+      )}
+
       {/* The preview request failing is worth stating outright — an empty
           table would otherwise read as "no employees match", which is a very
           different thing from "we couldn't ask". */}
@@ -321,7 +429,7 @@ export default function EmployeeReportTable({
             {search.isPending ? (
               // Skeleton rows at the real row count and column widths, so the
               // table doesn't resize when the data lands.
-              Array.from({ length: PREVIEW_LIMIT }).map((_, rowIndex) => (
+              Array.from({ length: pageSize }).map((_, rowIndex) => (
                 <TableRow key={`skeleton-${rowIndex}`}>
                   {visibleColumnKeys.map((key) => (
                     <TableCell key={key}>
@@ -358,7 +466,20 @@ export default function EmployeeReportTable({
               </TableRow>
             ) : (
               rows.map((row) => (
-                <TableRow key={row.employeeId} hover>
+                <TableRow
+                  key={row.employeeId}
+                  hover
+                  // A real link, not an onClick row handler: it keeps
+                  // keyboard focus and "open in new tab" working, which a
+                  // click-handling <tr> silently takes away.
+                  component={RouterLink}
+                  to={employeeDetailPath(row.employeeId)}
+                  sx={{
+                    textDecoration: "none",
+                    cursor: "pointer",
+                    display: "table-row",
+                    color: "inherit",
+                  }}>
                   {visibleColumnKeys.map((key) => {
                     const text = cellText(row, key);
                     // Status is the one column that reads better as a chip —
@@ -421,6 +542,61 @@ export default function EmployeeReportTable({
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 1.5,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Rows per page
+          </Typography>
+          <Select
+            size="small"
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            aria-label="Rows per page"
+          >
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <MenuItem key={n} value={n}>
+                {n}
+              </MenuItem>
+            ))}
+          </Select>
+        </Box>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            {search.isPending ? "Loading…" : (rangeLabel ?? "No results")}
+          </Typography>
+          <IconButton
+            size="small"
+            aria-label="Previous page"
+            disabled={!canPrev || search.isPending}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            <ChevronLeftIcon size={16} />
+          </IconButton>
+          <IconButton
+            size="small"
+            aria-label="Next page"
+            disabled={!canNext || search.isPending}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <ChevronRightIcon size={16} />
+          </IconButton>
+        </Box>
+      </Box>
 
       <ColumnSelectorDialog
         open={columnDialogOpen}
