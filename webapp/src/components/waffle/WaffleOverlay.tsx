@@ -58,6 +58,18 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
   const navigate = useNavigate();
   const active = useActivePerspective();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Read through a ref inside the mount effect below. The parent passes an
+  // inline arrow, so `onClose` has a new identity on every one of its renders —
+  // as a dependency it would tear down and re-run the effect mid-open, which
+  // restores focus to the button and then re-focuses the panel, throwing away
+  // whichever tile the user had tabbed to.
+  const onCloseRef = useRef(onClose);
+  // Synced in an effect, not assigned during render: writing to a ref while
+  // rendering is unsafe under the React compiler (and flagged by its lint rule),
+  // because a render can be discarded or replayed.
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   const { favourites, isFavourite, toggle } = useFavourites();
 
   // Resolved through the registry rather than stored: the saved list is keys, so
@@ -76,7 +88,7 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -89,7 +101,9 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
         anchorEl.focus();
       }
     };
-  }, [onClose, anchorEl]);
+    // Deliberately excludes `onClose` — see onCloseRef above. This effect is
+    // about mounting and unmounting, so it should run exactly twice.
+  }, [anchorEl]);
 
   const pick = (p: PerspectiveDef) => {
     if (!p.access || !p.path) return;
@@ -365,9 +379,24 @@ function WaffleGroup({
                 right: 0,
                 p: 0.25,
                 color: starred ? "warning.main" : "text.secondary",
-                opacity: starred ? 1 : 0,
                 transition: "opacity .12s",
-                ".waffle-cell:hover &, &:focus-visible": { opacity: 1 },
+                // Reveal-on-hover only where hovering exists. Two problems
+                // otherwise: `opacity: 0` still takes taps, so on a touch screen
+                // the top-right corner of a tile toggles the favourite instead
+                // of opening the app; and if that corner is made inert instead,
+                // a touch user can never favourite anything at all. So the
+                // control is permanently visible without hover, and hidden —
+                // properly, pointer events included — with it.
+                opacity: 1,
+                pointerEvents: "auto",
+                "@media (hover: hover)": {
+                  opacity: starred ? 1 : 0,
+                  pointerEvents: starred ? "auto" : "none",
+                  ".waffle-cell:hover &, &:focus-visible": {
+                    opacity: 1,
+                    pointerEvents: "auto",
+                  },
+                },
               }}
             >
               <StarIcon size={14} fill={starred ? "currentColor" : "none"} />
