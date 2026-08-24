@@ -28,7 +28,6 @@ import {
 import { ChevronRightIcon, PencilIcon, PlusIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
 import { useNotifications } from "@context/notifications/NotificationsContext";
-import PersonCell from "../components/PersonCell";
 import type {
   MappingLevel,
   OrgChartNode,
@@ -490,7 +489,22 @@ function Row({
             <Chip label={statusNote} size="small" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
           )}
         </Box>
-        <PersonCell email={headEmail} placeholder="No head" />
+        {/* Plain text, not a PersonCell. Four columns of rows are dense
+            enough already, and an avatar on every one of them would compete
+            with the names that are the point of this view. The picker inside
+            the edit dialog is where the person is worth showing. */}
+        <Typography
+          variant="caption"
+          color={headEmail ? "text.secondary" : "text.disabled"}
+          sx={{
+            display: "block",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {headEmail || "No head"}
+        </Typography>
       </Box>
 
       {onEdit && (
