@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { PERSPECTIVES, type PerspectiveDef } from "@constants/perspectives";
+import { reachablePerspectives } from "@constants/perspectives";
 
 /**
  * Which perspective the app opens on.
@@ -33,17 +33,9 @@ import { PERSPECTIVES, type PerspectiveDef } from "@constants/perspectives";
  */
 const FALLBACK_KEY = "me";
 
-/** True when a perspective can serve as a landing target. */
-function isLandable(p: PerspectiveDef): boolean {
-  // `access` rules out the locked placeholders; `path` rules out anything that
-  // has no route to send someone to. Both are required — a locked perspective
-  // with a path is reachable by URL but deliberately unadvertised.
-  return p.access && typeof p.path === "string" && p.path.length > 0;
-}
-
 /** Every perspective that could legitimately be configured as the landing page. */
 export function landingOptions(): { key: string; label: string; path: string }[] {
-  return PERSPECTIVES.filter(isLandable).map((p) => ({
+  return reachablePerspectives().map((p) => ({
     key: p.key,
     label: p.label,
     path: p.path as string,

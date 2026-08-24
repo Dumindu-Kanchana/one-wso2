@@ -1,0 +1,102 @@
+// Copyright (c) 2026 WSO2 LLC. (https://www.wso2.com).
+//
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
+import WaffleOverlay from "@components/waffle/WaffleOverlay";
+import { readFavourites } from "@features/favourites/favouritesStore";
+
+vi.mock("@hooks/useAsgardeoSub", () => ({
+  useAsgardeoSub: () => ({ state: { status: "ready", sub: "user-under-test" }, retry: () => {} }),
+}));
+
+vi.mock("@context/perspective/PerspectiveContext", () => ({
+  useActivePerspective: () => ({ key: "me", label: "Me", path: "/me", access: true }),
+}));
+
+beforeEach(() => localStorage.clear());
+
+function renderLauncher() {
+  const anchor = document.createElement("button");
+  document.body.appendChild(anchor);
+  render(
+    <MemoryRouter>
+      <WaffleOverlay anchorEl={anchor} onClose={() => {}} />
+    </MemoryRouter>,
+  );
+  return anchor;
+}
+
+/** The panel, so queries don't pick up the anchor or other stray nodes. */
+const panel = () => screen.getByRole("dialog", { name: "All apps" });
+
+describe("launcher favourites", () => {
+  it("offers a star on an app that can be opened", () => {
+    renderLauncher();
+    expect(
+      within(panel()).getByRole("button", { name: "Add Finance to favourites" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers no star on a locked app", () => {
+    renderLauncher();
+    // Service Requests has access: false — favouriting it would be a shortcut
+    // to a dead end.
+    expect(
+      within(panel()).queryByRole("button", { name: /Service Requests to favourites/ }),
+    ).toBeNull();
+  });
+
+  it("keeps the star out of the tile button, so the markup stays valid", () => {
+    renderLauncher();
+    const star = within(panel()).getByRole("button", { name: "Add Finance to favourites" });
+    // A <button> inside a <button> is invalid HTML that browsers resolve
+    // unpredictably, so the star must be a sibling of the tile.
+    expect(star.closest("button")).toBe(star);
+  });
+
+  it("adds a favourite, and shows the Favourites group once there is one", () => {
+    renderLauncher();
+    expect(within(panel()).queryByRole("heading", { name: "Favourites" })).toBeNull();
+    return userEvent
+      .setup()
+      .click(within(panel()).getByRole("button", { name: "Add Finance to favourites" }))
+      .then(() => {
+        expect(readFavourites("user-under-test")).toEqual(["finance"]);
+        expect(within(panel()).getByRole("heading", { name: "Favourites" })).toBeInTheDocument();
+      });
+  });
+
+  it("shows a favourited app in both Favourites and its own group", () => {
+    localStorage.setItem("one-wso2.favourites.v1.user-under-test", JSON.stringify(["finance"]));
+    renderLauncher();
+    // Two tiles for the same app is the point of a shortcut, not a bug.
+    expect(within(panel()).getAllByRole("button", { name: "Switch to Finance" })).toHaveLength(2);
+  });
+
+  it("removes a favourite again", async () => {
+    localStorage.setItem("one-wso2.favourites.v1.user-under-test", JSON.stringify(["finance"]));
+    renderLauncher();
+    const remove = within(panel()).getAllByRole("button", {
+      name: "Remove Finance from favourites",
+    });
+    await userEvent.setup().click(remove[0]);
+    expect(readFavourites("user-under-test")).toEqual([]);
+    expect(within(panel()).queryByRole("heading", { name: "Favourites" })).toBeNull();
+  });
+});

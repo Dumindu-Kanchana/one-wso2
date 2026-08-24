@@ -243,6 +243,18 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   },
 ];
 
+/**
+ * Perspectives a user can actually be sent to: built (`access`) and routable
+ * (`path`). Both are required — a locked perspective with a path is reachable by
+ * URL but deliberately unadvertised.
+ *
+ * Shared because three surfaces need the same notion: the rail's cross-links,
+ * the landing-page setting, and launcher favourites.
+ */
+export function reachablePerspectives(): PerspectiveDef[] {
+  return PERSPECTIVES.filter((p) => p.access && typeof p.path === "string" && p.path.length > 0);
+}
+
 export const FUNCTIONAL_PERSPECTIVES = PERSPECTIVES.filter(
   (p) => p.group === "functional",
 );

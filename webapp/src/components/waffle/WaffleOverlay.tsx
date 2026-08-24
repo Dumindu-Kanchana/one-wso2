@@ -15,20 +15,22 @@
 // under the License.
 
 import { useEffect, useRef, type JSX } from "react";
-import { Box, Paper, Tooltip, Typography } from "@wso2/oxygen-ui";
+import { Box, IconButton, Paper, Tooltip, Typography } from "@wso2/oxygen-ui";
 // Oxygen 0.6.0 re-exports neither of these (checked against its dist), and
 // @mui/material is already a direct dependency that the theme files import from.
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Popper from "@mui/material/Popper";
-import { LockIcon } from "@wso2/oxygen-ui-icons-react";
+import { LockIcon, StarIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import {
   FUNCTIONAL_PERSPECTIVES,
   CROSS_PERSPECTIVES,
+  PERSPECTIVES,
   type PerspectiveDef,
 } from "@constants/perspectives";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
 import { perspectiveHue } from "@config/perspectiveHues";
+import { useFavourites } from "@features/favourites/useFavourites";
 
 interface WaffleOverlayProps {
   /** The launcher button. The panel hangs off it and closes back onto it. */
@@ -56,6 +58,13 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
   const navigate = useNavigate();
   const active = useActivePerspective();
   const panelRef = useRef<HTMLDivElement>(null);
+  const { favourites, isFavourite, toggle } = useFavourites();
+
+  // Resolved through the registry rather than stored: the saved list is keys, so
+  // a renamed or relocated perspective needs no migration.
+  const favouriteItems = favourites
+    .map((key) => PERSPECTIVES.find((p) => p.key === key))
+    .filter((p): p is PerspectiveDef => p !== undefined);
 
   useEffect(() => {
     // Captured at setup, not read in the cleanup: by teardown the ref may
@@ -142,10 +151,40 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
               "&:focus": { outline: "none" },
             }}
           >
-            <Typography variant="overline" color="text.secondary" component="h2">
+            {/* Only when it has content: an empty "Favourites" heading would be
+                a permanent invitation with nothing under it. Apps appear here as
+                well as in their own group below, which is what makes a shortcut
+                a shortcut. */}
+            {favouriteItems.length > 0 && (
+              <>
+                <Typography variant="overline" color="text.secondary" component="h2">
+                  Favourites
+                </Typography>
+                <WaffleGroup
+                  items={favouriteItems}
+                  activeKey={active.key}
+                  onPick={pick}
+                  isFavourite={isFavourite}
+                  onToggleFavourite={toggle}
+                />
+              </>
+            )}
+
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              component="h2"
+              sx={favouriteItems.length > 0 ? { display: "block", mt: 1.5 } : undefined}
+            >
               Apps
             </Typography>
-            <WaffleGroup items={FUNCTIONAL_PERSPECTIVES} activeKey={active.key} onPick={pick} />
+            <WaffleGroup
+              items={FUNCTIONAL_PERSPECTIVES}
+              activeKey={active.key}
+              onPick={pick}
+              isFavourite={isFavourite}
+              onToggleFavourite={toggle}
+            />
 
             <Typography
               variant="overline"
@@ -155,7 +194,13 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
             >
               For you
             </Typography>
-            <WaffleGroup items={CROSS_PERSPECTIVES} activeKey={active.key} onPick={pick} />
+            <WaffleGroup
+              items={CROSS_PERSPECTIVES}
+              activeKey={active.key}
+              onPick={pick}
+              isFavourite={isFavourite}
+              onToggleFavourite={toggle}
+            />
           </Paper>
         </Box>
       </Popper>
@@ -167,9 +212,17 @@ interface WaffleGroupProps {
   items: readonly PerspectiveDef[];
   activeKey: string;
   onPick: (p: PerspectiveDef) => void;
+  isFavourite: (key: string) => boolean;
+  onToggleFavourite: (key: string) => void;
 }
 
-function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Element {
+function WaffleGroup({
+  items,
+  activeKey,
+  onPick,
+  isFavourite,
+  onToggleFavourite,
+}: WaffleGroupProps): JSX.Element {
   return (
     <Box
       sx={{
@@ -289,12 +342,50 @@ function WaffleGroup({ items, activeKey, onPick }: WaffleGroupProps): JSX.Elemen
           </Box>
         );
 
+        // The star is a SIBLING of the tile, not a child: the tile is itself a
+        // <button>, and nesting one button inside another is invalid HTML that
+        // browsers resolve unpredictably. The wrapper positions it instead.
+        //
+        // Shown on hover or keyboard focus, and always while favourited — so the
+        // current favourites are readable without hunting for them, while the
+        // control stays out of the way otherwise.
+        const starred = isFavourite(p.key);
+        const star = (
+          <Tooltip title={starred ? `Remove ${p.label} from favourites` : `Add ${p.label} to favourites`}>
+            <IconButton
+              size="small"
+              aria-label={
+                starred ? `Remove ${p.label} from favourites` : `Add ${p.label} to favourites`
+              }
+              aria-pressed={starred}
+              onClick={() => onToggleFavourite(p.key)}
+              sx={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                p: 0.25,
+                color: starred ? "warning.main" : "text.secondary",
+                opacity: starred ? 1 : 0,
+                transition: "opacity .12s",
+                ".waffle-cell:hover &, &:focus-visible": { opacity: 1 },
+              }}
+            >
+              <StarIcon size={14} fill={starred ? "currentColor" : "none"} />
+            </IconButton>
+          </Tooltip>
+        );
+
         // A disabled button emits no pointer events, so the tooltip needs a
         // wrapper to hang off.
         return p.access ? (
-          <Box key={p.key}>{tile}</Box>
+          <Box key={p.key} className="waffle-cell" sx={{ position: "relative" }}>
+            {tile}
+            {star}
+          </Box>
         ) : (
           <Tooltip key={p.key} title={`${p.label} isn't available yet`}>
+            {/* No star on a locked app: favouriting something you cannot open
+                would be a shortcut to a dead end. */}
             <Box sx={{ display: "block" }}>{tile}</Box>
           </Tooltip>
         );
