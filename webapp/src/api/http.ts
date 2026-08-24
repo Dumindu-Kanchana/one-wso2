@@ -225,6 +225,30 @@ export async function authedPost<T>(
   return readJsonOrNull<T>(res, url);
 }
 
+// Authed POST with a JSON body whose RESPONSE is plain text, not JSON —
+// currently the People Ops CSV report generator, which streams a whole
+// filtered dataset back as text/csv. Kept separate from authedPost rather
+// than folded into it with a flag: authedPost's contract is "parsed JSON or
+// null", and a CSV body reaching JSON.parse there is an error, not a mode.
+//
+// Returns the body verbatim (empty string included — a report with no
+// matching rows is a legitimately empty result, not a failure). Error
+// semantics are identical to authedPost.
+export async function authedPostText(
+  url: string,
+  accessToken: string,
+  body: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<string> {
+  const res = await fetchWithReauth(
+    url,
+    { method: "POST", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
+    accessToken,
+  );
+  if (!res.ok) await throwFromError(url, res, "authedPostText");
+  return res.text();
+}
+
 // Authed PATCH with a JSON body. Returns parsed JSON when the response has
 // a body, or null on 204. Same error semantics as authedPost.
 export async function authedPatch<T>(

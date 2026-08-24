@@ -89,11 +89,24 @@ function appsToSections(apps: readonly MenuApp[]): PerspectiveSection[] {
 }
 
 // People Ops's prior app menu (People/Visitor/Careers) was retired per
-// restructuring feedback. These three leaf anchors are the reports planned
-// to onboard next — each a "coming soon" card on the overview page (see
-// PeopleOpsPage) until its backend lands.
+// restructuring feedback. These are the reports being onboarded, ported from
+// people-app. A section with a `path` is live (the rail navigates to it); one
+// without is still a "coming soon" anchor on the overview page — see
+// PeopleOpsPage, which reads exactly this list to decide which card to show.
+//
+// `requires: ["admin"]` keeps the locked ones out of the rail for people who
+// can't use them. It is NOT the access control: the people-app backend
+// rejects non-admins on both /employees/search (org-wide) and
+// /reports/employees/generate, and PeopleOpsShell turns that into an
+// explanation. Someone who types the URL still gets a clear answer.
 export const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
-  { id: "people-active-employee-report", label: "Active employees", icon: UserRoundIcon },
+  {
+    id: "people-active-employee-report",
+    label: "Active employees",
+    icon: UserRoundIcon,
+    path: "/people-ops/reports/active-employees",
+    requires: ["admin"],
+  },
   { id: "people-resignation-report", label: "Resignations", icon: UserRoundMinusIcon },
   { id: "people-master-data", label: "Master data", icon: DatabaseIcon },
 ];

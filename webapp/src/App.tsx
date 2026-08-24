@@ -18,6 +18,7 @@ import { Navigate, Route, Routes } from "react-router";
 import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
+import ActiveEmployeesReportPage from "@features/people-ops/pages/ActiveEmployeesReportPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamComingSoonPage from "@features/my/pages/MyTeamComingSoonPage";
 import FinancePage from "@features/finance/pages/FinancePage";
@@ -106,6 +107,14 @@ export default function App() {
           <Route path="me/expense/lead-approvals" element={<ExpenseLeadApprovalsPage />} />
           <Route path="me/expense/finance-approvals" element={<ExpenseFinanceApprovalsPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
+          {/* People Ops reports. Admin-only, but enforced by the backend and
+              explained by PeopleOpsShell — there is no route-level guard, so
+              a non-admin reaching this URL gets the shell's "no access"
+              message rather than a blank page. */}
+          <Route
+            path="people-ops/reports/active-employees"
+            element={<ActiveEmployeesReportPage />}
+          />
           {/* Finance perspective — skeleton "coming soon" tile; the actual
               claim apps are the me/opd, me/cc, me/expense routes above. */}
           <Route path="finance" element={<FinancePage />} />

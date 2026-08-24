@@ -44,6 +44,33 @@ export const peopleServiceUrls = {
   // callers can only fetch their own (backend enforces isSelf check).
   employeeQrCode: (employeeId: string) =>
     `${peopleBackendUrl}/employees/${encodeURIComponent(employeeId)}/qr-code`,
+
+  // ---- People Ops reports -------------------------------------------------
+  //
+  // POST. The paged employee search behind the report preview tables. Backend
+  // requires ADMIN for the non-`leadOnly` form these reports use, so callers
+  // must gate on usePeopleOpsGate before firing — see the People Ops shell.
+  searchEmployees: `${peopleBackendUrl}/employees/search`,
+  // POST. Streams the FULL filtered dataset back as CSV text (not JSON), so
+  // it is read with authedPostText rather than authedPost. Also ADMIN-only.
+  reportsEmployees: `${peopleBackendUrl}/reports/employees/generate`,
+  // GET. Manager work-emails, for the report filter drawer's "Manager Email".
+  managers: `${peopleBackendUrl}/employees/managers`,
+
+  // ---- Org master data ----------------------------------------------------
+  //
+  // The dropdown sources for the report filter drawer. All GET, all returning
+  // flat `{id, name}`-shaped lists (see peopleOpsTypes for the exact shapes —
+  // careerFunctions and designations name their label field differently).
+  businessUnits: `${peopleBackendUrl}/business-units`,
+  teams: `${peopleBackendUrl}/teams`,
+  subTeams: `${peopleBackendUrl}/sub-teams`,
+  units: `${peopleBackendUrl}/units`,
+  careerFunctions: `${peopleBackendUrl}/career-functions`,
+  designations: `${peopleBackendUrl}/designations`,
+  companies: `${peopleBackendUrl}/companies`,
+  offices: `${peopleBackendUrl}/offices`,
+  employmentTypes: `${peopleBackendUrl}/employment-types`,
 };
 
 // Promotion app backend (digiops-hr/apps/promotion). Separate service from
