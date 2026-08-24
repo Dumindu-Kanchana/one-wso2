@@ -19,21 +19,32 @@ import type { OrgChartEntity } from "../api/peopleOpsTypes";
 export type StatusFilter = "active" | "inactive" | "all";
 
 /**
+ * Resolves a head's email to their display name, for search.
+ *
+ * The table shows heads as people (avatar + name), so typing a name someone
+ * can SEE has to match — searching "Sachin" while looking at a row labelled
+ * "Sachin Ranasinghe" and getting nothing is the kind of small betrayal that
+ * makes a search feel broken. Emails still match, because the underlying
+ * value is still an email.
+ */
+export type HeadNameLookup = (email: string) => string | undefined;
+
+/**
  * Client-side search + status filter for an org entity list.
  *
  * Client-side because these lists are tens of rows and arrive whole — the
  * endpoints have no search or pagination. Kept out of the component so the
  * matching rules are testable directly.
  *
- * Search covers name AND head email: "who runs Platform?" and "what does
- * ada@ run?" are both real questions, and matching only the name answers one
- * of them. Case-insensitive, and trimmed so a stray space doesn't empty the
- * table.
+ * Search covers the entity name, the head's email, and — when `headName` can
+ * resolve one — the head's display name. Case-insensitive, and trimmed so a
+ * stray space doesn't empty the table.
  */
 export function filterOrgEntities(
   entities: OrgChartEntity[],
   search: string,
   status: StatusFilter,
+  headName?: HeadNameLookup,
 ): OrgChartEntity[] {
   const query = search.trim().toLowerCase();
 
@@ -41,9 +52,15 @@ export function filterOrgEntities(
     if (status === "active" && !entity.isActive) return false;
     if (status === "inactive" && entity.isActive) return false;
     if (!query) return true;
-    return (
-      entity.name.toLowerCase().includes(query) ||
-      (entity.headEmail ?? "").toLowerCase().includes(query)
-    );
+
+    if (entity.name.toLowerCase().includes(query)) return true;
+
+    const email = entity.headEmail ?? "";
+    if (email.toLowerCase().includes(query)) return true;
+
+    // Only when the roster has loaded and knows this address. Absent, search
+    // simply falls back to matching emails rather than failing.
+    const name = email ? headName?.(email) : undefined;
+    return Boolean(name && name.toLowerCase().includes(query));
   });
 }

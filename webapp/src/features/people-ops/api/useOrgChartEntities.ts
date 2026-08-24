@@ -54,8 +54,14 @@ interface OrgEntityConfig {
   label: string;
   /** Plural, for the tab: "Teams". */
   pluralLabel: string;
-  /** The head-email field's label, which names the entity. */
+  /** The head-email field's label in the dialog, which names the entity. */
   headEmailLabel: string;
+  /**
+   * The head column's heading in the table. Says "head" rather than "head
+   * email" because the column renders the person (avatar + name), not the
+   * address — the address is the tooltip.
+   */
+  headColumnLabel: string;
 }
 
 export const ORG_ENTITY_CONFIG: Record<OrgEntityKind, OrgEntityConfig> = {
@@ -65,6 +71,7 @@ export const ORG_ENTITY_CONFIG: Record<OrgEntityKind, OrgEntityConfig> = {
     label: "business unit",
     pluralLabel: "Business units",
     headEmailLabel: "Business unit head email",
+    headColumnLabel: "Business unit head",
   },
   team: {
     collectionUrl: peopleServiceUrls.teams,
@@ -72,6 +79,7 @@ export const ORG_ENTITY_CONFIG: Record<OrgEntityKind, OrgEntityConfig> = {
     label: "team",
     pluralLabel: "Teams",
     headEmailLabel: "Team head email",
+    headColumnLabel: "Team head",
   },
   subTeam: {
     collectionUrl: peopleServiceUrls.subTeams,
@@ -79,6 +87,7 @@ export const ORG_ENTITY_CONFIG: Record<OrgEntityKind, OrgEntityConfig> = {
     label: "sub team",
     pluralLabel: "Sub teams",
     headEmailLabel: "Sub team head email",
+    headColumnLabel: "Sub team head",
   },
   unit: {
     collectionUrl: peopleServiceUrls.units,
@@ -86,6 +95,7 @@ export const ORG_ENTITY_CONFIG: Record<OrgEntityKind, OrgEntityConfig> = {
     label: "unit",
     pluralLabel: "Units",
     headEmailLabel: "Unit head email",
+    headColumnLabel: "Unit head",
   },
 };
 

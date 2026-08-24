@@ -38,10 +38,14 @@ import {
 import { InboxIcon, PencilIcon, PlusIcon, SearchIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
 import { useNotifications } from "@context/notifications/NotificationsContext";
+import PersonCell from "../components/PersonCell";
+import { emailKey } from "../components/employeePickerOptions";
+import { fullName } from "@features/my/api/derive";
 import type { OrgChartEntity, OrgEntityKind } from "../api/peopleOpsTypes";
 import {
   ORG_ENTITY_CONFIG,
   useCreateOrgChartEntity,
+  useEmployeesBasicInfo,
   useOrgChartEntities,
   useUpdateOrgChartEntity,
 } from "../api/useOrgChartEntities";
@@ -76,9 +80,23 @@ export default function OrgEntityTab({ kind }: { kind: OrgEntityKind }) {
   const [editing, setEditing] = useState<OrgChartEntity | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // The head column renders names, so search has to match them too — see
+  // filterOrgEntities. Reads the roster the picker already caches, so this
+  // adds no request; before it loads, search falls back to emails.
+  const employees = useEmployeesBasicInfo();
+  const headNameByEmail = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of employees.data ?? []) {
+      map.set(emailKey(e.workEmail), fullName(e));
+    }
+    return map;
+  }, [employees.data]);
+
   const rows = useMemo(
-    () => filterOrgEntities(entities.data ?? [], search, status),
-    [entities.data, search, status],
+    () => filterOrgEntities(entities.data ?? [], search, status, (email) =>
+      headNameByEmail.get(emailKey(email)),
+    ),
+    [entities.data, search, status, headNameByEmail],
   );
 
   const isPending = entities.isPending;
@@ -167,7 +185,7 @@ export default function OrgEntityTab({ kind }: { kind: OrgEntityKind }) {
           <TableHead>
             <TableRow>
               <TableCell sx={{ fontWeight: 700, minWidth: 200 }}>Name</TableCell>
-              <TableCell sx={{ fontWeight: 700, minWidth: 220 }}>{config.headEmailLabel}</TableCell>
+              <TableCell sx={{ fontWeight: 700, minWidth: 220 }}>{config.headColumnLabel}</TableCell>
               <TableCell sx={{ fontWeight: 700, width: 150 }} align="right">
                 Active employees
               </TableCell>
@@ -183,7 +201,14 @@ export default function OrgEntityTab({ kind }: { kind: OrgEntityKind }) {
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={`skeleton-${i}`}>
                   <TableCell><Skeleton variant="text" width="70%" /></TableCell>
-                  <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                  {/* Mirrors PersonCell's avatar + name, so the row doesn't
+                      change shape when the real data lands. */}
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Skeleton variant="circular" width={24} height={24} />
+                      <Skeleton variant="text" width={140} />
+                    </Box>
+                  </TableCell>
                   <TableCell align="right"><Skeleton variant="text" width={30} sx={{ ml: "auto" }} /></TableCell>
                   <TableCell align="center"><Skeleton variant="rounded" width={64} height={22} sx={{ mx: "auto" }} /></TableCell>
                   <TableCell align="center"><Skeleton variant="circular" width={24} height={24} sx={{ mx: "auto" }} /></TableCell>
@@ -217,8 +242,8 @@ export default function OrgEntityTab({ kind }: { kind: OrgEntityKind }) {
               rows.map((row) => (
                 <TableRow key={row.id} hover>
                   <TableCell sx={{ fontWeight: 500 }}>{row.name}</TableCell>
-                  <TableCell sx={{ color: row.headEmail ? "text.primary" : "text.disabled" }}>
-                    {row.headEmail || "—"}
+                  <TableCell>
+                    <PersonCell email={row.headEmail} />
                   </TableCell>
                   <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
                     {row.activeEmployeeCount}

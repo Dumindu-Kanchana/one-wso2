@@ -189,4 +189,37 @@ describe("filterOrgEntities", () => {
   it("survives an entity with no head email", () => {
     expect(filterOrgEntities(rows, "wso2.com", "all").map((r) => r.id)).toEqual([1, 2]);
   });
+
+  describe("with head names resolved", () => {
+    // The table shows heads as people, so searching a name that is visible
+    // on screen has to match — matching only the email would make search
+    // look broken to anyone typing what they can see.
+    const headName = (email: string) =>
+      ({ "ada@wso2.com": "Ada Lovelace", "grace@wso2.com": "Grace Hopper" })[
+        email.toLowerCase()
+      ];
+
+    it("matches the head's displayed name", () => {
+      expect(filterOrgEntities(rows, "Lovelace", "all", headName).map((r) => r.id)).toEqual([1]);
+      expect(filterOrgEntities(rows, "grace hop", "all", headName).map((r) => r.id)).toEqual([2]);
+    });
+
+    it("still matches emails and entity names", () => {
+      expect(filterOrgEntities(rows, "ada@", "all", headName).map((r) => r.id)).toEqual([1]);
+      expect(filterOrgEntities(rows, "Data", "all", headName).map((r) => r.id)).toEqual([3]);
+    });
+
+    it("falls back to email matching when a name can't be resolved", () => {
+      // Before the roster loads, or for a head who has left, the lookup
+      // returns undefined — search must degrade, not throw or match nothing.
+      const unresolved = () => undefined;
+      expect(filterOrgEntities(rows, "ada@wso2", "all", unresolved).map((r) => r.id)).toEqual([1]);
+      expect(filterOrgEntities(rows, "Lovelace", "all", unresolved)).toEqual([]);
+    });
+
+    it("respects the status filter when matching by name", () => {
+      // Grace heads an inactive entity; a name match must not override that.
+      expect(filterOrgEntities(rows, "Hopper", "active", headName)).toEqual([]);
+    });
+  });
 });
