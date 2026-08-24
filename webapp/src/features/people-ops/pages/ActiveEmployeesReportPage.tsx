@@ -42,6 +42,7 @@ export default function ActiveEmployeesReportPage() {
         downloadFilenamePrefix="active-employees"
         showExcludeFutureFilter
         showIncludeMarkedLeaversFilter
+        defaultIncludeMarkedLeavers
         previewAlertText={
           <>
             Search or filter to narrow the list, and select an employee to see

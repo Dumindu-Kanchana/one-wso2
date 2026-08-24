@@ -27,11 +27,15 @@ import { REPORTS_EYEBROW } from "../reports/reportRoutes";
 // CSV rather than the standard employee one — it branches on
 // filters.employeeStatus, which the table already sends.
 //
-// Both of the Active report's toggles are off here, for the same reason in
-// each case: they ask questions that don't apply to someone who has left.
-// "Exclude future joiners" would filter on a start date that is by definition
-// in the past, and "include marked leavers" is about people still serving
-// notice — who are Active, and so belong to the other report.
+// "Exclude future joiners" is hidden: it filters on a start date that is by
+// definition in the past for anyone who has left, so it could only ever be a
+// no-op here.
+//
+// "Include marked leavers" IS offered, but off by default and worded for this
+// report. The backend widens the status filter to `Left OR Marked leaver`,
+// which here means resignations that haven't taken effect yet — someone who
+// resigned but is still working their notice. Worth being able to see; wrong
+// to include silently in a count of who has left.
 export default function ResignationsReportPage() {
   return (
     <PeopleOpsShell
@@ -44,6 +48,13 @@ export default function ResignationsReportPage() {
         countChipLabel="Total resigned"
         downloadFilenamePrefix="resigned-employees"
         showExcludeFutureFilter={false}
+        // Offered but OFF by default. Turning it on widens the status filter
+        // to "Marked leaver", i.e. people who have resigned but are still
+        // working their notice — a resignation that hasn't taken effect yet.
+        // Useful to see, but it would be wrong to fold silently into a
+        // report whose headline count answers "how many people have left".
+        showIncludeMarkedLeaversFilter
+        markedLeaversLabel="Include people serving notice"
         previewAlertText={
           <>
             Search or filter to narrow the list, and select someone to see their

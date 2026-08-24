@@ -60,6 +60,13 @@ export interface ReportFilterDialogProps {
   showEmployeeStatusFilter?: boolean;
   showExcludeFutureFilter?: boolean;
   showIncludeMarkedLeaversFilter?: boolean;
+  /**
+   * Wording for the marked-leavers toggle. It widens the status filter to
+   * "Marked leaver" either way, but what that MEANS depends on the report:
+   * on Active it keeps people serving notice in the headcount, on
+   * Resignations it pulls in resignations that haven't taken effect yet.
+   */
+  markedLeaversLabel?: string;
 }
 
 // One id-valued dropdown. Options arrive pre-sorted and normalised to
@@ -134,6 +141,7 @@ function ReportFilterDialogBody({
   showEmployeeStatusFilter = false,
   showExcludeFutureFilter = true,
   showIncludeMarkedLeaversFilter = false,
+  markedLeaversLabel = "Include marked leavers",
 }: ReportFilterDialogProps) {
   const [draft, setDraft] = useState<Filters>(applied);
 
@@ -321,13 +329,20 @@ function ReportFilterDialogBody({
                 sx={switchSx}
                 control={
                   <Switch
-                    // Defaults ON: people serving notice are still active, so
-                    // only an explicit `false` excludes them.
-                    checked={draft.includeMarkedLeavers !== false}
-                    onChange={(e) => set({ includeMarkedLeavers: e.target.checked })}
+                    // Reflects the actual value rather than treating absent as
+                    // on: the two reports default this differently, and the
+                    // switch has to show which one it is currently in.
+                    checked={draft.includeMarkedLeavers === true}
+                    onChange={(e) =>
+                      // undefined when off, so an untouched toggle doesn't
+                      // count toward the active-filter badge.
+                      set({ includeMarkedLeavers: e.target.checked ? true : undefined })
+                    }
                   />
                 }
-                label={<Typography variant="body2">Include marked leavers</Typography>}
+                label={
+                  <Typography variant="body2">{markedLeaversLabel}</Typography>
+                }
               />
             )}
           </Stack>

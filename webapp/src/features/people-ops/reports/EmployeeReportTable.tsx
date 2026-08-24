@@ -65,6 +65,7 @@ import { COLUMN_WIDTHS, cellText } from "./reportCells";
 import { getAllKeys, getColumnsForStatus } from "./reportColumns";
 import { employeeDetailPath } from "./reportRoutes";
 import { pageView } from "./reportPaging";
+import { baselineFiltersFor } from "./reportBaseline";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
@@ -92,6 +93,16 @@ export interface EmployeeReportTableProps {
   downloadFilenamePrefix: string;
   showExcludeFutureFilter?: boolean;
   showIncludeMarkedLeaversFilter?: boolean;
+  /**
+   * Whether "include marked leavers" starts on. Separate from showing it,
+   * because the two reports want opposite defaults: on Active, people
+   * serving notice are still staff and belong in the headcount; on
+   * Resignations, defaulting it on would silently widen "who has left" to
+   * include people who haven't left yet.
+   */
+  defaultIncludeMarkedLeavers?: boolean;
+  /** Wording for that toggle; see ReportFilterDialog for why it varies. */
+  markedLeaversLabel?: string;
 }
 
 export default function EmployeeReportTable({
@@ -101,6 +112,8 @@ export default function EmployeeReportTable({
   downloadFilenamePrefix,
   showExcludeFutureFilter = true,
   showIncludeMarkedLeaversFilter = false,
+  defaultIncludeMarkedLeavers = false,
+  markedLeaversLabel,
 }: EmployeeReportTableProps) {
   const isResignation = employeeStatus === EmployeeStatus.Left;
 
@@ -116,12 +129,21 @@ export default function EmployeeReportTable({
   // The report's resting state: its fixed status plus whichever defaults it
   // declares. "Clear all" returns here, not to an empty object — an Active
   // report with no status filter would not be an Active report.
-  const baselineFilters = useMemo<Filters>(() => {
-    const base: Filters = { employeeStatus };
-    if (showExcludeFutureFilter) base.excludeFutureStartDate = true;
-    if (showIncludeMarkedLeaversFilter) base.includeMarkedLeavers = true;
-    return base;
-  }, [employeeStatus, showExcludeFutureFilter, showIncludeMarkedLeaversFilter]);
+  const baselineFilters = useMemo<Filters>(
+    () =>
+      baselineFiltersFor({
+        employeeStatus,
+        showExcludeFutureFilter,
+        showIncludeMarkedLeaversFilter,
+        defaultIncludeMarkedLeavers,
+      }),
+    [
+      employeeStatus,
+      showExcludeFutureFilter,
+      showIncludeMarkedLeaversFilter,
+      defaultIncludeMarkedLeavers,
+    ],
+  );
 
   const [appliedFilters, setAppliedFilters] = useState<Filters>(baselineFilters);
 
@@ -618,6 +640,7 @@ export default function EmployeeReportTable({
         managerEmails={managerEmails}
         showExcludeFutureFilter={showExcludeFutureFilter}
         showIncludeMarkedLeaversFilter={showIncludeMarkedLeaversFilter}
+        markedLeaversLabel={markedLeaversLabel}
       />
 
       {/* A failed export needs to be visible without disturbing the table —
