@@ -15,14 +15,52 @@
 // under the License.
 
 import { describe, expect, it } from "vitest";
-import { BENTO_COLS, packBento, type BentoTile } from "./bentoLayout";
+import { BENTO_COLS, naturalColSpan, packBento, type BentoTile } from "./bentoLayout";
 
 // The property that matters is the one you can't see in a code review but can
-// see immediately on the page: the tiles have to fill whole rows. Everything
-// else here is a specific case of that.
+// see immediately on the page: no hole between tiles. Everything else here is a
+// specific case of that.
+//
+// This used to be asserted by summing spans and checking the total against
+// BENTO_COLS, which is NOT what CSS grid does and passed on layouts that render
+// holes — see the note in bentoLayout.ts. So the check below places the tiles the
+// way the browser will.
 
-const cells = (tiles: readonly BentoTile[]) =>
-  packBento(tiles).reduce((n, p) => n + p.colSpan, 0);
+/**
+ * Auto-place the packed spans and report the gaps, exactly as CSS grid's
+ * `grid-auto-flow: row` would: a tile that doesn't fit the remaining columns
+ * moves to the next row and leaves the columns it skipped empty.
+ *
+ * `interior` counts empty columns with tiles placed after them — a hole. Those
+ * must always be zero.
+ * `trailing` counts empty columns in the final row, which is a short last row
+ * and allowed.
+ */
+function place(tiles: readonly BentoTile[], cols: number) {
+  let col = 0;
+  let interior = 0;
+  const rows: number[][] = [[]];
+
+  for (const p of packBento(tiles)) {
+    if (col + p.colSpan > cols) {
+      interior += cols - col;
+      col = 0;
+      rows.push([]);
+    }
+    rows[rows.length - 1].push(p.colSpan);
+    col += p.colSpan;
+    if (col === cols) {
+      col = 0;
+      rows.push([]);
+    }
+  }
+
+  return {
+    interior,
+    trailing: col === 0 ? 0 : cols - col,
+    rows: rows.filter((r) => r.length > 0),
+  };
+}
 
 // What a fully-authorized caller sees, in the order the page passes them:
 // the five operations in registry order, then Marketing Admin, then ISAC.
@@ -36,123 +74,97 @@ const FULL: BentoTile[] = [
   { key: "isac", weight: 1 },
 ];
 
+// ---- the sets RBAC actually produces --------------------------------------
+//
+// The access gate decides how many tiles exist AND how many links each holds, so
+// every set a real caller can land on has to place as cleanly as the admin's.
+//
+// These are the real sets, not arbitrary slices, and the difference matters:
+// Utilities is the one app with no `requires`, so every authorized caller has it
+// — but it is LAST in registry order, so a trailing slice of FULL drops it first
+// and tests a set nobody can ever have. Each case is named for the Asgardeo
+// capability that produces it.
+const pick = (...keys: string[]) => FULL.filter((t) => keys.includes(t.key));
+
+const BY_CAPABILITY: Record<string, BentoTile[]> = {
+  // Authorized, no capabilities. Utilities is open to any authorized caller.
+  "baseline, no ISAC": pick("utilities"),
+  baseline: pick("utilities", "isac"),
+  // `events` alone → "My Submissions" only. Its sibling `events-review` is a
+  // separate grant, so a submitter's Events tile holds ONE link, not two.
+  "events (submitter)": [{ key: "events", weight: 1 }, ...pick("utilities", "isac")],
+  "events + events-review": pick("events", "utilities", "isac"),
+  emailworkbench: pick("email-workbench", "utilities", "isac"),
+  "adcampaigns + crmupload": pick("ad-campaigns", "crm-upload", "utilities", "isac"),
+  // The set that exposed the cell-sum bug on PR #20: it sums to 8 cells, a clean
+  // multiple of 4, and the old pack still left two holes at four columns.
+  "emailworkbench + events + crmupload": pick(
+    "email-workbench",
+    "events",
+    "crm-upload",
+    "utilities",
+    "isac",
+  ),
+  // isAdmin is a master key in hasMarketingOpsCapability, so an admin sees every
+  // operation as well as the Admin tile — there is no "admin but only some
+  // operations" set to cover.
+  "isAdmin, no ISAC": pick(
+    "email-workbench",
+    "ad-campaigns",
+    "events",
+    "crm-upload",
+    "utilities",
+    "admin",
+  ),
+  isAdmin: FULL,
+};
+
 describe("packBento", () => {
-  it("fills whole rows for the full set", () => {
-    expect(cells(FULL) % BENTO_COLS).toBe(0);
+  // Both breakpoints the page renders: four columns at `lg`, two below it.
+  // Two columns is not a free pass — a 2-wide tile fills a whole row there, so
+  // the same skipped-column problem applies.
+  it.each(Object.entries(BY_CAPABILITY))("leaves no hole at 4 columns: %s", (_name, tiles) => {
+    expect(place(tiles, BENTO_COLS).interior).toBe(0);
   });
 
-  // Three tidy rows: 2 + 1 + 1 + 2 + 2 + 2 + 2 = 12 cells.
+  it.each(Object.entries(BY_CAPABILITY))("leaves no hole at 2 columns: %s", (_name, tiles) => {
+    expect(place(tiles, 2).interior).toBe(0);
+  });
+
+  // Three tidy rows, nothing skipped and nothing left over.
   //   row 1   feature (2)  | Ad Campaigns | Events
   //   row 2   CRM Upload   | Utilities
   //   row 3   Admin        | ISAC
   it("gives the full set the intended shape", () => {
     expect(packBento(FULL)).toEqual([
-      // the feature: double width, top-left, the page's entry point
       { key: "email-workbench", colSpan: 2 },
       { key: "ad-campaigns", colSpan: 1 },
       { key: "events", colSpan: 1 },
-      // wide on its own merit — four screens to list two-up
       { key: "crm-upload", colSpan: 2 },
-      // these two were widened by the pack step to close the last rows
       { key: "utilities", colSpan: 2 },
-      // wide on merit again: four admin panels
       { key: "admin", colSpan: 2 },
       { key: "isac", colSpan: 2 },
     ]);
-  });
-
-  // ---- the sets RBAC actually produces ------------------------------------
-  //
-  // The access gate decides how many tiles exist AND how many links each holds,
-  // so every set a real caller can land on has to pack as cleanly as the admin's.
-  // This is the case the old auto-fit grid handled for free and a fixed-column
-  // bento does not.
-  //
-  // These are the real sets, not arbitrary slices, and the difference matters:
-  // Utilities is the one app with no `requires`, so every authorized caller has
-  // it — but it is LAST in registry order, which means a trailing slice of FULL
-  // drops it first and tests a set nobody can ever have. Each case below is
-  // named for the Asgardeo capability that produces it.
-  const BY_CAPABILITY: Record<string, BentoTile[]> = {
-    // Authorized, no capabilities. Utilities is open to any authorized caller.
-    "baseline, no ISAC": [{ key: "utilities", weight: 2 }],
-    baseline: [
-      { key: "utilities", weight: 2 },
-      { key: "isac", weight: 1 },
-    ],
-    // `events` alone → "My Submissions" only. Its sibling `events-review` is a
-    // separate grant, so a submitter's Events tile holds ONE link, not two.
-    "events (submitter)": [
-      { key: "events", weight: 1 },
-      { key: "utilities", weight: 2 },
-      { key: "isac", weight: 1 },
-    ],
-    "events + events-review": [
-      { key: "events", weight: 2 },
-      { key: "utilities", weight: 2 },
-      { key: "isac", weight: 1 },
-    ],
-    emailworkbench: [
-      { key: "email-workbench", weight: 4 },
-      { key: "utilities", weight: 2 },
-      { key: "isac", weight: 1 },
-    ],
-    "adcampaigns + crmupload": [
-      { key: "ad-campaigns", weight: 1 },
-      { key: "crm-upload", weight: 4 },
-      { key: "utilities", weight: 2 },
-      { key: "isac", weight: 1 },
-    ],
-    "emailworkbench + events + crmupload": [
-      { key: "email-workbench", weight: 4 },
-      { key: "events", weight: 2 },
-      { key: "crm-upload", weight: 4 },
-      { key: "utilities", weight: 2 },
-      { key: "isac", weight: 1 },
-    ],
-    // isAdmin is a master key in hasMarketingOpsCapability, so an admin sees
-    // every operation as well as the Admin tile — there is no "admin but only
-    // some operations" set to cover.
-    "isAdmin, no ISAC": FULL.filter((t) => t.key !== "isac"),
-    isAdmin: FULL,
-  };
-
-  it.each(Object.entries(BY_CAPABILITY))("fills whole rows: %s", (_name, tiles) => {
-    // One tile can only ever be half a row — see the two-or-fewer case below.
-    if (tiles.length < 2) return;
-    expect(cells(tiles) % BENTO_COLS).toBe(0);
-  });
-
-  // The other half of the RBAC contract: a tile is sized by the links THIS
-  // caller can see, so one the gate reduced is narrow rather than keeping a
-  // four-link footprint with three links missing from it.
-  //
-  // Events is the only app the gate can partly reduce — `events` and
-  // `events-review` are separate grants — so it is the one that shows this.
-  it("sizes each tile from the links this caller can see", () => {
-    const eventsSpan = (weight: number) =>
-      packBento([
-        { key: "email-workbench", weight: 4 },
-        { key: "events", weight },
-        { key: "crm-upload", weight: 4 },
-        { key: "utilities", weight: 2 },
-        { key: "isac", weight: 1 },
-      ]).find((p) => p.key === "events")!.colSpan;
-
-    expect(eventsSpan(1)).toBe(1); // `events` only — one link
-    expect(eventsSpan(2)).toBe(1); // + `events-review` — still under WIDE_AT
-    expect(eventsSpan(3)).toBe(2); // a third screen would earn the width
+    expect(place(FULL, BENTO_COLS)).toMatchObject({
+      interior: 0,
+      trailing: 0,
+      rows: [
+        [2, 1, 1],
+        [2, 2],
+        [2, 2],
+      ],
+    });
   });
 
   it("always gives the feature the full double width", () => {
-    for (let n = 3; n <= FULL.length; n++) {
-      const [first] = packBento(FULL.slice(0, n));
-      expect(first).toEqual({ key: "email-workbench", colSpan: 2 });
+    for (const tiles of Object.values(BY_CAPABILITY)) {
+      if (tiles.length < 3) continue;
+      expect(packBento(tiles)[0].colSpan).toBe(2);
     }
   });
 
-  // No tile spans two rows any more — the 2x2 feature left empty card under its
-  // own links. See the note in bentoLayout.
+  // No tile spans two rows — the 2x2 feature left empty card under its own
+  // links. See the note in bentoLayout.
   it("returns width only", () => {
     for (const p of packBento(FULL)) {
       expect(Object.keys(p).sort()).toEqual(["colSpan", "key"]);
@@ -163,8 +175,6 @@ describe("packBento", () => {
     expect(packBento(FULL).map((p) => p.key)).toEqual(FULL.map((t) => t.key));
   });
 
-  // A lone operation rendered 2x2 would be a billboard for one link — the same
-  // mistake as the full-width admin strip this layout replaced.
   it("fills one row between them at two tiles or fewer", () => {
     expect(packBento(FULL.slice(0, 1))).toEqual([{ key: "email-workbench", colSpan: 2 }]);
     expect(packBento(FULL.slice(0, 2))).toEqual([
@@ -177,8 +187,9 @@ describe("packBento", () => {
     expect(packBento([])).toEqual([]);
   });
 
-  // The documented floor: with nothing narrow left to widen, the last row keeps
-  // a gap rather than the pack looping forever or reshaping the feature.
+  // The documented floor: with nothing narrow left to widen, the last row stays
+  // short rather than the pack looping or reshaping the feature. Short is fine;
+  // a hole with tiles after it is not, which the interior checks above cover.
   it("stops instead of looping when every tile is already wide", () => {
     const allWide: BentoTile[] = [
       { key: "a", weight: 4 },
@@ -190,5 +201,29 @@ describe("packBento", () => {
       { key: "b", colSpan: 2 },
       { key: "c", colSpan: 2 },
     ]);
+    expect(place(allWide, BENTO_COLS)).toMatchObject({ interior: 0, trailing: 2 });
+  });
+});
+
+// The other half of the RBAC contract: a tile is sized by the links THIS caller
+// can see, so one the gate reduced asks for less width rather than keeping a
+// four-link footprint with three links missing from it.
+//
+// Tested on naturalColSpan rather than through packBento, because packBento may
+// widen a narrow tile to close a row — a real behaviour, but one that would mask
+// the sizing rule if the two were asserted together.
+describe("naturalColSpan", () => {
+  it("sizes a tile from the links this caller can see", () => {
+    // Events is the only app the gate can partly reduce: `events` and
+    // `events-review` are separate grants.
+    expect(naturalColSpan({ key: "events", weight: 1 }, 2)).toBe(1);
+    expect(naturalColSpan({ key: "events", weight: 2 }, 2)).toBe(1);
+    // A third screen would earn the second column.
+    expect(naturalColSpan({ key: "events", weight: 3 }, 2)).toBe(2);
+    expect(naturalColSpan({ key: "crm-upload", weight: 4 }, 3)).toBe(2);
+  });
+
+  it("never leaves the feature narrow, however few links it has", () => {
+    expect(naturalColSpan({ key: "utilities", weight: 1 }, 0)).toBe(2);
   });
 });

@@ -131,8 +131,9 @@ import { BENTO_COLS, packBento } from "./bentoLayout";
 //     suppressed below three tiles — a lone Utilities tile with the brand wash
 //     on it would be announcing an entry point to a page with one door.
 //
-// packBento covers the arithmetic of the varying tile count; its tests walk the
-// capability sets that actually occur rather than arbitrary subsets.
+// packBento handles the varying tile count by walking placement the way the
+// browser does, so no hole opens between tiles; its tests walk the capability
+// sets that actually occur rather than arbitrary subsets.
 export default function MarketingOpsPage() {
   const gate = useMarketingOpsGate();
 
