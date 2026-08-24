@@ -20,26 +20,43 @@
 // file accreting palette edits — the brand layer itself (palette, typography,
 // surfaces) lives in brandTheme.ts.
 
-import { ClassicTheme, HighContrastTheme } from "@wso2/oxygen-ui";
+import {
+  AcrylicPurpleTheme,
+  ChoreoTheme,
+  ClassicTheme,
+  HighContrastTheme,
+} from "@wso2/oxygen-ui";
 import type { OxygenTheme } from "@wso2/oxygen-ui/styles/Themes/OxygenThemeBase";
 import { OneWso2Theme } from "@config/brandTheme";
 import { withA11yOverrides } from "@config/a11yThemeOverrides";
 
 export const THEMES = {
-  oneWso2: OneWso2Theme,
-  // Back-compat: deployments already ship ONE_WSO2_THEME="acrylicOrange" in
-  // public/config.js and expect the brand theme, not raw AcrylicOrange.
+  // The brand theme IS Acrylic Orange with One WSO2's palette and solid surfaces
+  // layered on (see brandTheme.ts, which extends AcrylicOrangeTheme), so it keeps
+  // that name. Deployments already ship ONE_WSO2_THEME="acrylicOrange".
   acrylicOrange: OneWso2Theme,
+  // Alias, resolvable but not offered — an earlier iteration persisted this key,
+  // so saved preferences must keep working. canonicalThemeKey() folds it back.
+  oneWso2: OneWso2Theme,
+  acrylicPurple: AcrylicPurpleTheme,
+  choreo: ChoreoTheme,
   classic: ClassicTheme,
   highContrast: HighContrastTheme,
 } satisfies Record<string, OxygenTheme>;
 
 export type ThemeKey = keyof typeof THEMES;
 
-export const DEFAULT_THEME_KEY: ThemeKey = "oneWso2";
+export const DEFAULT_THEME_KEY: ThemeKey = "acrylicOrange";
 
+/**
+ * What the picker offers, in display order. The brand theme leads because it is
+ * the default; the rest are the shipped presets. Note this is deliberately a
+ * subset of THEMES — `acrylicOrange` resolves but is not offered.
+ */
 export const THEME_OPTIONS: { key: ThemeKey; label: string }[] = [
-  { key: "oneWso2", label: "One WSO2" },
+  { key: "acrylicOrange", label: "Acrylic Orange" },
+  { key: "acrylicPurple", label: "Acrylic Purple" },
+  { key: "choreo", label: "Choreo" },
   { key: "classic", label: "Classic" },
   { key: "highContrast", label: "High Contrast" },
 ];
@@ -51,10 +68,20 @@ export function isThemeKey(value: unknown): value is ThemeKey {
   return typeof value === "string" && Object.hasOwn(THEMES, value);
 }
 
+/**
+ * Fold an alias onto the key the picker lists.
+ *
+ * Without this, a preference saved under the alias resolves to the right theme
+ * but matches no menu row, so the picker opens with nothing ticked.
+ */
+export function canonicalThemeKey(key: ThemeKey): ThemeKey {
+  return key === "oneWso2" ? "acrylicOrange" : key;
+}
+
 /** The theme key configured for this deployment, falling back to the default. */
 export function configThemeKey(): ThemeKey {
   const configured = window.config?.ONE_WSO2_THEME;
-  return isThemeKey(configured) ? configured : DEFAULT_THEME_KEY;
+  return isThemeKey(configured) ? canonicalThemeKey(configured) : DEFAULT_THEME_KEY;
 }
 
 /** Resolve a key to a ready-to-use theme, accessibility overlay included. */
@@ -62,7 +89,6 @@ export function resolveTheme(key: string | undefined): OxygenTheme {
   return withA11yOverrides(isThemeKey(key) ? THEMES[key] : THEMES[DEFAULT_THEME_KEY]);
 }
 
-// The theme this deployment renders with. Resolved once at module load — there
-// is no runtime theme switcher yet; when one lands it should call resolveTheme()
-// from a provider instead of reading this.
-export const themeConfig = resolveTheme(configThemeKey());
+// No module-level resolved theme any more: the theme is chosen at runtime and can
+// change, so it belongs in React state. ThemePreferenceProvider owns it and calls
+// resolveTheme() per key; configThemeKey() is the fallback when nothing is saved.

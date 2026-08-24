@@ -28,6 +28,7 @@ import { LayoutGridIcon, SearchIcon } from "@wso2/oxygen-ui-icons-react";
 import PinnedTabs from "@features/pinned/components/PinnedTabs";
 import PinThisPageButton from "@features/pinned/components/PinThisPageButton";
 import { usePinnedEntries } from "@features/pinned/usePinned";
+import ThemeSelect from "./ThemeSelect";
 import UserProfileMenu from "./UserProfileMenu";
 
 // The shortcut hint has to name a key the reader actually has: the handler
@@ -224,6 +225,9 @@ export default function TopBar({
           </IconButton>
         </Tooltip>
         <PinThisPageButton />
+        {/* Palette, then light/dark within it — two separate choices, both
+            persisted, deliberately adjacent. */}
+        <ThemeSelect />
         {/* Oxygen's own 3-state cycle: light → dark → system. */}
         <ColorSchemeToggle size="small" />
         <UserProfileMenu />
