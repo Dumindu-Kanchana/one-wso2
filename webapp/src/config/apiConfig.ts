@@ -66,6 +66,12 @@ export const peopleServiceUrls = {
   teams: `${peopleBackendUrl}/teams`,
   subTeams: `${peopleBackendUrl}/sub-teams`,
   units: `${peopleBackendUrl}/units`,
+  // Per-entity PATCH targets for Master Data → Org Structure. The four
+  // collection URLs above double as the POST targets for creating one.
+  businessUnit: (id: number) => `${peopleBackendUrl}/business-units/${id}`,
+  team: (id: number) => `${peopleBackendUrl}/teams/${id}`,
+  subTeam: (id: number) => `${peopleBackendUrl}/sub-teams/${id}`,
+  unit: (id: number) => `${peopleBackendUrl}/units/${id}`,
   careerFunctions: `${peopleBackendUrl}/career-functions`,
   designations: `${peopleBackendUrl}/designations`,
   companies: `${peopleBackendUrl}/companies`,

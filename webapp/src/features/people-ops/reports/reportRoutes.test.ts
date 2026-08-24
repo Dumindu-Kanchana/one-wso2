@@ -23,6 +23,7 @@ import { describe, expect, it } from "vitest";
 import { PEOPLE_OPS_SECTIONS } from "@constants/perspectives";
 import {
   ACTIVE_EMPLOYEES_REPORT_PATH,
+  ORG_STRUCTURE_PATH,
   RESIGNATIONS_REPORT_PATH,
 } from "@features/people-ops/reports/reportRoutes";
 
@@ -47,17 +48,30 @@ describe("People Ops rail sections", () => {
     });
   });
 
-  it("keeps Master data a placeholder until it ships", () => {
-    // The overview page shows a "coming soon" card for any section without a
-    // path, so this is what keeps that card in place.
-    expect(section("people-master-data")?.path).toBeUndefined();
+  it("routes Master data through a child, not the group itself", () => {
+    // Master data is a GROUP: more of its screens are still to be ported, so
+    // the route hangs off a child and the group has no path of its own. The
+    // overview card and the rail both key off that distinction.
+    const masterData = section("people-master-data");
+    expect(masterData?.path).toBeUndefined();
+    expect(masterData?.children).toHaveLength(1);
+    expect(masterData?.children?.[0]).toMatchObject({
+      label: "Org structure",
+      path: ORG_STRUCTURE_PATH,
+      requires: ["admin"],
+    });
   });
 
-  it("gates every live report on admin", () => {
-    // These reports are org-wide and the backend serves them to admins only.
+  it("gates every live screen on admin, nested ones included", () => {
+    // These screens are org-wide and the backend serves them to admins only.
     // A live section without `requires` would advertise itself to everyone
-    // and hand them a 403.
-    for (const s of PEOPLE_OPS_SECTIONS.filter((x) => x.path)) {
+    // and hand them a 403. Children count: that is where Master data's
+    // route lives, so checking only the top level would miss it entirely.
+    const live = PEOPLE_OPS_SECTIONS.flatMap((s) => [s, ...(s.children ?? [])]).filter(
+      (s) => s.path,
+    );
+    expect(live.length).toBeGreaterThan(0);
+    for (const s of live) {
       expect(s.requires).toEqual(["admin"]);
     }
   });

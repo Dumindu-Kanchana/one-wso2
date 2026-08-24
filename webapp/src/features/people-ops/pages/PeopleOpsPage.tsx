@@ -17,7 +17,7 @@
 import { Box, Button, Card, Typography } from "@wso2/oxygen-ui";
 import { Link as RouterLink } from "react-router";
 import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
-import { PEOPLE_OPS_SECTIONS } from "@constants/perspectives";
+import { PEOPLE_OPS_SECTIONS, type PerspectiveSection } from "@constants/perspectives";
 import SectionHeader from "../components/SectionHeader";
 
 // This perspective's prior content (People/Visitor/Careers app menus, the
@@ -47,27 +47,57 @@ export default function PeopleOpsPage() {
             {r.label}
           </SectionHeader>
           <Card variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
-            {r.path ? (
-              <>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  Preview the report against your filters, then export the full
-                  dataset as CSV.
-                </Typography>
-                <Button component={RouterLink} to={r.path} variant="outlined" size="small">
-                  Open {r.label.toLowerCase()}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Typography sx={{ fontWeight: 600, mb: 0.75 }}>Coming soon</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {r.label} isn't available yet — check back once it ships.
-                </Typography>
-              </>
-            )}
+            <SectionCard section={r} />
           </Card>
         </Box>
       ))}
     </Box>
+  );
+}
+
+// A section's card: a link per shipped screen, or a placeholder. Three shapes,
+// because the registry has three: a leaf that is a route, a group whose
+// children are routes, and a leaf that hasn't shipped yet.
+function SectionCard({ section }: { section: PerspectiveSection }) {
+  // A group (Master data) links to each child rather than itself — the group
+  // has no route of its own.
+  const links = section.children?.length
+    ? section.children.filter((c) => c.path)
+    : section.path
+      ? [section]
+      : [];
+
+  if (links.length === 0) {
+    return (
+      <>
+        <Typography sx={{ fontWeight: 600, mb: 0.75 }}>Coming soon</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {section.label} isn't available yet — check back once it ships.
+        </Typography>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        {section.children?.length
+          ? "Reference data used across the app."
+          : "Preview against your filters, then export the full dataset as CSV."}
+      </Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+        {links.map((link) => (
+          <Button
+            key={link.id}
+            component={RouterLink}
+            to={link.path!}
+            variant="outlined"
+            size="small"
+          >
+            Open {link.label.toLowerCase()}
+          </Button>
+        ))}
+      </Box>
+    </>
   );
 }

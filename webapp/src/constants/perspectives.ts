@@ -114,7 +114,25 @@ export const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
     path: "/people-ops/reports/resignations",
     requires: ["admin"],
   },
-  { id: "people-master-data", label: "Master data", icon: DatabaseIcon },
+  // A group, not a leaf: people-app's Master Data has several screens (org
+  // structure, career functions, …) and Org Structure is the first ported.
+  // Grouping now means the next one is a new child rather than a reshape of
+  // the rail — see MenuApp.alwaysGroup for why a one-child group is right
+  // when more are known to be coming.
+  {
+    id: "people-master-data",
+    label: "Master data",
+    icon: DatabaseIcon,
+    alwaysGroup: true,
+    children: [
+      {
+        id: "people-master-data-org-structure",
+        label: "Org structure",
+        path: "/people-ops/master-data/org-structure",
+        requires: ["admin"],
+      },
+    ],
+  },
 ];
 
 const WORKSPACE_SECTIONS: PerspectiveSection[] = appsToSections(WORKSPACE_APPS);

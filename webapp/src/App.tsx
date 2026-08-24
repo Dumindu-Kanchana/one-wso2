@@ -20,6 +20,7 @@ import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import ActiveEmployeesReportPage from "@features/people-ops/pages/ActiveEmployeesReportPage";
 import ResignationsReportPage from "@features/people-ops/pages/ResignationsReportPage";
+import OrgStructurePage from "@features/people-ops/pages/OrgStructurePage";
 import EmployeeDetailPage from "@features/people-ops/pages/EmployeeDetailPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamComingSoonPage from "@features/my/pages/MyTeamComingSoonPage";
@@ -120,6 +121,12 @@ export default function App() {
           <Route
             path="people-ops/reports/resignations"
             element={<ResignationsReportPage />}
+          />
+          {/* Master Data → Org Structure. The four org-chart entity tabs;
+              the hierarchy drill-down is still to come. */}
+          <Route
+            path="people-ops/master-data/org-structure"
+            element={<OrgStructurePage />}
           />
           {/* One employee's record, reached from a report row. Same admin
               gate; the backend allows an admin to read any employee. */}

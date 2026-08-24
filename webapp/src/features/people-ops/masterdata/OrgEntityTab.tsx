@@ -1,0 +1,258 @@
+// Copyright (c) 2026 WSO2 LLC. (https://www.wso2.com).
+//
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  InputAdornment,
+  MenuItem,
+  Select,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@wso2/oxygen-ui";
+import { InboxIcon, PencilIcon, PlusIcon, SearchIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
+import { describeError } from "@api/errors";
+import type { OrgChartEntity, OrgEntityKind } from "../api/peopleOpsTypes";
+import {
+  ORG_ENTITY_CONFIG,
+  useCreateOrgChartEntity,
+  useOrgChartEntities,
+  useUpdateOrgChartEntity,
+} from "../api/useOrgChartEntities";
+import OrgEntityDialog from "./OrgEntityDialog";
+import { filterOrgEntities, type StatusFilter } from "./orgEntityFilter";
+
+// One kind's management table: search, an active/inactive filter, and a
+// create/edit dialog. All four kinds render this — the only difference is the
+// `kind` prop, which selects the endpoints and the wording.
+//
+// Everything here is client-side: these lists are tens of rows, not
+// thousands, and the endpoints return them whole with no pagination. Filtering
+// in the browser keeps it instant and avoids a request per keystroke.
+
+export default function OrgEntityTab({ kind }: { kind: OrgEntityKind }) {
+  const config = ORG_ENTITY_CONFIG[kind];
+  const entities = useOrgChartEntities(kind);
+  const createMutation = useCreateOrgChartEntity(kind);
+  const updateMutation = useUpdateOrgChartEntity(kind);
+
+  const [search, setSearch] = useState("");
+  // Defaults to active: the inactive ones are archive, and showing them by
+  // default would pad the list with entities nobody can assign to.
+  const [status, setStatus] = useState<StatusFilter>("active");
+  const [editing, setEditing] = useState<OrgChartEntity | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const rows = useMemo(
+    () => filterOrgEntities(entities.data ?? [], search, status),
+    [entities.data, search, status],
+  );
+
+  const isPending = entities.isPending;
+
+  function openCreate() {
+    setEditing(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(entity: OrgChartEntity) {
+    setEditing(entity);
+    setDialogOpen(true);
+  }
+
+  return (
+    <Box>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mb: 1.5,
+        }}
+      >
+        <TextField
+          size="small"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={`Search ${config.pluralLabel.toLowerCase()}`}
+          aria-label={`Search ${config.pluralLabel.toLowerCase()}`}
+          sx={{ flex: "1 1 240px", maxWidth: 340 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon size={16} />
+                </InputAdornment>
+              ),
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" aria-label="Clear search" onClick={() => setSearch("")}>
+                    <XIcon size={14} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+        />
+
+        <Select
+          size="small"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as StatusFilter)}
+          aria-label="Filter by status"
+          sx={{ minWidth: 130 }}
+        >
+          <MenuItem value="active">Active</MenuItem>
+          <MenuItem value="inactive">Inactive</MenuItem>
+          <MenuItem value="all">All</MenuItem>
+        </Select>
+
+        <Box sx={{ flex: 1 }} />
+
+        <Button variant="contained" startIcon={<PlusIcon size={16} />} onClick={openCreate}>
+          Add {config.label}
+        </Button>
+      </Box>
+
+      {entities.isError && (
+        <Alert
+          severity="error"
+          sx={{ mb: 1.5 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => void entities.refetch()}>
+              Retry
+            </Button>
+          }
+        >
+          Couldn't load {config.pluralLabel.toLowerCase()}. {describeError(entities.error)}
+        </Alert>
+      )}
+
+      <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 1 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 700, minWidth: 200 }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: 700, minWidth: 220 }}>{config.headEmailLabel}</TableCell>
+              <TableCell sx={{ fontWeight: 700, width: 150 }} align="right">
+                Active employees
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700, width: 110 }} align="center">
+                Status
+              </TableCell>
+              <TableCell sx={{ width: 60 }} align="center" />
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {isPending ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`}>
+                  <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                  <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                  <TableCell align="right"><Skeleton variant="text" width={30} sx={{ ml: "auto" }} /></TableCell>
+                  <TableCell align="center"><Skeleton variant="rounded" width={64} height={22} sx={{ mx: "auto" }} /></TableCell>
+                  <TableCell align="center"><Skeleton variant="circular" width={24} height={24} sx={{ mx: "auto" }} /></TableCell>
+                </TableRow>
+              ))
+            ) : rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} sx={{ borderBottom: 0 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1,
+                      py: 5,
+                      color: "text.disabled",
+                    }}
+                  >
+                    <InboxIcon size={32} />
+                    <Typography variant="body2">
+                      {/* Distinguishes "your filters hid everything" from
+                          "there is nothing here", which need different fixes. */}
+                      {entities.data?.length
+                        ? "No matches for these filters"
+                        : `No ${config.pluralLabel.toLowerCase()} yet`}
+                    </Typography>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row) => (
+                <TableRow key={row.id} hover>
+                  <TableCell sx={{ fontWeight: 500 }}>{row.name}</TableCell>
+                  <TableCell sx={{ color: row.headEmail ? "text.primary" : "text.disabled" }}>
+                    {row.headEmail || "—"}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                    {row.activeEmployeeCount}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      label={row.isActive ? "Active" : "Inactive"}
+                      size="small"
+                      variant="outlined"
+                      color={row.isActive ? "success" : "default"}
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title={`Edit ${row.name}`}>
+                      <IconButton
+                        size="small"
+                        aria-label={`Edit ${row.name}`}
+                        onClick={() => openEdit(row)}
+                      >
+                        <PencilIcon size={15} />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <OrgEntityDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        label={config.label}
+        headEmailLabel={config.headEmailLabel}
+        entity={editing}
+        // mutateAsync, not mutate: the dialog awaits these and stays open on
+        // failure to show the message, which needs a rejected promise.
+        onCreate={(payload) => createMutation.mutateAsync(payload)}
+        onUpdate={(id, payload) => updateMutation.mutateAsync({ id, payload })}
+      />
+    </Box>
+  );
+}

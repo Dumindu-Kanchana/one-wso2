@@ -19,10 +19,11 @@
 // would be spelled out in App.tsx, the perspective registry, and both pages —
 // four chances for a typo that only shows up as a blank screen at runtime.
 
-import { ChartNoAxesCombinedIcon } from "@wso2/oxygen-ui-icons-react";
+import { ChartNoAxesCombinedIcon, DatabaseIcon } from "@wso2/oxygen-ui-icons-react";
 
 export const ACTIVE_EMPLOYEES_REPORT_PATH = "/people-ops/reports/active-employees";
 export const RESIGNATIONS_REPORT_PATH = "/people-ops/reports/resignations";
+export const ORG_STRUCTURE_PATH = "/people-ops/master-data/org-structure";
 
 // Eyebrow chip descriptor shared by every report screen, mirroring
 // FINANCE_EYEBROW. One definition so the report list and the employee detail
@@ -30,6 +31,14 @@ export const RESIGNATIONS_REPORT_PATH = "/people-ops/reports/resignations";
 export const REPORTS_EYEBROW = {
   icon: ChartNoAxesCombinedIcon,
   label: "Reports",
+} as const;
+
+// Master Data screens sit under People Ops alongside the reports but are a
+// different kind of thing — reference data you edit, not a list you export —
+// so they carry their own eyebrow rather than being labelled "Reports".
+export const MASTER_DATA_EYEBROW = {
+  icon: DatabaseIcon,
+  label: "Master data",
 } as const;
 
 export function employeeDetailPath(employeeId: string): string {

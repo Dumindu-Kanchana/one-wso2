@@ -218,6 +218,43 @@ export interface OrgOption {
   label: string;
 }
 
+// ---- Master Data → Org Structure -------------------------------------------
+//
+// The four org-chart entity kinds (business unit, team, sub team, unit) share
+// one shape and one pair of endpoints, differing only in their URL — which is
+// why one component and one hook family serve all four.
+
+export interface OrgChartEntity {
+  id: number;
+  name: string;
+  /** Empty string when no head is set — the backend sends "" rather than null. */
+  headEmail: string;
+  isActive: boolean;
+  /**
+   * Employees currently assigned. Non-zero blocks deactivation: the backend
+   * rejects it with a 400, and the edit dialog disables the toggle so the
+   * refusal is visible before anyone tries.
+   */
+  activeEmployeeCount: number;
+}
+
+export interface CreateOrgChartEntityPayload {
+  /** Max 45 characters (backend constraint). */
+  name: string;
+  /** Max 254 characters. Empty string means "no head". */
+  headEmail?: string | null;
+}
+
+// PATCH: every field optional, and only what changed is sent.
+export interface UpdateOrgChartEntityPayload {
+  name?: string;
+  headEmail?: string | null;
+  isActive?: boolean;
+}
+
+/** Which of the four entity kinds a screen is working with. */
+export type OrgEntityKind = "businessUnit" | "team" | "subTeam" | "unit";
+
 // The genders the backend recognises for the gender filter. Mirrors
 // people-app's EmployeeGenders constant.
 export const EMPLOYEE_GENDERS = ["Male", "Female", "Other"] as const;
