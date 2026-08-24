@@ -56,6 +56,10 @@ export const peopleServiceUrls = {
   reportsEmployees: `${peopleBackendUrl}/reports/employees/generate`,
   // GET. Manager work-emails, for the report filter drawer's "Manager Email".
   managers: `${peopleBackendUrl}/employees/managers`,
+  // GET. Every ACTIVE employee's id/name/email — the backend filters on
+  // employee_status itself, so this never carries leavers. Backs the
+  // head-email pickers in Master Data. Admin-only.
+  employeesBasicInfo: `${peopleBackendUrl}/employees/basic-info`,
 
   // ---- Org master data ----------------------------------------------------
   //

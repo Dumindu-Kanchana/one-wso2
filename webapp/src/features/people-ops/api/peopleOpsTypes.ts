@@ -255,6 +255,18 @@ export interface UpdateOrgChartEntityPayload {
 /** Which of the four entity kinds a screen is working with. */
 export type OrgEntityKind = "businessUnit" | "team" | "subTeam" | "unit";
 
+// A row of GET /employees/basic-info — the option shape for employee pickers.
+// The endpoint returns ACTIVE employees only (it filters on employee_status
+// server-side), so anything here is someone currently employed.
+export interface EmployeeBasicInfo {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  workEmail: string;
+  employeeThumbnail?: string | null;
+  externalDesignation?: string | null;
+}
+
 // The genders the backend recognises for the gender filter. Mirrors
 // people-app's EmployeeGenders constant.
 export const EMPLOYEE_GENDERS = ["Male", "Female", "Other"] as const;

@@ -38,6 +38,7 @@ import { peopleBackendUrl, peopleServiceUrls } from "@config/apiConfig";
 import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import type {
   CreateOrgChartEntityPayload,
+  EmployeeBasicInfo,
   OrgChartEntity,
   OrgEntityKind,
   UpdateOrgChartEntityPayload,
@@ -127,6 +128,38 @@ export function useOrgChartEntities(kind: OrgEntityKind, enabled = true) {
     // Short, because this screen is where the data changes. The mutations
     // below invalidate on success, so this mainly covers edits made elsewhere.
     staleTime: 60 * 1000,
+    retry: orgChartRetry,
+  });
+
+  return foldIdentityError(query, subState, retryIdentity);
+}
+
+// GET /employees/basic-info — the option list for employee pickers.
+//
+// Returns ACTIVE employees only; the backend filters on employee_status in
+// its own query, so there is nothing to filter here and no way to ask for
+// leavers. That is what we want: you should not be able to appoint someone
+// who has left as the head of a team.
+//
+// Cached for the session — the roster changes on onboarding, not while a
+// dialog is open — and shared across every picker by a single query key.
+export function useEmployeesBasicInfo(enabled = true) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
+
+  const query = useQuery<EmployeeBasicInfo[]>({
+    queryKey: ["people-ops", "employees-basic-info", userSub],
+    enabled: enabled && isSignedIn && Boolean(peopleBackendUrl) && Boolean(userSub),
+    queryFn: async () => {
+      const accessToken = await getAccessToken();
+      return authedGet<EmployeeBasicInfo[]>(
+        peopleServiceUrls.employeesBasicInfo,
+        accessToken,
+      );
+    },
+    staleTime: 30 * 60 * 1000,
     retry: orgChartRetry,
   });
 

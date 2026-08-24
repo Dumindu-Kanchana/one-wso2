@@ -33,6 +33,7 @@ import {
 } from "@wso2/oxygen-ui";
 import { XIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
+import EmployeeEmailPicker from "../components/EmployeeEmailPicker";
 import type {
   CreateOrgChartEntityPayload,
   OrgChartEntity,
@@ -162,12 +163,13 @@ function OrgEntityDialogBody({
               slotProps={{ htmlInput: { maxLength: NAME_MAX_LENGTH } }}
             />
 
-            <TextField
+            {/* A picker over active employees rather than a free-text field:
+                the head is a colleague, and typing an address invites a typo
+                that is a perfectly valid email for nobody. */}
+            <EmployeeEmailPicker
               label={headEmailLabel}
-              size="small"
-              type="email"
               value={form.headEmail}
-              onChange={(e) => setForm((f) => ({ ...f, headEmail: e.target.value }))}
+              onChange={(email) => setForm((f) => ({ ...f, headEmail: email }))}
               onBlur={() => setTouched((t) => ({ ...t, headEmail: true }))}
               error={Boolean(touched.headEmail && errors.headEmail)}
               helperText={
