@@ -89,6 +89,13 @@ export function serviceLength(
   // Also covers a final day earlier than the start date — bad data reads as
   // the placeholder rather than a negative tenure.
   if (years < 0) return DASH;
+
+  // Drop the zero year: "0y 8m" reads like a formatting artifact, and under
+  // a year the year is not information anyone needs. Same reasoning for a
+  // whole number of years — "3y 0m" is just "3y".
+  if (years === 0 && months === 0) return "< 1m";
+  if (years === 0) return `${months}m`;
+  if (months === 0) return `${years}y`;
   return `${years}y ${months}m`;
 }
 

@@ -23,9 +23,9 @@ describe("serviceLength", () => {
   it("stops counting on the employee's final day", () => {
     // The bug this pins: an intern who left in 2019 was reading as "8y 1m"
     // in 2026, because tenure was measured to today regardless of status.
-    expect(serviceLength("2018-07-15", today, "2019-01-15")).toBe("0y 6m");
+    expect(serviceLength("2018-07-15", today, "2019-01-15")).toBe("6m");
     // And it stays fixed however long ago that was.
-    expect(serviceLength("2018-07-15", new Date(2030, 0, 1), "2019-01-15")).toBe("0y 6m");
+    expect(serviceLength("2018-07-15", new Date(2030, 0, 1), "2019-01-15")).toBe("6m");
   });
 
   it("measures a current employee to today", () => {
@@ -34,13 +34,13 @@ describe("serviceLength", () => {
   });
 
   it("counts a month only once its day-of-month is reached", () => {
-    expect(serviceLength("2020-01-20", new Date(2020, 1, 19))).toBe("0y 0m");
-    expect(serviceLength("2020-01-20", new Date(2020, 1, 20))).toBe("0y 1m");
+    expect(serviceLength("2020-01-20", new Date(2020, 1, 19))).toBe("< 1m");
+    expect(serviceLength("2020-01-20", new Date(2020, 1, 20))).toBe("1m");
   });
 
   it("borrows a year when the month goes negative", () => {
     // Nov 2019 → Feb 2020 is three months, not "-9".
-    expect(serviceLength("2019-11-10", new Date(2020, 1, 10))).toBe("0y 3m");
+    expect(serviceLength("2019-11-10", new Date(2020, 1, 10))).toBe("3m");
   });
 
   it("ignores an unparseable final day rather than blanking the value", () => {
@@ -53,12 +53,21 @@ describe("serviceLength", () => {
     expect(serviceLength("2024-01-01", today, "2020-01-01")).toBe(DASH);
   });
 
+  it("omits a unit that would read as zero", () => {
+    // "0y 8m" and "3y 0m" both look like formatting artifacts; neither zero
+    // is information anyone needs.
+    expect(serviceLength("2018-07-15", new Date(2019, 2, 15))).toBe("8m");
+    expect(serviceLength("2018-07-15", new Date(2021, 6, 15))).toBe("3y");
+    // Both units present still shows both.
+    expect(serviceLength("2018-07-15", new Date(2021, 8, 15))).toBe("3y 2m");
+  });
+
   it("reports a placeholder for a missing or malformed start", () => {
     expect(serviceLength(null, today)).toBe(DASH);
     expect(serviceLength("2018-13-01", today)).toBe(DASH);
   });
 
   it("reads the date half of an ISO datetime", () => {
-    expect(serviceLength("2018-07-15T09:30:00Z", today, "2019-01-15T17:00:00Z")).toBe("0y 6m");
+    expect(serviceLength("2018-07-15T09:30:00Z", today, "2019-01-15T17:00:00Z")).toBe("6m");
   });
 });
