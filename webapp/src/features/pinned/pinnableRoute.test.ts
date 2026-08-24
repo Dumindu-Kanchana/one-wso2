@@ -46,6 +46,14 @@ describe("pinnableRoute", () => {
     expect(isKnownRoute("/workspace/menu")).toBe(true);
   });
 
+  // Detail routes aren't in the registry — one entry cannot enumerate every
+  // employee — so they take their parent's label plus the leaf. Without this a
+  // pin reads as a bare id with nothing to say where it came from.
+  it("qualifies a detail route by the route it sits under", () => {
+    expect(pinnableRoute("/me/my-team/E123").label).toBe("My Team · E123");
+    expect(pinnableRoute("/me/opd/history/CLM-9").label).toBe("OPD Claims · Claim History · CLM-9");
+  });
+
   it("labels a leaf section that is a route", () => {
     expect(pinnableRoute("/me/my-team").label).toBe("My Team");
   });
