@@ -182,6 +182,17 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
       }
     }
     if (active.path && matchPath(active.path, location.pathname)) return OVERVIEW_ID;
+
+    // Nothing matched exactly, so try again allowing descendants: a detail
+    // route like /me/my-team/E123 should keep its own section lit rather than
+    // clearing the rail. Deliberately a SECOND pass — an exact match must
+    // always win, or a section whose path prefixes another's would steal it.
+    for (const s of sections) {
+      for (const c of s.children ?? []) {
+        if (c.path && matchPath({ path: c.path, end: false }, location.pathname)) return c.id;
+      }
+      if (s.path && matchPath({ path: s.path, end: false }, location.pathname)) return s.id;
+    }
     return "";
   }, [sections, active.path, location.pathname]);
 
