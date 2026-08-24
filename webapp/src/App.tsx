@@ -15,6 +15,8 @@
 // under the License.
 
 import { Navigate, Route, Routes } from "react-router";
+import { landingPath } from "@config/landingConfig";
+import SettingsPage from "@features/settings/pages/SettingsPage";
 import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
@@ -70,8 +72,8 @@ export default function App() {
     <Routes>
       <Route element={<AuthGuard />}>
         <Route element={<AppLayout />}>
-          {/* Default landing = the Me home (own profile + connected apps). */}
-          <Route index element={<Navigate to="/me" replace />} />
+          {/* Where the app opens, from ONE_WSO2_DEFAULT_PERSPECTIVE. */}
+          <Route index element={<Navigate to={landingPath()} replace />} />
           {/* Me home — the full profile page including Connected apps. */}
           <Route path="me" element={<MyProfilePage />} />
           {/* My Team — placeholder for now; the real subordinates view is on
@@ -166,10 +168,9 @@ export default function App() {
           <Route path="marketing-ops/crm-upload/runs" element={<CrmUploadRunLogPage />} />
           <Route path="marketing-ops/crm-upload/records" element={<CrmUploadRecordsPage />} />
           <Route path="marketing-ops/crm-upload/review" element={<CrmUploadReviewPage />} />
-          {/* Legacy /my bookmarks → the Me home. */}
-          <Route path="my" element={<Navigate to="/me" replace />} />
+          <Route path="settings" element={<SettingsPage />} />
           {/* Catch-all → landing */}
-          <Route path="*" element={<Navigate to="/me" replace />} />
+          <Route path="*" element={<Navigate to={landingPath()} replace />} />
         </Route>
       </Route>
     </Routes>
