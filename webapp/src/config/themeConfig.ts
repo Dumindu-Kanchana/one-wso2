@@ -50,8 +50,9 @@ export const DEFAULT_THEME_KEY: ThemeKey = "acrylicOrange";
 
 /**
  * What the picker offers, in display order. The brand theme leads because it is
- * the default; the rest are the shipped presets. Note this is deliberately a
- * subset of THEMES — `acrylicOrange` resolves but is not offered.
+ * the default; the rest are the shipped presets. Deliberately a subset of
+ * THEMES: `oneWso2` resolves to the same theme as `acrylicOrange` and is left
+ * out so the menu does not list it twice.
  */
 export const THEME_OPTIONS: { key: ThemeKey; label: string }[] = [
   { key: "acrylicOrange", label: "Acrylic Orange" },
