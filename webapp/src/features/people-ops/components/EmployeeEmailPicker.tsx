@@ -158,6 +158,29 @@ export default function EmployeeEmailPicker({
           slotProps={{
             input: {
               ...params.InputProps,
+              // The avatar rides alongside the input text rather than
+              // replacing it. getOptionLabel has to stay a plain string —
+              // Autocomplete filters keystrokes against it, and it is what
+              // the field shows while you type — so the selected person is
+              // made recognisable by prefixing the same avatar the options
+              // use, instead of by rewriting the label into a chip that
+              // typing would immediately blow away.
+              startAdornment: selected ? (
+                <Avatar
+                  src={selected.employeeThumbnail ?? undefined}
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    ml: 0.5,
+                    mr: 0.25,
+                    flexShrink: 0,
+                  }}
+                >
+                  {isSynthetic(selected) ? "?" : initialsOf(selected)}
+                </Avatar>
+              ) : null,
               endAdornment: (
                 <>
                   {employees.isPending ? <CircularProgress size={14} /> : null}
