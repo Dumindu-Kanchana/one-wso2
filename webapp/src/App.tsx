@@ -19,6 +19,7 @@ import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import ActiveEmployeesReportPage from "@features/people-ops/pages/ActiveEmployeesReportPage";
+import ResignationsReportPage from "@features/people-ops/pages/ResignationsReportPage";
 import EmployeeDetailPage from "@features/people-ops/pages/EmployeeDetailPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamComingSoonPage from "@features/my/pages/MyTeamComingSoonPage";
@@ -115,6 +116,10 @@ export default function App() {
           <Route
             path="people-ops/reports/active-employees"
             element={<ActiveEmployeesReportPage />}
+          />
+          <Route
+            path="people-ops/reports/resignations"
+            element={<ResignationsReportPage />}
           />
           {/* One employee's record, reached from a report row. Same admin
               gate; the backend allows an admin to read any employee. */}

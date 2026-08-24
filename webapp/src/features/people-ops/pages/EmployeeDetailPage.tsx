@@ -16,7 +16,7 @@
 
 import { Alert, Box, Button } from "@wso2/oxygen-ui";
 import { ArrowLeftIcon } from "@wso2/oxygen-ui-icons-react";
-import { Link as RouterLink, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useMeProfile } from "@features/my/api/useMeProfile";
 import ProfileHero from "@features/my/components/ProfileHero";
 import GeneralInfo from "@features/my/components/GeneralInfo";
@@ -43,9 +43,23 @@ import { ACTIVE_EMPLOYEES_REPORT_PATH, REPORTS_EYEBROW } from "../reports/report
 export default function EmployeeDetailPage() {
   const { employeeId } = useParams<{ employeeId: string }>();
   const { data, isLoading, isError, error } = useMeProfile(employeeId);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const employee = data?.employee;
   const personalInfo = data?.personalInfo;
+
+  // Both reports link here, so a fixed path would send someone who arrived
+  // from Resignations to Active Employees — and either way, a fresh link
+  // loses the search and filters they had set. Going back through history
+  // returns them to the exact list they left.
+  //
+  // `location.key` is "default" only on a first entry with no history to pop
+  // (a pasted URL, a new tab). There, fall back to the Active report, which
+  // is at least a sensible landing place.
+  const cameFromAList = location.key !== "default";
+  const goBack = () =>
+    cameFromAList ? navigate(-1) : navigate(ACTIVE_EMPLOYEES_REPORT_PATH);
 
   return (
     <PeopleOpsShell
@@ -54,13 +68,8 @@ export default function EmployeeDetailPage() {
       subtitle={employee?.workEmail ?? "Loading employee record…"}
     >
       <Box sx={{ mb: 2 }}>
-        <Button
-          component={RouterLink}
-          to={ACTIVE_EMPLOYEES_REPORT_PATH}
-          size="small"
-          startIcon={<ArrowLeftIcon size={16} />}
-        >
-          Back to active employees
+        <Button size="small" onClick={goBack} startIcon={<ArrowLeftIcon size={16} />}>
+          {cameFromAList ? "Back" : "Back to active employees"}
         </Button>
       </Box>
 

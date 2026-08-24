@@ -107,7 +107,13 @@ export const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
     path: "/people-ops/reports/active-employees",
     requires: ["admin"],
   },
-  { id: "people-resignation-report", label: "Resignations", icon: UserRoundMinusIcon },
+  {
+    id: "people-resignation-report",
+    label: "Resignations",
+    icon: UserRoundMinusIcon,
+    path: "/people-ops/reports/resignations",
+    requires: ["admin"],
+  },
   { id: "people-master-data", label: "Master data", icon: DatabaseIcon },
 ];
 

@@ -22,6 +22,7 @@
 import { ChartNoAxesCombinedIcon } from "@wso2/oxygen-ui-icons-react";
 
 export const ACTIVE_EMPLOYEES_REPORT_PATH = "/people-ops/reports/active-employees";
+export const RESIGNATIONS_REPORT_PATH = "/people-ops/reports/resignations";
 
 // Eyebrow chip descriptor shared by every report screen, mirroring
 // FINANCE_EYEBROW. One definition so the report list and the employee detail
