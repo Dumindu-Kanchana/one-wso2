@@ -82,8 +82,9 @@ const viteConfig = defineConfig({
   },
 });
 
-// Vitest lives inline here rather than in a separate vitest.config.ts, matching
-// csm-portal. `css: true` so Oxygen's emotion styles resolve under jsdom, and
+// Vitest lives inline here rather than in a separate vitest.config.ts, so the
+// aliases and plugins above are shared rather than duplicated. `css: true` so
+// Oxygen's emotion styles resolve under jsdom, and
 // the Oxygen/Asgardeo packages ship ESM that has to be inlined to be
 // transformable.
 const vitestConfig = defineVitestConfig({

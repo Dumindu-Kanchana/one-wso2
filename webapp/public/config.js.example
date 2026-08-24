@@ -16,6 +16,15 @@ window.config = {
   // UI
   ONE_WSO2_THEME: "acrylicOrange",
 
+  // Which perspective the app opens on. Optional — defaults to "me".
+  // One of: me, people, finance, workspace.
+  //
+  // Perspectives gated by a separate backend are rejected here rather than
+  // documented as risky, because a user dropped on an authorization notice at
+  // login cannot tell that from the app being broken. Marketing Ops is one such
+  // perspective, so it is not a valid value even though it has a route.
+  // ONE_WSO2_DEFAULT_PERSPECTIVE: "me",
+
   // people-ops-suite people-app backend base URL. Same value as people-app's
   // REACT_APP_BACKEND_BASE_URL — usually a Choreo API gateway URL. Powers
   // the live My profile page (employee + personal info fetch).

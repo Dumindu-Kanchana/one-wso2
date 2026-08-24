@@ -33,13 +33,13 @@ export interface PerspectiveHeaderProps {
 //
 // Two deliberate changes from the version that consolidated these blocks:
 //
-//  - The sparkle-prefixed "<name> perspective" chip is gone. It was decoration — the rail
-//    already says which perspective you are in, csm-portal has no equivalent,
-//    and a filled `color="primary"` chip put ~11px white text on brand orange,
-//    which measures about 3.6:1 and fails WCAG AA.
+//  - The sparkle-prefixed "<name> perspective" chip is gone. It was decoration —
+//    the rail already says which perspective you are in — and a filled
+//    `color="primary"` chip put ~11px white text on brand orange, which measures
+//    about 3.6:1 and fails WCAG AA.
 //  - Sizes come from the theme instead of being hardcoded. `variant="h5"` is
-//    16px/400 against the old 23px/700 — the same restraint csm-portal's page
-//    titles have, and the reason its pages read as calmer.
+//    16px/400 against the old 23px/700; restraint here is what makes a page read
+//    as calm rather than shouted.
 export default function PerspectiveHeader({ title, subtitle }: PerspectiveHeaderProps) {
   return (
     <>

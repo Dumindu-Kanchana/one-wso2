@@ -14,9 +14,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Ported from csm-portal (apps/csm-portal/webapp/src/utils/contrastText.ts) so
-// both apps derive label colours the same way. Keep the two in sync.
-
 /**
  * WCAG-aware text-colour selection for coloured surfaces (chips, badges).
  *

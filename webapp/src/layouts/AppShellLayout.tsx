@@ -26,12 +26,11 @@ export interface AppShellLayoutProps {
 /**
  * Three-region application shell.
  *
- * Ported from csm-portal (apps/csm-portal/webapp/src/layouts/AppShellLayout.tsx),
- * which hand-rolls this rather than using Oxygen's own `AppShell` for a
- * specific reason: `AppShell` omits `minWidth: 0` on the main column, so inner
- * content can't size down to the viewport and gets silently clipped on any
- * screen narrower than its intrinsic width. Every `minWidth: 0` / `width: 0`
- * below is load-bearing — don't "tidy" them away.
+ * Hand-rolled rather than using Oxygen's own `AppShell`, for a specific
+ * reason: `AppShell` omits `minWidth: 0` on the main column, so inner content
+ * can't size down to the viewport and gets silently clipped on any screen
+ * narrower than its intrinsic width. Every `minWidth: 0` / `width: 0` below is
+ * load-bearing — don't "tidy" them away.
  *
  * The header slot is a plain div, not `component="header"`: Oxygen's `Header`
  * renders an MUI AppBar, which is already a `<header>`, and nesting one inside

@@ -28,6 +28,7 @@ import { LayoutGridIcon, SearchIcon } from "@wso2/oxygen-ui-icons-react";
 import PinnedTabs from "@features/pinned/components/PinnedTabs";
 import PinThisPageButton from "@features/pinned/components/PinThisPageButton";
 import { usePinnedEntries } from "@features/pinned/usePinned";
+import ThemeSelect from "./ThemeSelect";
 import UserProfileMenu from "./UserProfileMenu";
 
 // The shortcut hint has to name a key the reader actually has: the handler
@@ -52,8 +53,9 @@ const SHORTCUT_HINT = IS_APPLE_PLATFORM ? "⌘K" : "Ctrl K";
 // stricter than it looks — check there before changing any of this:
 //
 //  - "Icon should not be isolated." The pulse mark may not be used apart from
-//    the wordmark, so the full logo asset is the only option here. (csm-portal
-//    does use an isolated mark; that isn't a precedent to copy.)
+//    the wordmark, so the full logo asset is the only option here — regardless
+//    of what any other app does. (The favicon is the one exception, because a
+//    ~16px square slot cannot hold a 2.5:1 lockup at all.)
 //  - The logo "is strictly monochrome": black on light, white on dark. Orange
 //    (#F14E23) is approved for the icon on DARK backgrounds only, so it can't be
 //    used on this header, whose background is `background.paper`.
@@ -81,12 +83,15 @@ const BRAND_LOGO_PX = 32;
 interface TopBarProps {
   collapsed: boolean;
   onToggleSidebar: () => void;
-  onOpenWaffle: () => void;
+  /** Receives the button element, so the launcher can hang off it. */
+  onToggleWaffle: (anchor: HTMLElement) => void;
+  /** Whether the launcher is currently showing, for aria-expanded. */
+  waffleOpen: boolean;
   onOpenAsk: () => void;
 }
 
-// The persistent top bar, on Oxygen's compound `Header`. Child order follows
-// csm-portal: Toggle → Brand → (switcher/search) → Spacer → Actions.
+// The persistent top bar, on Oxygen's compound `Header`, in the order the
+// component expects: Toggle → Brand → (switcher/search) → Spacer → Actions.
 //
 // Oxygen supplies the bar's height, background, border, and brand-title
 // typography, so nothing here sets those. The rail-width-matching `width: 260`
@@ -95,7 +100,8 @@ interface TopBarProps {
 export default function TopBar({
   collapsed,
   onToggleSidebar,
-  onOpenWaffle,
+  onToggleWaffle,
+  waffleOpen,
   onOpenAsk,
 }: TopBarProps): JSX.Element {
   // Only the count matters here — the strip itself renders the entries.
@@ -142,10 +148,10 @@ export default function TopBar({
       {/* Palette trigger. A click target rather than a real input: the palette
           owns the query field.
 
-          Fixed responsive widths rather than `flex: 1` so the flexible slot
-          belongs to PinnedTabs, matching csm-portal's header. It also narrows
-          once anything is pinned, since the two share that row — at `xs` it
-          collapses to an icon. */}
+          Fixed responsive widths rather than `flex: 1`, so the flexible slot
+          belongs to PinnedTabs instead — the pinned strip is the part that
+          benefits from spare room. It also narrows once anything is pinned,
+          since the two share that row; at `xs` it collapses to an icon. */}
       <Box
         role="button"
         tabIndex={0}
@@ -208,11 +214,20 @@ export default function TopBar({
 
       <Header.Actions>
         <Tooltip title="Switch app">
-          <IconButton onClick={onOpenWaffle} size="small" aria-label="Switch app">
+          <IconButton
+            onClick={(e) => onToggleWaffle(e.currentTarget)}
+            size="small"
+            aria-label="Switch app"
+            aria-haspopup="dialog"
+            aria-expanded={waffleOpen}
+          >
             <LayoutGridIcon size={20} />
           </IconButton>
         </Tooltip>
         <PinThisPageButton />
+        {/* Palette, then light/dark within it — two separate choices, both
+            persisted, deliberately adjacent. */}
+        <ThemeSelect />
         {/* Oxygen's own 3-state cycle: light → dark → system. */}
         <ColorSchemeToggle size="small" />
         <UserProfileMenu />

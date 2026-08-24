@@ -20,10 +20,9 @@ import { SIGNING_OUT_EVENT } from "@constants/appEvents";
 /**
  * A tracked destination.
  *
- * `pinned` is a FLAG on an entry list rather than a separate pins table, which
- * is csm-portal's shape and the reason it can serve both pins and recents from
- * one store. Only pins are surfaced in the UI today; recents can be layered on
- * without a migration.
+ * `pinned` is a FLAG on an entry list rather than a separate pins table, so one
+ * store can serve both pins and recents. Only pins are surfaced in the UI
+ * today; recents can be layered on without a migration.
  */
 export interface PinnedEntry {
   kind: PinKind;

@@ -19,18 +19,17 @@ import { FileIcon, SearchIcon, type LucideIcon } from "@wso2/oxygen-ui-icons-rea
 /**
  * What a tracked entry points at.
  *
- * Deliberately a discriminator from day one even though One WSO2 only produces
- * two of these today. csm-portal is scheduled to land here as a perspective
- * (see the reserved `csm` entry in @constants/perspectives), and it pins eight
- * kinds — case, project, account, incident, change_request, problem, plus its
- * own page/search. Adding those must be a matter of extending this union and
- * the registry below, not reshaping the store.
+ * Deliberately a discriminator from day one even though only two kinds exist
+ * today. Perspectives still to land here pin domain entities, not just routes —
+ * cases, projects, accounts, incidents and the like. Adding those must be a
+ * matter of extending this union and the registry below, not reshaping the
+ * store.
  */
 export type PinKind =
   // A route with no query state — a nav destination.
   | "page"
   // A route plus filter/query state, so distinct filtered views pin separately.
-  // Nothing in One WSO2 keeps filters in the URL yet; csm-portal does.
+  // No route here keeps filters in the URL yet.
   | "search";
 
 interface PinKindMeta {
@@ -44,11 +43,9 @@ interface PinKindMeta {
 /**
  * Per-kind presentation, as a registry rather than a `switch`.
  *
- * csm-portal's equivalent (`kindMeta.tsx`) is a switch over its kinds, which is
- * fine in one app but becomes a shared chokepoint in a merged one — every new
- * domain would have to edit the same function. A record lets each domain
- * contribute its own entry, the way csm-portal's own `WIDGET_RESOURCE_CONFIG`
- * already does for dashboard widgets.
+ * A `switch` over kinds is fine in one app but becomes a shared chokepoint as
+ * domains merge in — every new one would have to edit the same function. A
+ * record lets each domain contribute its own entry instead.
  */
 export const PIN_KIND_META: Record<PinKind, PinKindMeta> = {
   page: { label: "Pages", icon: FileIcon, order: 10 },
