@@ -25,7 +25,7 @@ import EmergencyContacts from "@features/my/components/EmergencyContacts";
 import { describeError } from "@api/errors";
 import PeopleOpsShell from "../components/PeopleOpsShell";
 import SectionHeader from "../components/SectionHeader";
-import { ACTIVE_EMPLOYEES_REPORT_PATH } from "../reports/reportRoutes";
+import { ACTIVE_EMPLOYEES_REPORT_PATH, REPORTS_EYEBROW } from "../reports/reportRoutes";
 
 // One employee's full record, reached by clicking a row in a report.
 //
@@ -49,7 +49,7 @@ export default function EmployeeDetailPage() {
 
   return (
     <PeopleOpsShell
-      eyebrow="📊 Reports"
+      eyebrow={REPORTS_EYEBROW}
       title={employee ? `${employee.firstName} ${employee.lastName}` : "Employee"}
       subtitle={employee?.workEmail ?? "Loading employee record…"}
     >

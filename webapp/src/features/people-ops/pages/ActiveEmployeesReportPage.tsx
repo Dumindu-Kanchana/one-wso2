@@ -16,6 +16,7 @@
 
 import PeopleOpsShell from "../components/PeopleOpsShell";
 import EmployeeReportTable from "../reports/EmployeeReportTable";
+import { REPORTS_EYEBROW } from "../reports/reportRoutes";
 import { EmployeeStatus } from "../api/peopleOpsTypes";
 
 // The Active Employees report, ported from people-app's
@@ -31,7 +32,7 @@ import { EmployeeStatus } from "../api/peopleOpsTypes";
 export default function ActiveEmployeesReportPage() {
   return (
     <PeopleOpsShell
-      eyebrow="📊 Reports"
+      eyebrow={REPORTS_EYEBROW}
       title="Active employees"
       subtitle="Everyone currently employed, with the filters and columns you choose. Preview here, then export the full dataset as CSV."
     >

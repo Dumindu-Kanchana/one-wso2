@@ -16,6 +16,7 @@
 
 import type { ReactNode } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
+import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { isPeopleBackendConfigured } from "../api/useEmployeeReport";
 import { usePeopleOpsGate } from "../api/usePeopleOpsGate";
 
@@ -46,7 +47,11 @@ export default function PeopleOpsShell({
   requireAdmin = true,
   children,
 }: {
-  eyebrow: string;
+  // An icon + label, not a string with an emoji in it. A colour emoji sits
+  // inside the chip as its own palette — green and blue against the chip's
+  // single primary.dark — so it reads as pasted-in rather than themed. A
+  // Lucide icon inherits the chip's colour. Same shape as FinanceShell.
+  eyebrow: { icon: LucideIcon; label: string };
   title: string;
   subtitle?: ReactNode;
   requireAdmin?: boolean;
@@ -58,7 +63,8 @@ export default function PeopleOpsShell({
   return (
     <Box>
       <Chip
-        label={eyebrow}
+        icon={<eyebrow.icon size={14} />}
+        label={eyebrow.label}
         color="primary"
         // Outlined, not filled — white-on-orange at chip text sizes measures
         // ~3.6:1 and fails WCAG AA. Matches the Marketing Ops/Finance shells.

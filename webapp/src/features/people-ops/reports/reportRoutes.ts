@@ -19,7 +19,17 @@
 // would be spelled out in App.tsx, the perspective registry, and both pages —
 // four chances for a typo that only shows up as a blank screen at runtime.
 
+import { ChartNoAxesCombinedIcon } from "@wso2/oxygen-ui-icons-react";
+
 export const ACTIVE_EMPLOYEES_REPORT_PATH = "/people-ops/reports/active-employees";
+
+// Eyebrow chip descriptor shared by every report screen, mirroring
+// FINANCE_EYEBROW. One definition so the report list and the employee detail
+// page it links to can't end up labelled differently.
+export const REPORTS_EYEBROW = {
+  icon: ChartNoAxesCombinedIcon,
+  label: "Reports",
+} as const;
 
 export function employeeDetailPath(employeeId: string): string {
   return `/people-ops/employees/${encodeURIComponent(employeeId)}`;
