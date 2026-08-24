@@ -17,6 +17,7 @@
 import { Navigate, Route, Routes } from "react-router";
 import { landingPath } from "@config/landingConfig";
 import SettingsPage from "@features/settings/pages/SettingsPage";
+import MenuHomePage from "@features/menu/pages/MenuHomePage";
 import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
@@ -169,6 +170,10 @@ export default function App() {
           <Route path="marketing-ops/crm-upload/records" element={<CrmUploadRecordsPage />} />
           <Route path="marketing-ops/crm-upload/review" element={<CrmUploadReviewPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          {/* Workspace → Menu: the cafeteria screen ported from the standalone
+              menu app. One page, as the original was. The functional spec and
+              the deviation list live in docs/ported-apps/menu-app.md. */}
+          <Route path="workspace/menu" element={<MenuHomePage />} />
           {/* Catch-all → landing */}
           <Route path="*" element={<Navigate to={landingPath()} replace />} />
         </Route>

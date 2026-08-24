@@ -38,6 +38,14 @@ describe("pinnableRoute", () => {
     );
   });
 
+  // A route added without a registry `path` gets a guessed label instead of a
+  // qualified one, so this doubles as the check that a newly ported app was
+  // wired into the registry and not just into the router.
+  it("qualifies a ported app's screen from the registry", () => {
+    expect(pinnableRoute("/workspace/menu").label).toBe("Menu · Home");
+    expect(isKnownRoute("/workspace/menu")).toBe(true);
+  });
+
   it("labels a leaf section that is a route", () => {
     expect(pinnableRoute("/me/my-team").label).toBe("My Team");
   });

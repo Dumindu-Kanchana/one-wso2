@@ -30,7 +30,12 @@ export const WORKSPACE_APPS: readonly MenuApp[] = [
     icon: UtensilsIcon,
     purpose: "Cafeteria menu, feedback, and dinner orders.",
     items: [
-      { id: "menu-home", label: "Home", desc: "View the cafeteria menu, submit feedback, order dinner." },
+      {
+        id: "menu-home",
+        label: "Home",
+        desc: "View the cafeteria menu, submit feedback, order dinner.",
+        path: "/workspace/menu",
+      },
     ],
   },
 ];

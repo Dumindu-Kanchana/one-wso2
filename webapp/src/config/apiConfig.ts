@@ -486,3 +486,30 @@ export const promotionServiceUrls = {
   promotionHistory: (workEmail: string) =>
     `${promotionBackendUrl}/promotion/requests?statusArray=APPROVED&employeeEmail=${encodeURIComponent(workEmail)}`,
 };
+
+// ---------------------------------------------------------------------------
+// Menu (cafeteria) backend. Daily menu, lunch feedback, and dinner-on-demand
+// orders. The service is reused unchanged from the standalone app; see
+// docs/ported-apps/menu-app.md for the contract and the behaviour it defines.
+//
+// Every path is fixed — no builder takes an argument, because the caller is
+// always identified by the token rather than by a path segment.
+export const menuBackendUrl: string = window.config?.ONE_WSO2_MENU_BACKEND_URL ?? "";
+
+export function isMenuBackendConfigured(): boolean {
+  return Boolean(menuBackendUrl);
+}
+
+export const menuServiceUrls = {
+  // Employee profile + privileges. Also the source of the department / team /
+  // manager email an order carries.
+  userInfo: `${menuBackendUrl}/user-info`,
+  // The configured lunch-feedback window. Optional in practice: the standalone
+  // app never called it, so it may not be published through the gateway. A 404
+  // is tolerated and the hard-coded fallback window applies.
+  metaInfo: `${menuBackendUrl}/meta-info`,
+  menu: `${menuBackendUrl}/menu`,
+  feedback: `${menuBackendUrl}/feedback`,
+  // GET the current order, POST to place or change it, DELETE to cancel.
+  dinner: `${menuBackendUrl}/dinner`,
+};
