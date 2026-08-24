@@ -17,11 +17,12 @@ window.config = {
   ONE_WSO2_THEME: "acrylicOrange",
 
   // Which perspective the app opens on. Optional — defaults to "me".
-  // One of: me, people, finance, workspace, marketing.
+  // One of: me, people, finance, workspace.
   //
-  // Deployment-wide, so pick one every user in the tenant can use. "marketing"
-  // gates its contents against a separate backend's groups, so landing everyone
-  // there shows most users an unauthorized state on login.
+  // Perspectives gated by a separate backend are rejected here rather than
+  // documented as risky, because a user dropped on an authorization notice at
+  // login cannot tell that from the app being broken. Marketing Ops is one such
+  // perspective, so it is not a valid value even though it has a route.
   // ONE_WSO2_DEFAULT_PERSPECTIVE: "me",
 
   // people-ops-suite people-app backend base URL. Same value as people-app's

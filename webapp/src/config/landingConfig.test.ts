@@ -24,7 +24,7 @@ import {
   landingPreference,
   setLandingPreference,
 } from "@config/landingConfig";
-import { PERSPECTIVES } from "@constants/perspectives";
+import { PERSPECTIVES, reachablePerspectives } from "@constants/perspectives";
 
 function setConfig(value: unknown): void {
   (window as { config?: Record<string, unknown> }).config = {
@@ -62,6 +62,19 @@ describe("landing options", () => {
   it("always includes Me, which is the fallback", () => {
     expect(landingOptions().map((o) => o.key)).toContain("me");
   });
+
+  it("excludes perspectives gated by another backend", () => {
+    // Routable, but not usable by everyone. Landing is the one place a user
+    // arrives without choosing to, so being dropped on an authorization notice
+    // at login would read as the app being broken.
+    expect(landingOptions().map((o) => o.key)).not.toContain("marketing");
+  });
+
+  it("still counts those as reachable, for surfaces the user drives", () => {
+    // The rail, launcher and favourites should keep offering them — there the
+    // gate's own message is the right answer to a deliberate click.
+    expect(reachablePerspectives().map((p) => p.key)).toContain("marketing");
+  });
 });
 
 describe("landingPath", () => {
@@ -78,6 +91,15 @@ describe("landingPath", () => {
     setConfig("nowhere");
     expect(landingPath()).toBe("/me");
     expect(console.warn).toHaveBeenCalled();
+  });
+
+  it("refuses an externally gated perspective, in config or from a user", () => {
+    setConfig("marketing");
+    expect(landingPath()).toBe("/me");
+    expect(console.warn).toHaveBeenCalled();
+
+    setLandingPreference("marketing");
+    expect(landingPreference()).toBeUndefined();
   });
 
   it("falls back on a locked perspective rather than stranding the user", () => {

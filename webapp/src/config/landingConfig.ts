@@ -33,13 +33,26 @@ import { reachablePerspectives } from "@constants/perspectives";
  */
 const FALLBACK_KEY = "me";
 
-/** Every perspective that could legitimately be configured as the landing page. */
+/**
+ * Every perspective that could legitimately be the landing page.
+ *
+ * Narrower than `reachablePerspectives()` on purpose: a perspective whose
+ * contents are gated by another backend is routable but not usable by everyone,
+ * and landing is the one place a user arrives without having chosen to. Being
+ * dropped on an authorization notice at login reads as the app being broken.
+ *
+ * Excluded here rather than in `reachablePerspectives()`, because the rail, the
+ * launcher and favourites should all still offer these — there the gate's own
+ * message is the right response to a deliberate click.
+ */
 export function landingOptions(): { key: string; label: string; path: string }[] {
-  return reachablePerspectives().map((p) => ({
-    key: p.key,
-    label: p.label,
-    path: p.path as string,
-  }));
+  return reachablePerspectives()
+    .filter((p) => !p.externallyGated)
+    .map((p) => ({
+      key: p.key,
+      label: p.label,
+      path: p.path as string,
+    }));
 }
 
 /**

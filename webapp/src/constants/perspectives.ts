@@ -147,6 +147,18 @@ export interface PerspectiveDef {
   group: PerspectiveGroup;
   access: boolean;
   path?: string; // route path (undefined for locked perspectives)
+  /**
+   * True when the contents are gated by a backend OUTSIDE this app's capability
+   * model, so `access: true` does not mean "every signed-in user can use this".
+   *
+   * `access` answers "is it built"; this answers "is it usable by whoever is
+   * looking". The distinction matters wherever a user is sent somewhere WITHOUT
+   * clicking it — the landing page. Choosing to open a perspective and finding
+   * an authorization notice is legible; being dropped on one at login is not.
+   * Surfaces the user drives (the rail, the launcher, favourites) keep showing
+   * these, because the gate's own message is the right answer there.
+   */
+  externallyGated?: boolean;
   sections?: PerspectiveSection[];
 }
 
@@ -206,6 +218,9 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
   {
     key: "marketing",
     label: "Marketing Ops",
+    // Gated on the Marketing Ops backend's own Asgardeo groups, not on
+    // people-app privileges — see useMarketingOpsGate.
+    externallyGated: true,
     icon: MegaphoneIcon,
     group: "functional",
     access: true,
