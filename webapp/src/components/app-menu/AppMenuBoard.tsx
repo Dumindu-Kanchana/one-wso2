@@ -14,7 +14,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import type React from "react";
 import { Box, Card, Chip, Stack, Typography } from "@wso2/oxygen-ui";
+import { Link as RouterLink } from "react-router";
 import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { useUserInfo } from "@api/useUserInfo";
 import {
@@ -25,10 +27,16 @@ import {
   type MenuAppItem,
 } from "@constants/appMenu";
 
-// Generic persona canvas: renders a persona's App → items registry as a
-// section per app with an anchor-target card per item, filtered by the
-// caller's capabilities. The left rail scrolls to these anchors. Used by
-// both the People Ops and Finance overview pages.
+// Generic persona canvas: renders a persona's App → items registry as a section
+// per app with a card per item, filtered by the caller's capabilities.
+//
+// An item WITHOUT a path is a scroll target the left rail jumps to; an item WITH
+// one navigates. Routed items used to be filtered out entirely, on the reasoning
+// that the rail already reaches them — but that made a fully-routed app render
+// nothing at all, taking its section heading and purpose line with it. The
+// overview is a map of the perspective, so every visible item belongs on it.
+//
+// Sole consumer: the Workspace overview page.
 export default function AppMenuBoard({ apps }: { apps: readonly MenuApp[] }) {
   const userInfo = useUserInfo();
   const caps = capabilitiesFromPrivileges(userInfo.data?.privileges);
@@ -36,9 +44,7 @@ export default function AppMenuBoard({ apps }: { apps: readonly MenuApp[] }) {
   return (
     <>
       {apps.map((app) => {
-        // Routed items are reached from the rail directly, so they don't
-        // need a scroll-target card here.
-        const items = visibleItems(app, caps).filter((it) => !it.path);
+        const items = visibleItems(app, caps);
         if (items.length === 0) return null;
         return (
           <Box key={app.key}>
@@ -93,11 +99,34 @@ function SectionHeader({ id, icon: Icon, label }: { id: string; icon: LucideIcon
 }
 
 function ItemCard({ item }: { item: MenuAppItem }) {
+  // A routed item is a link; an anchor item is a scroll target the rail jumps
+  // to. `id` stays on both, since the rail addresses cards by it either way.
+  const routed = Boolean(item.path);
   return (
     <Card
       id={item.id}
       variant="outlined"
-      sx={{ p: 1.75, scrollMarginTop: 12, display: "flex", flexDirection: "column", gap: 0.5 }}
+      {...(item.path
+        ? { component: RouterLink as React.ElementType, to: item.path, style: { textDecoration: "none" } }
+        : {})}
+      sx={{
+        p: 1.75,
+        scrollMarginTop: 12,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.5,
+        color: "text.primary",
+        ...(routed && {
+          transition: "border-color .15s, background-color .15s",
+          "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" },
+          "&:focus-visible": {
+            outline: 2,
+            outlineStyle: "solid",
+            outlineColor: "primary.main",
+            outlineOffset: 2,
+          },
+        }),
+      }}
     >
       <Stack direction="row" alignItems="center" spacing={0.75}>
         <Typography sx={{ fontSize: 13.5, fontWeight: 600, flex: 1, minWidth: 0 }}>
