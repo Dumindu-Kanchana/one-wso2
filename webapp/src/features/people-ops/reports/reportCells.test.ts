@@ -120,6 +120,61 @@ describe("cellText", () => {
     expect(cellText(firstStint, "lengthOfService", now)).toBe("2 years");
   });
 
+  it("stops counting service on the employee's final day", () => {
+    // The bug this pins: measuring to today kept a leaver's service growing
+    // after they had gone, so the same finished employment reported a
+    // different tenure every time the report was run.
+    const leaver = employee({
+      startDate: "2020-01-01",
+      continuousServiceDate: null,
+      finalDayOfEmployment: "2023-01-01",
+      employeeStatus: EmployeeStatus.Left,
+    });
+    // Three years served, whether asked in 2026 or 2030.
+    expect(cellText(leaver, "lengthOfService", new Date(2026, 0, 1))).toBe("3 years");
+    expect(cellText(leaver, "lengthOfService", new Date(2030, 0, 1))).toBe("3 years");
+  });
+
+  it("still measures a current employee to today", () => {
+    const active = employee({
+      startDate: "2020-01-01",
+      continuousServiceDate: null,
+      finalDayOfEmployment: null,
+    });
+    expect(cellText(active, "lengthOfService", new Date(2026, 0, 1))).toBe("6 years");
+  });
+
+  it("counts a rehired leaver from their continuous service date", () => {
+    // Both ends matter at once: original joining through to final day.
+    const rehired = employee({
+      startDate: "2022-01-01",
+      continuousServiceDate: "2018-01-01",
+      finalDayOfEmployment: "2024-01-01",
+    });
+    expect(cellText(rehired, "lengthOfService", new Date(2026, 0, 1))).toBe("6 years");
+  });
+
+  it("falls back to today when the final day is unusable", () => {
+    // A malformed date must not poison the result — better a live figure
+    // than a blank or a wrong one.
+    const bad = employee({
+      startDate: "2020-01-01",
+      continuousServiceDate: null,
+      finalDayOfEmployment: "not-a-date",
+    });
+    expect(cellText(bad, "lengthOfService", new Date(2026, 0, 1))).toBe("6 years");
+  });
+
+  it("reports a placeholder when the final day precedes the start", () => {
+    // Bad data rather than a negative tenure.
+    const impossible = employee({
+      startDate: "2024-01-01",
+      continuousServiceDate: null,
+      finalDayOfEmployment: "2020-01-01",
+    });
+    expect(cellText(impossible, "lengthOfService", new Date(2026, 0, 1))).toBe("—");
+  });
+
   it("covers every declared column key without throwing", () => {
     const row = employee();
     for (const key of getAllKeys(true)) {

@@ -35,7 +35,36 @@ import {
   displayValue,
   formatReportDate,
   formatServiceLength,
+  parseYmd,
 } from "./reportFormat";
+
+/**
+ * How long someone served, measured to the right end date.
+ *
+ * Service stops on `finalDayOfEmployment` for anyone who has left. Measuring
+ * to today instead keeps a leaver's service growing after they have gone, so
+ * a report run months apart reports different tenure for the same finished
+ * employment — which is what this fixes.
+ *
+ * The start is the continuous service date when there is one, so a rehire
+ * counts from their original joining rather than their latest.
+ *
+ * KNOWN GAP: the CSV export does NOT do this. The backend's
+ * calculateLengthOfService (modules/database/utils.bal) takes only a start
+ * date and measures to time:utcNow(), so an exported Resignations report
+ * still inflates service for people who have left. Fixing that means passing
+ * the employee's final day into that function server-side. Until then the
+ * table and the CSV disagree in this one column, for leavers only.
+ */
+export function serviceLengthOf(row: Employee, now?: Date) {
+  const start = row.continuousServiceDate ?? row.startDate;
+  // parseYmd rejects malformed and non-existent dates, so a bad final day
+  // falls back to `now` rather than poisoning the result. A final day before
+  // the start date yields a negative span, which calculateServiceLength
+  // reports as null — rendered as the placeholder, not "-3 months".
+  const end = parseYmd(row.finalDayOfEmployment);
+  return calculateServiceLength(start, end ?? now);
+}
 
 /** Column keys whose cells are dates. */
 const DATE_KEYS = new Set([
@@ -108,9 +137,7 @@ export function cellText(row: Employee, columnKey: string, now?: Date): string {
   // date, matching People App — someone with no prior stint has served
   // exactly as long as they have been here.
   if (columnKey === "lengthOfService") {
-    return formatServiceLength(
-      calculateServiceLength(row.continuousServiceDate ?? row.startDate, now),
-    );
+    return formatServiceLength(serviceLengthOf(row, now));
   }
 
   const alias = FIELD_ALIASES[columnKey];

@@ -31,7 +31,7 @@ export const EMPTY_CELL = "—";
 //
 // Returns null for anything malformed or non-existent (2026-02-30), which
 // every caller renders as EMPTY_CELL rather than "Invalid Date".
-function parseYmd(input: string | null | undefined): Date | null {
+export function parseYmd(input: string | null | undefined): Date | null {
   if (!input) return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(input);
   if (!match) return null;
