@@ -15,6 +15,7 @@
 // under the License.
 
 import { useState } from "react";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import MySubmissions from "../components/MySubmissions";
 import { ReviewDetail, ReviewQueue } from "../components/Review";
@@ -37,7 +38,7 @@ export function EventsMinePage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="🎪 Events"
+      eyebrow={MARKETING_OPS_EYEBROW.events}
       title="My submissions"
       // The workspace is a grid that wants every pixel of height, and it names the
       // event in its own head — so the page's standing explanation steps aside.
@@ -61,7 +62,7 @@ export function EventsReviewPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="🎪 Events"
+      eyebrow={MARKETING_OPS_EYEBROW.events}
       title="Review queue"
       subtitle={
         openId ? undefined : "Lists submitted by regional marketing managers."

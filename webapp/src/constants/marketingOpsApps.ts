@@ -300,3 +300,23 @@ export const MARKETING_OPS_APPS: readonly MenuApp[] = [
     ],
   },
 ];
+
+// Eyebrow descriptors for MarketingOpsShell, derived from the registry above so
+// the chip on every Marketing Ops screen can't drift from the operation's own
+// name and icon. Same helper and same reason as FINANCE_EYEBROW in
+// @constants/financeApps — and the icon is the reason it exists: the chip used
+// to carry a hardcoded emoji per page ("📣 Email Workbench"), which said nothing
+// the rail's Lucide icon didn't already say, in a different visual language.
+function eyebrowFor(key: string): { icon: MenuApp["icon"]; label: string } {
+  const app = MARKETING_OPS_APPS.find((a) => a.key === key)!;
+  return { icon: app.icon, label: app.name };
+}
+
+export const MARKETING_OPS_EYEBROW = {
+  emailWorkbench: eyebrowFor("email-workbench"),
+  adCampaigns: eyebrowFor("ad-campaigns"),
+  events: eyebrowFor("events"),
+  crmUpload: eyebrowFor("crm-upload"),
+  utilities: eyebrowFor("utilities"),
+  admin: eyebrowFor("admin"),
+} as const;

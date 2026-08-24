@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { Alert, Box, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
 import { describeError } from "@api/errors";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import { useDraft, useTemplate } from "../../api/useEmailWorkbench";
 import AdvancedEditor from "../components/AdvancedEditor";
@@ -60,14 +61,14 @@ export function EmailWorkbenchCreatePage() {
   if (openId) {
     if (template.isLoading) {
       return (
-        <MarketingOpsShell eyebrow="📣 Email Workbench" title="Create an email">
+        <MarketingOpsShell eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench} title="Create an email">
           <Loading what="the template" />
         </MarketingOpsShell>
       );
     }
     if (template.isError) {
       return (
-        <MarketingOpsShell eyebrow="📣 Email Workbench" title="Create an email">
+        <MarketingOpsShell eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench} title="Create an email">
           <Alert severity="error">
             Could not open that template. {describeError(template.error)}
           </Alert>
@@ -76,7 +77,7 @@ export function EmailWorkbenchCreatePage() {
     }
     if (template.data) {
       return (
-        <MarketingOpsShell eyebrow="📣 Email Workbench" title={template.data.name}>
+        <MarketingOpsShell eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench} title={template.data.name}>
           <EditorFrame>
             <AdvancedEditor
               html={template.data.html}
@@ -92,7 +93,7 @@ export function EmailWorkbenchCreatePage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="📣 Email Workbench"
+      eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench}
       title="Create an email"
       subtitle="Start from an approved template, edit its content in place, then push the finished email to Pardot."
     >
@@ -110,21 +111,21 @@ export function EmailWorkbenchHistoryPage() {
   if (openId) {
     if (draft.isLoading) {
       return (
-        <MarketingOpsShell eyebrow="📣 Email Workbench" title="My emails">
+        <MarketingOpsShell eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench} title="My emails">
           <Loading what="your email" />
         </MarketingOpsShell>
       );
     }
     if (draft.isError) {
       return (
-        <MarketingOpsShell eyebrow="📣 Email Workbench" title="My emails">
+        <MarketingOpsShell eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench} title="My emails">
           <Alert severity="error">Could not open that email. {describeError(draft.error)}</Alert>
         </MarketingOpsShell>
       );
     }
     if (draft.data) {
       return (
-        <MarketingOpsShell eyebrow="📣 Email Workbench" title={draft.data.name}>
+        <MarketingOpsShell eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench} title={draft.data.name}>
           <EditorFrame>
             <AdvancedEditor
               html={draft.data.html}
@@ -141,7 +142,7 @@ export function EmailWorkbenchHistoryPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="📣 Email Workbench"
+      eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench}
       title="My emails"
       subtitle="Your drafts and completed emails. Rows are scoped to you — nobody else sees them."
     >
@@ -159,7 +160,7 @@ export function EmailWorkbenchManagePage() {
   if (editing !== undefined) {
     return (
       <MarketingOpsShell
-        eyebrow="📣 Email Workbench"
+        eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench}
         title="Manage templates"
         subtitle="Onboard the approved HTML marketers build from."
       >
@@ -174,7 +175,7 @@ export function EmailWorkbenchManagePage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="📣 Email Workbench"
+      eyebrow={MARKETING_OPS_EYEBROW.emailWorkbench}
       title="Manage templates"
       subtitle="Onboard, edit, or remove the templates marketers can use. Editing a template does not change emails already built from it."
     >
