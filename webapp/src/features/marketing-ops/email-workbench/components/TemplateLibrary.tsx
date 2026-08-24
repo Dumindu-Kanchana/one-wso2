@@ -244,8 +244,15 @@ export default function TemplateLibrary({
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
-                gap: 2,
+                // Four across once there is room. Three filled a wide gallery with
+                // tiles bigger than a 140px preview and a one-line name need.
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(3, 1fr)",
+                  lg: "repeat(4, 1fr)",
+                },
+                gap: 1.75,
               }}
             >
               {cat.items.map((t) => (
@@ -275,7 +282,12 @@ export default function TemplateLibrary({
                       cursor: "pointer",
                     }}
                   >
-                    <Thumbnail id={t.id} hasThumbnail={t.has_thumbnail} version={t.updated_at} />
+                    <Thumbnail
+                      id={t.id}
+                      name={t.name}
+                      hasThumbnail={t.has_thumbnail}
+                      version={t.updated_at}
+                    />
                   </Box>
                   <Box
                     sx={{
