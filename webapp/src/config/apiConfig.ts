@@ -76,6 +76,30 @@ export const peopleServiceUrls = {
   team: (id: number) => `${peopleBackendUrl}/teams/${id}`,
   subTeam: (id: number) => `${peopleBackendUrl}/sub-teams/${id}`,
   unit: (id: number) => `${peopleBackendUrl}/units/${id}`,
+
+  // ---- Org hierarchy ------------------------------------------------------
+  //
+  // GET. The whole tree in one call: business units → teams → sub teams →
+  // units, each node carrying both its entity fields and the fields of the
+  // MAPPING that places it under its parent. Admin-only.
+  companyOrgStructure: `${peopleBackendUrl}/company-org-structure`,
+
+  // The mapping records themselves — one collection per level. POST creates a
+  // placement, PATCH edits that placement's head or active flag.
+  //
+  // Note what the ids mean: a business-unit-team is created from a business
+  // unit id + a team id, but the NEXT level down is created from that
+  // mapping's id, not the team's. Placement is per-branch, so a team under
+  // two business units has two mapping ids and its own children under each.
+  businessUnitTeams: `${peopleBackendUrl}/business-unit-teams`,
+  businessUnitTeam: (mappingId: number) =>
+    `${peopleBackendUrl}/business-unit-teams/${mappingId}`,
+  businessUnitTeamSubTeams: `${peopleBackendUrl}/business-unit-team-sub-teams`,
+  businessUnitTeamSubTeam: (mappingId: number) =>
+    `${peopleBackendUrl}/business-unit-team-sub-teams/${mappingId}`,
+  businessUnitTeamSubTeamUnits: `${peopleBackendUrl}/business-unit-team-sub-team-units`,
+  businessUnitTeamSubTeamUnit: (mappingId: number) =>
+    `${peopleBackendUrl}/business-unit-team-sub-team-units/${mappingId}`,
   careerFunctions: `${peopleBackendUrl}/career-functions`,
   designations: `${peopleBackendUrl}/designations`,
   companies: `${peopleBackendUrl}/companies`,

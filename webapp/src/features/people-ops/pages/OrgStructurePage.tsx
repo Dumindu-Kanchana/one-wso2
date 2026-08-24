@@ -18,25 +18,35 @@ import { useState } from "react";
 import { Box } from "@wso2/oxygen-ui";
 import PeopleOpsShell from "../components/PeopleOpsShell";
 import OrgEntityTab from "../masterdata/OrgEntityTab";
+import HierarchyTab from "../masterdata/HierarchyTab";
 import { ORG_ENTITY_CONFIG, ORG_ENTITY_KINDS } from "../api/useOrgChartEntities";
 import { MASTER_DATA_EYEBROW } from "../reports/reportRoutes";
 import type { OrgEntityKind } from "../api/peopleOpsTypes";
 
 // Master Data → Org Structure, ported from people-app's MasterDataView.
 //
-// People App has five tabs here; this is the four entity tabs (business
-// units, teams, sub teams, units). Its fifth, the Hierarchy drill-down that
-// maps children onto parents, is a separate piece of work — these four are
-// what you use to add or rename an entity, which is the common case.
+// Five tabs. The hierarchy leads — it is the overview, how the org actually
+// fits together — and the four entity tabs behind it are the detail, which is
+// the order people-app uses too.
 //
-// All four render the same OrgEntityTab: the kinds share a shape, a pair of
+// Those four all render one OrgEntityTab: the kinds share a shape, a pair of
 // endpoints and a set of rules, so the tab takes a `kind` and looks its
 // wiring up rather than being written out four times.
 //
 // The tab bar is hand-rolled to match AdCampaignsAnalyticsPage, which is how
 // tabs already look in this app.
+type TabKey = "hierarchy" | OrgEntityKind;
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "hierarchy", label: "Hierarchy" },
+  ...ORG_ENTITY_KINDS.map((kind) => ({
+    key: kind as TabKey,
+    label: ORG_ENTITY_CONFIG[kind].pluralLabel,
+  })),
+];
+
 export default function OrgStructurePage() {
-  const [activeKind, setActiveKind] = useState<OrgEntityKind>("businessUnit");
+  const [activeTab, setActiveTab] = useState<TabKey>("hierarchy");
 
   return (
     <PeopleOpsShell
@@ -56,16 +66,16 @@ export default function OrgStructurePage() {
           flexWrap: "wrap",
         }}
       >
-        {ORG_ENTITY_KINDS.map((kind) => {
-          const active = activeKind === kind;
+        {TABS.map(({ key, label }) => {
+          const active = activeTab === key;
           return (
             <Box
-              key={kind}
+              key={key}
               component="button"
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => setActiveKind(kind)}
+              onClick={() => setActiveTab(key)}
               sx={{
                 px: 2,
                 py: 1.25,
@@ -93,7 +103,7 @@ export default function OrgStructurePage() {
                   : {},
               }}
             >
-              {ORG_ENTITY_CONFIG[kind].pluralLabel}
+              {label}
             </Box>
           );
         })}
@@ -101,7 +111,11 @@ export default function OrgStructurePage() {
 
       {/* Keyed, so switching tabs resets the search and status filter rather
           than carrying one kind's filters onto another's list. */}
-      <OrgEntityTab key={activeKind} kind={activeKind} />
+      {activeTab === "hierarchy" ? (
+        <HierarchyTab />
+      ) : (
+        <OrgEntityTab key={activeTab} kind={activeTab} />
+      )}
     </PeopleOpsShell>
   );
 }

@@ -255,6 +255,89 @@ export interface UpdateOrgChartEntityPayload {
 /** Which of the four entity kinds a screen is working with. */
 export type OrgEntityKind = "businessUnit" | "team" | "subTeam" | "unit";
 
+// ---- Org hierarchy ---------------------------------------------------------
+//
+// Every node below carries TWO identities, and confusing them is the one way
+// to get this feature quietly wrong — both are plain integers, so nothing
+// complains:
+//
+//   id        — the entity itself ("Platform", the team)
+//   mappingId — the record placing it under one parent ("Platform under AI BU")
+//
+// The same team can sit under two business units, so it has one `id` and two
+// `mappingId`s, with its own children and its own functional head under each.
+// That is why creating a sub-team placement takes a business-unit-team's
+// mappingId rather than a team's id.
+//
+// The paired head/active fields follow the same split: `headEmail` and
+// `isActive` belong to the entity and are edited on the entity tabs;
+// `mappingHeadEmail` and `mappingIsActive` belong to this placement and are
+// edited in the hierarchy.
+export interface OrgChartNode {
+  id: number;
+  name: string;
+  /** The entity's own head — shown on the entity tabs, not editable here. */
+  headEmail: string;
+  /** Whether the ENTITY is active. An inactive entity is inactive everywhere. */
+  isActive: boolean;
+  mappingId: number;
+  /** The functional head for THIS placement specifically. */
+  mappingHeadEmail: string;
+  /** Whether this PLACEMENT is active, independent of the entity. */
+  mappingIsActive: boolean;
+}
+
+export type OrgChartUnit = OrgChartNode;
+
+export interface OrgChartSubTeam extends OrgChartNode {
+  units: OrgChartUnit[];
+}
+
+export interface OrgChartTeam extends OrgChartNode {
+  subTeams: OrgChartSubTeam[];
+}
+
+// The root level has no mapping — a business unit is not placed under
+// anything — so it carries entity fields plus its employee count only.
+export interface OrgChartBusinessUnit {
+  id: number;
+  name: string;
+  headEmail: string;
+  isActive: boolean;
+  activeEmployeeCount: number;
+  teams: OrgChartTeam[];
+}
+
+/** Which level of the tree a placement is being created at. */
+export type MappingLevel = "team" | "subTeam" | "unit";
+
+// Create payloads. The parent id differs per level in a way worth reading
+// twice: `businessUnitId` is an ENTITY id, while `businessUnitTeamId` and
+// `businessUnitTeamSubTeamId` are MAPPING ids.
+export interface CreateTeamMappingPayload {
+  businessUnitId: number;
+  teamId: number;
+  headEmail?: string | null;
+}
+
+export interface CreateSubTeamMappingPayload {
+  businessUnitTeamId: number;
+  subTeamId: number;
+  headEmail?: string | null;
+}
+
+export interface CreateUnitMappingPayload {
+  businessUnitTeamSubTeamId: number;
+  unitId: number;
+  headEmail?: string | null;
+}
+
+/** PATCH body for any mapping level — "" clears the head. */
+export interface UpdateMappingPayload {
+  headEmail?: string | null;
+  isActive?: boolean;
+}
+
 // A row of GET /employees/basic-info — the option shape for employee pickers.
 // The endpoint returns ACTIVE employees only (it filters on employee_status
 // server-side), so anything here is someone currently employed.
