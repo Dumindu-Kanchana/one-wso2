@@ -135,7 +135,23 @@ function findParentRoute(pathname: string): string | undefined {
 
   if (!bestLabel) return undefined;
   const leaf = pathname.slice(bestPath.length + 1).split("/")[0];
-  return leaf ? `${bestLabel} · ${decodeURIComponent(leaf)}` : bestLabel;
+  return leaf ? `${bestLabel} · ${decodeLeaf(leaf)}` : bestLabel;
+}
+
+/**
+ * Decode a path segment for display, keeping it as-is when it cannot be.
+ *
+ * `decodeURIComponent` throws a URIError on a malformed escape — a bare `%`, or
+ * `%zz`. This runs during render (PinThisPageButton calls pinnableRoute while
+ * rendering), so a hand-typed URL like `/me/my-team/%` took the button down
+ * with it rather than merely labelling itself oddly.
+ */
+function decodeLeaf(leaf: string): string {
+  try {
+    return decodeURIComponent(leaf);
+  } catch {
+    return leaf;
+  }
 }
 
 function fallbackLabel(pathname: string): string {

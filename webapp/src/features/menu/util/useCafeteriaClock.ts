@@ -35,9 +35,13 @@ export function useCafeteriaClock(windows: readonly TimeWindow[]): {
   // Derived during render, so the effect depends on a number rather than on an
   // array the caller rebuilds every render. Advancing `now` recomputes it, which
   // re-arms the timer for the following boundary — no self-scheduling loop, and
-  // nothing to keep in a ref. `nextBoundaryMs` is always >= 1s, so this cannot
-  // spin.
-  const delayMs = nextBoundaryMs(now, windows) + 1_000;
+  // nothing to keep in a ref.
+  //
+  // No padding added here. `nextBoundaryMs` already clamps its result to at
+  // least a second, and that clamp — not a margin — is what stops a wake-up
+  // landing a hair early from re-arming a near-zero timer repeatedly. Adding a
+  // second on top only delayed every boundary flip by a second.
+  const delayMs = nextBoundaryMs(now, windows);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setNow(new Date()), delayMs);

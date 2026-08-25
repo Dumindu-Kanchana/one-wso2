@@ -161,6 +161,9 @@ export default function MenuHomePage() {
             now={now}
             order={dinner.data}
             user={userInfo.data}
+            // Everything except a 403 reaches DinnerSection rather than the
+            // page-level notice above, so it needs the reason itself.
+            userError={forbidden || !userInfo.isError ? undefined : userInfo.error}
             isLoading={dinner.isLoading}
             error={dinner.isError ? dinner.error : undefined}
           />

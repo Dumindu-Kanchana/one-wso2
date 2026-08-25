@@ -95,7 +95,10 @@ export default function TeamFilterDialog({
   onApply: (filters: AppliedFilters) => void;
   onClose: () => void;
 }) {
-  // Seeded once, at mount. See the note above.
+  // Seeded once, at mount — the parent mounts this only while open, which is
+  // what makes that true. Note that every edit below is also reported upward so
+  // the dependent option lists can narrow live, which means the parent owns
+  // undoing that if this dialog is cancelled.
   const [draft, setDraft] = useState<AppliedFilters>(initial);
 
   const update = <K extends keyof AppliedFilters>(key: K, value: AppliedFilters[K]) => {

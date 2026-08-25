@@ -132,6 +132,18 @@ export default function TeamFilterBar({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search your team"
+            // A placeholder can stand in for an accessible name, but it is not a
+            // label: it disappears the moment anything is typed, so a
+            // screen-reader user revisiting a filled field has nothing to
+            // identify it by. There is no visible label in this compact bar, so
+            // the name has to come from here.
+            //
+            // Through the `input` slot, because a bare `aria-label` on
+            // OutlinedInput lands on the wrapper div — which names nothing,
+            // since the wrapper is not the control. (On TextField the
+            // equivalent slot is `htmlInput`; here the component IS the input,
+            // so it is `input`.)
+            slotProps={{ input: { "aria-label": "Search your team" } }}
             startAdornment={
               <InputAdornment position="start">
                 <SearchIcon size={15} />

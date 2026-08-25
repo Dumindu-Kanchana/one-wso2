@@ -167,7 +167,12 @@ export default function TeamMemberPage() {
 
         {showPersonal && (
           <Box sx={{ mt: 1.5 }}>
-            {personal.isLoading ? (
+            {/* `isPending`, not `isLoading`: this query is disabled until the
+                disclosure is expanded AND identity has resolved, and a disabled
+                query reports `isPending` without `isLoading`. Keying on
+                `isLoading` sent the still-resolving case to the success branch
+                below, which drew every field as an em dash. */}
+            {personal.isPending ? (
               <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 1.5 }} />
             ) : personal.isError ? (
               // Degrades this section alone. The job record above has already

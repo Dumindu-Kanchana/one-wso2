@@ -38,12 +38,21 @@ export default function DinnerSection({
   now,
   order,
   user,
+  userError,
   isLoading,
   error,
 }: {
   now: Date;
   order: DinnerOrder | null | undefined;
+  // The orderer's own profile. Dinner is distributed by department and
+  // reporting line, so an order placed without it is filed against nobody —
+  // which makes this required to submit, not decoration.
   user: MenuUserInfo | undefined;
+  // Why `user` is missing, when that is known. Absent `user` with no error is
+  // simply "not loaded yet", which is transient and says nothing worth showing;
+  // absent `user` WITH an error is a state the reader has to be told about,
+  // because ordering stays unavailable until it is fixed.
+  userError?: unknown;
   isLoading: boolean;
   error: unknown;
 }) {
@@ -70,8 +79,14 @@ export default function DinnerSection({
     setSelection(value);
   };
 
+  // `buildDinnerPayload` substitutes empty strings for a missing profile and
+  // the backend accepts them, so nothing downstream will refuse the order —
+  // it just files it with no department and no manager. The guard has to be
+  // here, and it has to cover the button as well as this function.
+  const canOrder = Boolean(user);
+
   const submit = () => {
-    if (!effective || !isMealOption(effective)) return;
+    if (!effective || !isMealOption(effective) || !canOrder) return;
     const payload = buildDinnerPayload({ now, mealOption: effective, user, existing: order ?? null });
     const updating = ordered !== null;
     upsert.mutate(payload, {
@@ -176,6 +191,19 @@ export default function DinnerSection({
             </Alert>
           )}
 
+          {/* Only once the profile is known to have failed. While it is merely
+              in flight the button is disabled and this stays quiet, since the
+              wait is normally imperceptible and a warning about it would be
+              noise. The page as a whole only refuses on a 403, so every other
+              failure lands here rather than being caught upstream. */}
+          {!canOrder && userError !== undefined && (
+            <Alert severity="warning" sx={{ mt: 1.5 }}>
+              Ordering needs your department and reporting line, which couldn&apos;t be
+              loaded, so dinner can&apos;t be assigned to anyone yet.{" "}
+              {describeError(userError)}
+            </Alert>
+          )}
+
           <Stack direction="row" spacing={1} sx={{ mt: 1.5, justifyContent: "flex-end" }}>
             {order && (
               <Button
@@ -193,7 +221,7 @@ export default function DinnerSection({
               size="small"
               variant="contained"
               onClick={submit}
-              disabled={!orderingOpen || upsert.isPending || !effective || !changed}
+              disabled={!orderingOpen || upsert.isPending || !effective || !changed || !canOrder}
               sx={{ fontWeight: 600 }}
             >
               {upsert.isPending

@@ -274,7 +274,16 @@ export function formatStartDate(raw: string | null | undefined): string {
   if (typeof raw !== "string") return "-";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw.trim());
   if (!m) return "-";
-  const month = MONTHS[Number(m[2]) - 1];
-  if (!month) return "-";
-  return `${Number(m[3])} ${month} ${m[1]}`;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const name = MONTHS[month - 1];
+  if (!name) return "-";
+  // The day was previously unchecked, so "2021-02-31" rendered as "31 Feb 2021"
+  // and "…-00" as "0 Feb 2021" — a date presented as fact that cannot exist.
+  // Round-tripping through Date is what catches it: Date rolls overflow forward
+  // instead of rejecting it, so comparing the parts back is the actual test.
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
+    return "-";
+  }
+  return `${day} ${name} ${year}`;
 }

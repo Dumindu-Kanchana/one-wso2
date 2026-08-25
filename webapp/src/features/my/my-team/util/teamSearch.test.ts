@@ -286,3 +286,31 @@ describe("formatStartDate", () => {
     }
   });
 });
+
+describe("formatStartDate on impossible dates", () => {
+  it("refuses a day the month does not have", () => {
+    // Previously "31 Feb 2021": only the month index was validated.
+    expect(formatStartDate("2021-02-31")).toBe("-");
+    expect(formatStartDate("2021-04-31")).toBe("-");
+  });
+
+  it("refuses a zero day", () => {
+    expect(formatStartDate("2021-02-00")).toBe("-");
+  });
+
+  it("refuses a month past December, as it already did", () => {
+    expect(formatStartDate("2021-13-01")).toBe("-");
+    expect(formatStartDate("2021-00-01")).toBe("-");
+  });
+
+  it("gets leap years right", () => {
+    expect(formatStartDate("2024-02-29")).toBe("29 Feb 2024");
+    expect(formatStartDate("2021-02-29")).toBe("-");
+  });
+
+  it("still formats real dates, including a trailing timestamp", () => {
+    expect(formatStartDate("2021-03-07")).toBe("7 Mar 2021");
+    expect(formatStartDate("2021-03-07T00:00:00Z")).toBe("7 Mar 2021");
+  });
+});
+

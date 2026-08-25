@@ -78,8 +78,18 @@ export function normalizeSheetDate(raw: string | null | undefined): string | nul
 export function parseCalendarDate(iso: string): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return Number.isNaN(d.getTime()) ? null : d;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(year, month - 1, day);
+  if (Number.isNaN(d.getTime())) return null;
+  // `Date` silently rolls overflow forward rather than rejecting it, so
+  // "2026-02-31" becomes 3 March and is NOT NaN. The menu's date is a raw
+  // spreadsheet cell somebody typed, which is exactly where a 31st of February
+  // comes from — and displaying it as 3 March states a date nobody wrote.
+  // Reading the parts back is what distinguishes the two.
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
+    return null;
+  }
+  return d;
 }
 
 /** "Monday, August 24, 2026", or "" when there is no usable date. */

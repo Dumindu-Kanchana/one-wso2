@@ -99,3 +99,44 @@ describe("formatMinuteOfDay", () => {
     expect(formatMinuteOfDay(1439)).toBe("11:59 PM");
   });
 });
+
+// `new Date(y, m, d)` rolls overflow forward instead of rejecting it, so a
+// 31st of February silently becomes 3 March. The menu's date is a spreadsheet
+// cell somebody typed by hand, which is precisely where that comes from.
+describe("dates that do not exist", () => {
+  it("refuses a day the month does not have", () => {
+    expect(parseCalendarDate("2026-02-31")).toBeNull();
+    expect(parseCalendarDate("2026-04-31")).toBeNull();
+    expect(parseCalendarDate("2026-06-31")).toBeNull();
+  });
+
+  it("refuses a zero day or month", () => {
+    expect(parseCalendarDate("2026-02-00")).toBeNull();
+    expect(parseCalendarDate("2026-00-10")).toBeNull();
+  });
+
+  it("refuses a month past December", () => {
+    expect(parseCalendarDate("2026-13-01")).toBeNull();
+  });
+
+  it("gets leap years right rather than rejecting every 29 February", () => {
+    expect(parseCalendarDate("2024-02-29")).not.toBeNull();
+    expect(parseCalendarDate("2026-02-29")).toBeNull();
+    // Divisible by 100 but not 400 — not a leap year.
+    expect(parseCalendarDate("1900-02-29")).toBeNull();
+    expect(parseCalendarDate("2000-02-29")).not.toBeNull();
+  });
+
+  it("still accepts the last real day of each month", () => {
+    for (const iso of ["2026-01-31", "2026-04-30", "2026-02-28", "2026-12-31"]) {
+      expect(parseCalendarDate(iso), iso).not.toBeNull();
+    }
+  });
+
+  it("shows nothing rather than a date nobody wrote", () => {
+    // Previously "Tuesday, March 3, 2026" — a confident answer to a question
+    // the sheet never asked.
+    expect(formatMenuDate("2026-02-31")).toBe("");
+  });
+});
+

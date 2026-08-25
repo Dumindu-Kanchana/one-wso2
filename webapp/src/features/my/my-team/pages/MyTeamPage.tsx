@@ -137,6 +137,18 @@ function TeamRoster() {
     setDialogOpen(false);
   };
 
+  // Cancel has to undo the narrowing the abandoned draft caused. The dialog
+  // reports every edit upward so the dependent lists narrow while you type, and
+  // `selection` is what `useOrgReference` above is keyed on — so closing without
+  // applying used to leave those lists filtered by choices that were thrown
+  // away. Reopening then showed an empty Business Unit beside a Team list still
+  // restricted to it, reading as "Nothing under the selected Business Unit"
+  // with nothing selected and no way to widen it again.
+  const closeFilters = () => {
+    setSelection(toSelection(applied));
+    setDialogOpen(false);
+  };
+
   const removeChip = (key: keyof AppliedFilters) => {
     // Reverting one chip means restoring that field's default, which for a
     // parent also clears the children that no longer apply.
@@ -212,16 +224,20 @@ function TeamRoster() {
         />
       )}
 
-      {/* Mounted only while open and keyed on the applied filters, so its draft
-          is seeded exactly once and cannot be re-seeded mid-edit. */}
+      {/* Mounted only while open, which is what seeds the draft exactly once per
+          open — the conditional mount alone, with no `key`. A `key={filterKey}`
+          here did the opposite of what it claimed: `filterKey` carries the
+          300ms-debounced search text, so typing and then opening the dialog
+          inside that window let the timer fire while it was open, changing the
+          key, remounting the dialog and resetting the draft to `applied` — and
+          any selection already made was lost. */}
       {dialogOpen && (
         <TeamFilterDialog
-          key={filterKey}
           initial={applied}
           reference={reference}
           onSelectionChange={(draft) => setSelection(toSelection(draft))}
           onApply={applyFilters}
-          onClose={() => setDialogOpen(false)}
+          onClose={closeFilters}
         />
       )}
     </Box>

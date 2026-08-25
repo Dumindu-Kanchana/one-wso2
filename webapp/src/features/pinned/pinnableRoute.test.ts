@@ -107,3 +107,25 @@ describe("isKnownRoute", () => {
     expect(isKnownRoute("/me/leave/apply/")).toBe(true);
   });
 });
+
+// pinnableRoute runs during render (PinThisPageButton calls it while
+// rendering), so a throw here takes the button down rather than just labelling
+// itself oddly.
+describe("malformed percent encoding in a detail route", () => {
+  it("keeps the raw segment instead of throwing", () => {
+    // decodeURIComponent("%") throws URIError.
+    expect(() => pinnableRoute("/me/my-team/%")).not.toThrow();
+    expect(pinnableRoute("/me/my-team/%").label).toBe("My Team · %");
+  });
+
+  it("survives other invalid escapes", () => {
+    for (const leaf of ["%zz", "%E0%A4%A", "100%"]) {
+      expect(() => pinnableRoute(`/me/my-team/${leaf}`), leaf).not.toThrow();
+    }
+  });
+
+  it("still decodes a valid escape", () => {
+    expect(pinnableRoute("/me/my-team/E%20123").label).toBe("My Team · E 123");
+  });
+});
+

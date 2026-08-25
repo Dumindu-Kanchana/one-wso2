@@ -107,8 +107,8 @@ export function useTeamMember(employeeId: string | undefined) {
  * date of birth and home address along with it.
  */
 export function useTeamMemberPersonalInfo(employeeId: string | undefined, enabled: boolean) {
-  const { getAccessToken, userSub, ready } = useBasis();
-  return useQuery<EmployeePersonalInfo>({
+  const { getAccessToken, subState, retryIdentity, userSub, ready } = useBasis();
+  const query = useQuery<EmployeePersonalInfo>({
     queryKey: ["my-team", "member-personal", userSub, employeeId],
     enabled: ready && enabled && Boolean(employeeId),
     queryFn: async () =>
@@ -119,4 +119,11 @@ export function useTeamMemberPersonalInfo(employeeId: string | undefined, enable
     staleTime: 5 * 60 * 1000,
     retry: httpRetry,
   });
+
+  // Folded like the two queries above it. Without this an unresolvable identity
+  // leaves the query merely disabled, and a disabled query reports neither
+  // `isLoading` nor `isError` — so the page took its success branch and drew
+  // the whole personal-details grid as em dashes, with nothing to say it had
+  // failed and no way to retry.
+  return foldIdentityError(query, subState, retryIdentity);
 }
