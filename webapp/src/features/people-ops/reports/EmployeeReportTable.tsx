@@ -501,7 +501,19 @@ export default function EmployeeReportTable({
                   // Clicking anywhere on the row navigates; the anchor in the
                   // first cell is what makes it reachable by keyboard and
                   // openable in a new tab.
-                  onClick={() => navigate(employeeDetailPath(row.employeeId))}
+                  //
+                  // Two things this handler must NOT do. It must not fire for
+                  // clicks on that anchor, which already navigates — handling
+                  // both pushes two history entries for one click. And it must
+                  // not hijack a middle-click or ctrl/cmd-click, which the
+                  // person meant to open in a new tab or window.
+                  onClick={(event) => {
+                    if (event.defaultPrevented) return;
+                    if (event.button !== 0) return;
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    if ((event.target as HTMLElement).closest("a")) return;
+                    navigate(employeeDetailPath(row.employeeId));
+                  }}
                   sx={{ cursor: "pointer" }}>
                   {visibleColumnKeys.map((key, columnIndex) => {
                     const text = cellText(row, key);
