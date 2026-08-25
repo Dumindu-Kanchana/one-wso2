@@ -52,6 +52,10 @@ export interface AssignEntityDialogProps {
   options: OrgChartEntity[];
   /** True while the entity list is still being fetched. */
   loadingOptions?: boolean;
+  /** Set when the entity list failed to load — distinct from it being empty. */
+  optionsError?: string | null;
+  /** Retry the entity list fetch. */
+  onRetryOptions?: () => void;
   /** Must REJECT on failure so the dialog can stay open and explain. */
   onSubmit: (entityId: number, headEmail: string) => Promise<unknown>;
 }
@@ -67,6 +71,8 @@ function AssignEntityDialogBody({
   parentLabel,
   options,
   loadingOptions = false,
+  optionsError = null,
+  onRetryOptions,
   onSubmit,
 }: AssignEntityDialogProps) {
   const [entity, setEntity] = useState<OrgChartEntity | null>(null);
@@ -121,6 +127,22 @@ function AssignEntityDialogBody({
                   Loading {entityLabel}s…
                 </Typography>
               </Box>
+            ) : optionsError ? (
+              // Checked BEFORE the empty case. A failed fetch also leaves the
+              // list empty, and reporting it as "everything is already
+              // assigned" would send someone off to create a duplicate.
+              <Alert
+                severity="error"
+                action={
+                  onRetryOptions ? (
+                    <Button color="inherit" size="small" onClick={onRetryOptions}>
+                      Retry
+                    </Button>
+                  ) : undefined
+                }
+              >
+                Couldn't load {entityLabel}s. {optionsError}
+              </Alert>
             ) : options.length === 0 ? (
               <Alert severity="info">
                 Every active {entityLabel} is already under {parentLabel}. Create a
@@ -141,7 +163,7 @@ function AssignEntityDialogBody({
               />
             )}
 
-            {!loadingOptions && options.length > 0 && (
+            {!loadingOptions && !optionsError && options.length > 0 && (
               <EmployeeEmailPicker
                 label="Functional head"
                 value={headEmail}

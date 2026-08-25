@@ -115,6 +115,18 @@ export default function HierarchyTab() {
     setSelectedSubTeamMappingId(null);
   }
 
+  // The entity query behind whichever Add dialog is open, so its loading,
+  // error and retry all come from one place instead of three parallel
+  // ternaries that could drift apart.
+  const activeEntityQuery =
+    assignLevel === "team"
+      ? teams
+      : assignLevel === "subTeam"
+        ? subTeams
+        : assignLevel === "unit"
+          ? units
+          : null;
+
   const assignOptions = useMemo(() => {
     if (assignLevel === "team") return availableEntities(teams.data ?? [], selectedBu?.teams ?? []);
     if (assignLevel === "subTeam")
@@ -314,14 +326,12 @@ export default function HierarchyTab() {
         // The entity list is fetched on open, so the dialog has to tell
         // "still loading" from "nothing left to add" — they look identical
         // as an empty array but mean opposite things.
-        loadingOptions={
-          assignLevel === "team"
-            ? teams.isPending
-            : assignLevel === "subTeam"
-              ? subTeams.isPending
-              : assignLevel === "unit"
-                ? units.isPending
-                : false
+        loadingOptions={activeEntityQuery?.isPending ?? false}
+        optionsError={
+          activeEntityQuery?.isError ? describeError(activeEntityQuery.error) : null
+        }
+        onRetryOptions={
+          activeEntityQuery ? () => void activeEntityQuery.refetch() : undefined
         }
         onSubmit={handleAssign}
       />
