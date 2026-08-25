@@ -42,6 +42,9 @@ declare global {
       // My profile page. Optional — when absent, the My page still loads
       // but the profile sections show a "not configured" state.
       ONE_WSO2_PEOPLE_BACKEND_URL?: string;
+      // Cafeteria menu backend (daily menu, lunch feedback, dinner orders).
+      // Optional — when absent the Menu screen shows a not-connected state.
+      ONE_WSO2_MENU_BACKEND_URL?: string;
       // Base URL for the digiops-hr promotion-app backend. Optional — when
       // absent, ConnectedServices' "Last promoted date" row falls back to a
       // "not configured" state and doesn't fire a request.

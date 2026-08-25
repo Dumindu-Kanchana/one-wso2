@@ -25,6 +25,8 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { LayoutGridIcon, SearchIcon } from "@wso2/oxygen-ui-icons-react";
+import { Link as RouterLink } from "react-router";
+import { landingPath } from "@config/landingConfig";
 import PinnedTabs from "@features/pinned/components/PinnedTabs";
 import PinThisPageButton from "@features/pinned/components/PinThisPageButton";
 import { usePinnedEntries } from "@features/pinned/usePinned";
@@ -123,26 +125,58 @@ export default function TopBar({
       <Header.Toggle collapsed={collapsed} onToggle={onToggleSidebar} />
 
       <Header.Brand sx={{ flexShrink: 0 }}>
-        {/* Overrides Oxygen's 16→18px token, paired with BRAND_LOGO_PX above:
-            "One" is one word of the name, so its size is set by the lockup
-            rather than by the app-name token. */}
-        <Header.BrandTitle sx={{ whiteSpace: "nowrap", fontSize: BRAND_TITLE_PX }}>
-          One
-        </Header.BrandTitle>
-        {/* Negative margin so "One" and the WSO2 logo read as one lockup rather
-            than two adjacent elements. */}
-        <Header.BrandLogo sx={{ ml: "-4px" }}>
-          {/* The full logo, monochrome per brand rules — black on light, white
-              on dark. ColorSchemeImage picks the variant from the resolved
-              colour scheme. alt="" because "One" beside it plus the wordmark
-              already read as the product name. */}
-          <ColorSchemeImage
-            src={{ light: "/wso2-logo-black.svg", dark: "/wso2-logo-white.svg" }}
-            alt=""
-            height={BRAND_LOGO_PX}
-            width="auto"
-          />
-        </Header.BrandLogo>
+        {/* The lockup is the way home, as it is in every other product.
+            Deliberately a real link rather than an onClick, so cmd-click and
+            middle-click open a new tab the way a logo is expected to.
+            `Header.Brand` is not polymorphic, so the link nests inside it and
+            reproduces the flex row its children were relying on.
+
+            It goes to the LANDING path, not a hardcoded /me: that honours the
+            per-user setting on /settings, and still lands on Me for anyone who
+            has not changed it. Sending someone to Me when they have chosen a
+            different home would contradict their own preference.
+
+            aria-label because the only text inside is "One" and the wordmark
+            carries alt="" — on its own that is a thin name for a link. */}
+        <Box
+          component={RouterLink}
+          to={landingPath()}
+          aria-label="One WSO2 home"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            textDecoration: "none",
+            color: "inherit",
+            borderRadius: 1,
+            "&:focus-visible": {
+              outline: 2,
+              outlineStyle: "solid",
+              outlineColor: "primary.main",
+              outlineOffset: 2,
+            },
+          }}
+        >
+          {/* Overrides Oxygen's 16→18px token, paired with BRAND_LOGO_PX above:
+              "One" is one word of the name, so its size is set by the lockup
+              rather than by the app-name token. */}
+          <Header.BrandTitle sx={{ whiteSpace: "nowrap", fontSize: BRAND_TITLE_PX }}>
+            One
+          </Header.BrandTitle>
+          {/* Negative margin so "One" and the WSO2 logo read as one lockup rather
+              than two adjacent elements. */}
+          <Header.BrandLogo sx={{ ml: "-4px" }}>
+            {/* The full logo, monochrome per brand rules — black on light, white
+                on dark. ColorSchemeImage picks the variant from the resolved
+                colour scheme. alt="" because "One" beside it plus the wordmark
+                already read as the product name. */}
+            <ColorSchemeImage
+              src={{ light: "/wso2-logo-black.svg", dark: "/wso2-logo-white.svg" }}
+              alt=""
+              height={BRAND_LOGO_PX}
+              width="auto"
+            />
+          </Header.BrandLogo>
+        </Box>
       </Header.Brand>
 
       {/* Palette trigger. A click target rather than a real input: the palette

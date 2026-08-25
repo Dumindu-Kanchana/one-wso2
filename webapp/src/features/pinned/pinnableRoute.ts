@@ -60,7 +60,7 @@ export function pinnableRoute(pathname: string, search = ""): PinnableEntry {
     // Full href as the id, so /me/opd/history and a filtered variant of it are
     // separate pins rather than one overwriting the other.
     id: href,
-    label: match ?? fallbackLabel(path),
+    label: match ?? findParentRoute(path) ?? fallbackLabel(path),
     href,
   };
 }
@@ -101,6 +101,59 @@ const qualify = (context: string, label: string) => `${context} · ${label}`;
  * rail entry, say. Title-cases the deepest segment so the pin is still
  * recognisable rather than blank.
  */
+/**
+ * Label a route the registry doesn't list by the registered route it sits under.
+ *
+ * Detail routes (`/me/my-team/E123`) aren't in the registry — one entry cannot
+ * enumerate every employee — so without this a pin reads as a bare "E123" with
+ * nothing to say where it came from. Qualified by its parent it reads
+ * "My Team · E123", which follows the same rule as everything else here: a label
+ * is qualified by its immediate container when it has one.
+ *
+ * Longest parent wins, so a deeper registered route beats a shallower one.
+ */
+function findParentRoute(pathname: string): string | undefined {
+  let bestPath = "";
+  let bestLabel: string | undefined;
+
+  const consider = (routePath: string | undefined, label: string) => {
+    if (!routePath || routePath === pathname) return;
+    if (!pathname.startsWith(`${routePath}/`)) return;
+    if (routePath.length <= bestPath.length) return;
+    bestPath = routePath;
+    bestLabel = label;
+  };
+
+  for (const perspective of PERSPECTIVES) {
+    for (const section of perspective.sections ?? []) {
+      consider(section.path, section.label);
+      for (const child of section.children ?? []) {
+        consider(child.path, qualify(section.label, child.label));
+      }
+    }
+  }
+
+  if (!bestLabel) return undefined;
+  const leaf = pathname.slice(bestPath.length + 1).split("/")[0];
+  return leaf ? `${bestLabel} · ${decodeLeaf(leaf)}` : bestLabel;
+}
+
+/**
+ * Decode a path segment for display, keeping it as-is when it cannot be.
+ *
+ * `decodeURIComponent` throws a URIError on a malformed escape — a bare `%`, or
+ * `%zz`. This runs during render (PinThisPageButton calls pinnableRoute while
+ * rendering), so a hand-typed URL like `/me/my-team/%` took the button down
+ * with it rather than merely labelling itself oddly.
+ */
+function decodeLeaf(leaf: string): string {
+  try {
+    return decodeURIComponent(leaf);
+  } catch {
+    return leaf;
+  }
+}
+
 function fallbackLabel(pathname: string): string {
   const segments = pathname.split("/").filter(Boolean);
   const last = segments[segments.length - 1] ?? "";

@@ -44,6 +44,42 @@ export const peopleServiceUrls = {
   // callers can only fetch their own (backend enforces isSelf check).
   employeeQrCode: (employeeId: string) =>
     `${peopleBackendUrl}/employees/${encodeURIComponent(employeeId)}/qr-code`,
+
+  // POST, but a READ — filters/sort/pagination are too large for a query
+  // string. Consumed with useQuery and the payload in the query key, per the
+  // rule documented further down this file. `leadOnly: true` in the body is
+  // what scopes the result to the caller's own reporting chain; the caller is
+  // resolved server-side from the token, never sent.
+  employeesSearch: `${peopleBackendUrl}/employees/search`,
+
+  // Filter option lists. Five take an optional parent id — narrowing has to be
+  // a round trip because the records carry no parent reference, so it cannot be
+  // derived from lists already held. Omitting the id returns the full list.
+  managers: `${peopleBackendUrl}/employees/managers`,
+  employmentTypes: `${peopleBackendUrl}/employment-types`,
+  businessUnits: `${peopleBackendUrl}/business-units`,
+  careerFunctions: `${peopleBackendUrl}/career-functions`,
+  companies: `${peopleBackendUrl}/companies`,
+  teams: (businessUnitId?: number) =>
+    businessUnitId === undefined
+      ? `${peopleBackendUrl}/teams`
+      : `${peopleBackendUrl}/teams?buId=${businessUnitId}`,
+  subTeams: (teamId?: number) =>
+    teamId === undefined
+      ? `${peopleBackendUrl}/sub-teams`
+      : `${peopleBackendUrl}/sub-teams?teamId=${teamId}`,
+  units: (subTeamId?: number) =>
+    subTeamId === undefined
+      ? `${peopleBackendUrl}/units`
+      : `${peopleBackendUrl}/units?subTeamId=${subTeamId}`,
+  designations: (careerFunctionId?: number) =>
+    careerFunctionId === undefined
+      ? `${peopleBackendUrl}/designations`
+      : `${peopleBackendUrl}/designations?careerFunctionId=${careerFunctionId}`,
+  offices: (companyId?: number) =>
+    companyId === undefined
+      ? `${peopleBackendUrl}/offices`
+      : `${peopleBackendUrl}/offices?companyId=${companyId}`,
 };
 
 // Promotion app backend (digiops-hr/apps/promotion). Separate service from
@@ -485,4 +521,31 @@ export const promotionServiceUrls = {
   // allows self-lookup for non-admins.
   promotionHistory: (workEmail: string) =>
     `${promotionBackendUrl}/promotion/requests?statusArray=APPROVED&employeeEmail=${encodeURIComponent(workEmail)}`,
+};
+
+// ---------------------------------------------------------------------------
+// Menu (cafeteria) backend. Daily menu, lunch feedback, and dinner-on-demand
+// orders. The service is reused unchanged from the standalone app; see
+// docs/ported-apps/menu-app.md for the contract and the behaviour it defines.
+//
+// Every path is fixed — no builder takes an argument, because the caller is
+// always identified by the token rather than by a path segment.
+export const menuBackendUrl: string = window.config?.ONE_WSO2_MENU_BACKEND_URL ?? "";
+
+export function isMenuBackendConfigured(): boolean {
+  return Boolean(menuBackendUrl);
+}
+
+export const menuServiceUrls = {
+  // Employee profile + privileges. Also the source of the department / team /
+  // manager email an order carries.
+  userInfo: `${menuBackendUrl}/user-info`,
+  // The configured lunch-feedback window. Optional in practice: the standalone
+  // app never called it, so it may not be published through the gateway. A 404
+  // is tolerated and the hard-coded fallback window applies.
+  metaInfo: `${menuBackendUrl}/meta-info`,
+  menu: `${menuBackendUrl}/menu`,
+  feedback: `${menuBackendUrl}/feedback`,
+  // GET the current order, POST to place or change it, DELETE to cancel.
+  dinner: `${menuBackendUrl}/dinner`,
 };
