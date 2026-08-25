@@ -33,7 +33,10 @@ export const EMPTY_CELL = "—";
 // every caller renders as EMPTY_CELL rather than "Invalid Date".
 export function parseYmd(input: string | null | undefined): Date | null {
   if (!input) return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(input);
+  // Anchored at both ends: the date may stand alone or be the start of an
+  // ISO datetime, but nothing else may follow. An unanchored prefix match
+  // would accept "2026-01-15invalid" as a valid date.
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/.exec(input);
   if (!match) return null;
   const [, y, mo, d] = match;
   const date = new Date(Number(y), Number(mo) - 1, Number(d));
