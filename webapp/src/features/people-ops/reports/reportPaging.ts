@@ -53,10 +53,13 @@ export function pageView({ page, pageSize, rowCount, totalCount }: PageState): P
     firstRowNumber,
     lastRowNumber,
     canPrev: page > 0,
-    // Requires BOTH a further page by the count and a full page of rows.
-    // The row-count half is what stops a stale totalCount from offering a
-    // next page that comes back empty.
-    canNext: page + 1 < pageCount && rowCount === pageSize,
+    // A full page is the evidence that more may exist; the count is a second
+    // opinion, applied only when there is one. Requiring both unconditionally
+    // stranded callers on page 1 whenever totalCount was null, because
+    // pageCount floors at 1 — a full page with an unknown total is exactly
+    // the case where paging on is reasonable.
+    canNext:
+      rowCount === pageSize && (totalCount === null || page + 1 < pageCount),
     rangeLabel: isEmpty
       ? null
       : `${firstRowNumber}–${lastRowNumber} of ${totalCount ?? "?"}`,

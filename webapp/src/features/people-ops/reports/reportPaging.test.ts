@@ -62,6 +62,19 @@ describe("pageView", () => {
     expect(pageView({ page: 0, pageSize: 10, rowCount: 10, totalCount: 20 }).pageCount).toBe(2);
   });
 
+  it("allows Next on a full page when the total is unknown", () => {
+    // pageCount floors at 1 when totalCount is null, so requiring the count
+    // to agree stranded callers on page 1 for that whole response shape. A
+    // full page is enough evidence on its own.
+    expect(pageView({ page: 0, pageSize: 10, rowCount: 10, totalCount: null }).canNext).toBe(
+      true,
+    );
+    // A short page still ends paging, count or no count.
+    expect(pageView({ page: 0, pageSize: 10, rowCount: 4, totalCount: null }).canNext).toBe(
+      false,
+    );
+  });
+
   it("handles an unknown total without rendering 'undefined'", () => {
     const view = pageView({ page: 0, pageSize: 10, rowCount: 10, totalCount: null });
     expect(view.rangeLabel).toBe("1–10 of ?");
