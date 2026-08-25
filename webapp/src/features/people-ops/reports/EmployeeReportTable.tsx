@@ -48,7 +48,7 @@ import {
   SearchIcon,
   XIcon,
 } from "@wso2/oxygen-ui-icons-react";
-import { Link as RouterLink } from "react-router";
+import { Link as RouterLink, useNavigate } from "react-router";
 import { describeError } from "@api/errors";
 import { EmployeeStatus } from "../api/peopleOpsTypes";
 import type { Employee, Filters } from "../api/peopleOpsTypes";
@@ -115,6 +115,7 @@ export default function EmployeeReportTable({
   defaultIncludeMarkedLeavers = false,
   markedLeaversLabel,
 }: EmployeeReportTableProps) {
+  const navigate = useNavigate();
   const isResignation = employeeStatus === EmployeeStatus.Left;
 
   const allColumns = useMemo(() => getColumnsForStatus(isResignation), [isResignation]);
@@ -491,18 +492,18 @@ export default function EmployeeReportTable({
                 <TableRow
                   key={row.employeeId}
                   hover
-                  // A real link, not an onClick row handler: it keeps
-                  // keyboard focus and "open in new tab" working, which a
-                  // click-handling <tr> silently takes away.
-                  component={RouterLink}
-                  to={employeeDetailPath(row.employeeId)}
-                  sx={{
-                    textDecoration: "none",
-                    cursor: "pointer",
-                    display: "table-row",
-                    color: "inherit",
-                  }}>
-                  {visibleColumnKeys.map((key) => {
+                  // The row stays a real <tr>. Making it a RouterLink put an
+                  // <a> between <tbody> and <td>, which is invalid HTML —
+                  // browsers hoist the anchor out of the table and the layout
+                  // collapses. The link lives in the first cell instead (see
+                  // below), which keeps keyboard focus and open-in-new-tab
+                  // working without the nesting being illegal.
+                  // Clicking anywhere on the row navigates; the anchor in the
+                  // first cell is what makes it reachable by keyboard and
+                  // openable in a new tab.
+                  onClick={() => navigate(employeeDetailPath(row.employeeId))}
+                  sx={{ cursor: "pointer" }}>
+                  {visibleColumnKeys.map((key, columnIndex) => {
                     const text = cellText(row, key);
                     // Status is the one column that reads better as a chip —
                     // it is a small closed set, and the colour carries meaning.
@@ -533,11 +534,16 @@ export default function EmployeeReportTable({
                             so the full value has to stay reachable somehow. */}
                         <Tooltip title={text} arrow>
                           <Box
-                            component="span"
+                            component={columnIndex === 0 ? RouterLink : "span"}
+                            {...(columnIndex === 0
+                              ? { to: employeeDetailPath(row.employeeId) }
+                              : {})}
                             sx={{
                               display: "block",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
+                              color: "inherit",
+                              textDecoration: "none",
                             }}
                           >
                             {text}
