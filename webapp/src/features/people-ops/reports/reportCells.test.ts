@@ -189,6 +189,14 @@ describe("formatReportDate", () => {
     expect(formatReportDate("2026-01-01")).toBe("1 Jan 2026");
   });
 
+  it("rejects a date with trailing junk", () => {
+    // An unanchored prefix match would read "2026-01-15invalid" as valid.
+    expect(formatReportDate("2026-01-15invalid")).toBe("—");
+    expect(formatReportDate("2026-01-15-extra")).toBe("—");
+    // A genuine ISO datetime still parses.
+    expect(formatReportDate("2026-01-15T09:30:00Z")).toBe("15 Jan 2026");
+  });
+
   it("rejects dates that don't exist rather than rolling them forward", () => {
     expect(formatReportDate("2026-02-30")).toBe("—");
     expect(formatReportDate(null)).toBe("—");
