@@ -49,6 +49,16 @@ describe("serviceLength", () => {
     expect(serviceLength("2018-07-15", today, "")).toBe("8y 1m");
   });
 
+  it("rejects a calendar-invalid final day instead of rolling it forward", () => {
+    // parseDateOnly only range-checks the day, so 2026-02-31 survives it and
+    // Date would silently roll it to 3 March — capping tenure on a day that
+    // never existed. It must fall back to `now` like any other bad value.
+    expect(serviceLength("2018-07-15", today, "2026-02-31")).toBe("8y 1m");
+    expect(serviceLength("2018-07-15", today, "2023-02-29")).toBe("8y 1m");
+    // A real leap day is still honoured.
+    expect(serviceLength("2018-07-15", today, "2024-02-29")).toBe("5y 7m");
+  });
+
   it("reports a placeholder for a final day before the start", () => {
     expect(serviceLength("2024-01-01", today, "2020-01-01")).toBe(DASH);
   });

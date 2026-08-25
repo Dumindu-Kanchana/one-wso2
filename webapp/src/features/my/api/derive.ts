@@ -72,12 +72,25 @@ export function serviceLength(
   const start = parseDateOnly(startDate);
   if (!start) return DASH;
 
-  const finalDay = parseDateOnly(endDate);
   // Local midnight, matching parseDateOnly's own components — constructing
   // from parts avoids the UTC shift that Date("YYYY-MM-DD") would introduce.
-  const asOf = finalDay
-    ? new Date(finalDay.y, finalDay.m, finalDay.d)
-    : now;
+  //
+  // Round-tripped because parseDateOnly only range-checks (d <= 31), so a
+  // date like 2026-02-31 survives it and Date silently rolls it to 3 March —
+  // capping tenure on a day that does not exist. A failed round-trip falls
+  // back to `now`, same as any other unusable end date.
+  const finalDay = parseDateOnly(endDate);
+  let asOf = now;
+  if (finalDay) {
+    const candidate = new Date(finalDay.y, finalDay.m, finalDay.d);
+    if (
+      candidate.getFullYear() === finalDay.y &&
+      candidate.getMonth() === finalDay.m &&
+      candidate.getDate() === finalDay.d
+    ) {
+      asOf = candidate;
+    }
+  }
 
   let years = asOf.getFullYear() - start.y;
   let months = asOf.getMonth() - start.m;
