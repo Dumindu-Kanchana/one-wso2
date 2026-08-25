@@ -474,15 +474,36 @@ function Row({
         py: 1,
         borderBottom: 1,
         borderColor: "divider",
-        cursor: onClick ? "pointer" : "default",
         bgcolor: selected ? "action.selected" : "transparent",
         opacity: dimmed ? 0.55 : 1,
         "&:hover": { bgcolor: selected ? "action.selected" : "action.hover" },
         "&:hover .row-edit": { opacity: 1 },
       }}
-      onClick={onClick}
     >
-      <Box sx={{ flex: 1, minWidth: 0 }}>
+      {/* The selectable content is a real <button>, not a click-handling div:
+          drilling into the hierarchy is the primary action here, and on a div
+          it was unreachable by keyboard — which also put every later column
+          and its Add action out of reach. The edit control stays a SIBLING
+          rather than a child, since a button cannot legally contain one.
+
+          `aria-pressed` because this is a selection toggle, not navigation. */}
+      <Box
+        component={onClick ? "button" : "div"}
+        type={onClick ? "button" : undefined}
+        onClick={onClick}
+        aria-pressed={onClick ? Boolean(selected) : undefined}
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          textAlign: "left",
+          font: "inherit",
+          color: "inherit",
+          border: 0,
+          p: 0,
+          bgcolor: "transparent",
+          cursor: onClick ? "pointer" : "default",
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
           <Typography
             variant="body2"
