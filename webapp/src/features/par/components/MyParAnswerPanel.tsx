@@ -18,6 +18,7 @@
 import { useState, type JSX } from "react";
 import {
   Alert,
+  Box,
   Button,
   Chip,
   Dialog,
@@ -32,7 +33,7 @@ import { describeError } from "@api/errors";
 import { useSaveMyPar } from "../api/useParEmployeeMutations";
 import type { ParCycle, ParRating } from "../api/parTypes";
 import { parEmployeeStatusMeta } from "../util/parStatus";
-import { isParHtmlEmpty } from "../util/parHtml";
+import { isParHtmlEmpty, parConfiguredTextToHtml } from "../util/parHtml";
 import { myParLockReason, type ParLockReason } from "../util/parEditability";
 import ParHtml from "./ParHtml";
 import ParRichText from "./ParRichText";
@@ -72,9 +73,13 @@ export default function MyParAnswerPanel({
   const [draft, setDraft] = useState<string>(rating?.parEmployeeComment ?? "");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const question =
+  // The question is admin-authored prose in a plain text box, so it arrives
+  // with hand-typed markup and real newlines both. Rendered rather than printed
+  // — see parConfiguredTextToHtml.
+  const questionHtml = parConfiguredTextToHtml(
     cycle?.parCycleConfigurations?.employeeParQuestion ??
-    "Share anything about your performance this cycle that your lead should know.";
+      "Share anything about your performance this cycle that your lead should know.",
+  );
 
   const saved = rating?.parEmployeeComment ?? "";
   const dirty = draft !== saved;
@@ -106,9 +111,14 @@ export default function MyParAnswerPanel({
   return (
     <ParSection
       title="Your review"
-      subtitle={question}
       action={<Chip size="small" label={status.label} color={status.color} variant="outlined" />}
     >
+      {/* The question sits in the body rather than as the section's subtitle:
+          it is content the cycle supplies, it can run to several lines, and a
+          subtitle is a plain string by design. */}
+      <Box sx={{ mb: 2, maxWidth: "72ch" }}>
+        <ParHtml html={questionHtml} emptyText="No question was set for this cycle." />
+      </Box>
       {!canEdit ? (
         <>
           {/* An Alert, not a locked-door card: unlike a permission the reader

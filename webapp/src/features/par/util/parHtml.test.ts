@@ -18,6 +18,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isParHtmlEmpty,
+  parConfiguredTextToHtml,
   parHtmlToPlainText,
   sanitizeParHtml,
 } from "@features/par/util/parHtml";
@@ -109,3 +110,53 @@ describe("isParHtmlEmpty", () => {
     expect(isParHtmlEmpty("<script>alert(1)</script>")).toBe(true);
   });
 });
+
+// A cycle's question is authored in a plain multiline text box, and real data
+// contains both conventions: newlines from pressing Enter, and hand-typed
+// <br/> from somebody who expected HTML. Rendering it as plain text — which is
+// what the standalone app did — served neither author.
+describe("parConfiguredTextToHtml", () => {
+  it("honours hand-typed break tags", () => {
+    const raw = "Job Execution (quality, planning) <br/>Team Work (roles, goals)";
+    const out = parConfiguredTextToHtml(raw);
+    expect(out).toContain("<br");
+    expect(out).not.toContain("&lt;br");
+    expect(parHtmlToPlainText(out)).toContain("Job Execution");
+    expect(parHtmlToPlainText(out)).toContain("Team Work");
+  });
+
+  it("turns real newlines into breaks rather than collapsing them", () => {
+    expect(parConfiguredTextToHtml("First line\nSecond line")).toBe("First line<br>Second line");
+    expect(parConfiguredTextToHtml("a\r\nb")).toBe("a<br>b");
+  });
+
+  it("handles both conventions in one value", () => {
+    const out = parConfiguredTextToHtml("One <br/>Two\nThree");
+    // Trimmed per line: the source string has a space before the tag, and
+    // preserving it is correct — the point is that all three become lines.
+    expect(parHtmlToPlainText(out).split("\n").map((l) => l.trim())).toEqual([
+      "One",
+      "Two",
+      "Three",
+    ]);
+  });
+
+  it("does not let a question inject what employee prose cannot", () => {
+    expect(parConfiguredTextToHtml("<script>alert(1)</script>Rate them")).toBe("Rate them");
+    expect(parConfiguredTextToHtml('<p onclick="x()">Rate them</p>')).toBe("<p>Rate them</p>");
+  });
+
+  it("leaves a bare less-than as text rather than eating the rest", () => {
+    // "score < 3" is prose, not a tag.
+    expect(parHtmlToPlainText(parConfiguredTextToHtml("Score < 3 needs a plan"))).toContain(
+      "needs a plan",
+    );
+  });
+
+  it("is empty for nothing", () => {
+    for (const raw of [undefined, null, "", "   "]) {
+      expect(parConfiguredTextToHtml(raw), JSON.stringify(raw)).toBe("");
+    }
+  });
+});
+

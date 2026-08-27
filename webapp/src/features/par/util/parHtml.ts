@@ -107,6 +107,26 @@ export function parHtmlToPlainText(raw: string | null | undefined): string {
 }
 
 /**
+ * Admin-configured prose — a cycle's question — turned into safe HTML.
+ *
+ * These fields are authored in a plain multiline text box, not a rich-text
+ * editor, and in practice they arrive containing BOTH conventions: real
+ * newlines from somebody pressing Enter, and hand-typed `<br/>` from somebody
+ * who expected HTML. The standalone app rendered them as plain text, so the
+ * tags showed literally and the newlines collapsed — neither author got what
+ * they meant.
+ *
+ * Newlines are converted before sanitising, so the resulting `<br>` survives the
+ * allow-list. Everything else goes through the same allow-list as employee
+ * prose, so a question is not a way to inject markup the rest of the feature
+ * refuses.
+ */
+export function parConfiguredTextToHtml(raw: string | null | undefined): string {
+  if (typeof raw !== "string" || raw.trim() === "") return "";
+  return sanitizeParHtml(raw.replace(/\r\n|\r|\n/g, "<br>"));
+}
+
+/**
  * Whether a field is empty in the way a person means it.
  *
  * A contenteditable field that has been focused and cleared still holds

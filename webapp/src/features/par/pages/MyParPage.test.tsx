@@ -80,7 +80,9 @@ const OPEN_CYCLE: ParCycle = {
   parLeadDeadline: "2099-07-14",
   parF2FDeadline: "2099-07-28",
   parCycleConfigurations: {
-    employeeParQuestion: "What did you deliver this cycle?",
+    // Real cycles carry hand-typed markup here: the settings screen is a plain
+    // multiline box, and admins have used <br/> in it.
+    employeeParQuestion: "Job Execution (quality, planning) <br/>Team Work (roles, goals)",
     threeSixtyReviewQuestion: "How did they contribute?",
     parRatings: ["Successful"],
     threeSixtyReviewRatings: ["Strong"],
@@ -118,7 +120,17 @@ describe("when no cycle is open", () => {
 describe("while the cycle is open and the deadline is ahead", () => {
   it("shows the cycle's own question, not a generic prompt", () => {
     render(<MyParPage />);
-    expect(screen.getByText("What did you deliver this cycle?")).toBeInTheDocument();
+    expect(screen.getByText(/Job Execution/)).toBeInTheDocument();
+    expect(screen.getByText(/Team Work/)).toBeInTheDocument();
+  });
+
+  it("renders the question's markup instead of printing the tags", () => {
+    // The standalone app printed this as text, so a configured `<br/>` showed
+    // up literally and a real newline collapsed. Neither author got what they
+    // meant.
+    render(<MyParPage />);
+    expect(screen.queryByText(/<br/)).toBeNull();
+    expect(document.querySelectorAll("br").length).toBeGreaterThan(0);
   });
 
   it("offers an editable answer", () => {

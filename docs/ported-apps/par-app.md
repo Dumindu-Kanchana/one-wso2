@@ -569,6 +569,36 @@ make the PDF — at the cost of control over pagination and table styling.
 
 ---
 
+### 8.13 Fixes found while testing
+
+**The rail lit the wrong item on a detail route.** `/me/par/team/<email>` lit "My PAR". The rail's
+descendant pass returned the first item whose path prefixed the URL, in registry order, and `/me/par`
+is registered before `/me/par/team`. The rule is now the longest match — the most specific route wins
+— extracted into `components/side-rail/activeItem.ts` and tested against the real registry.
+
+PAR is the first app whose home item sits at the app ROOT with siblings beneath it; every other app
+puts its home under a deeper path, so no sibling had ever prefixed another. The two collisions in the
+whole registry are both PAR's.
+
+**A cycle's question printed its own markup.** A configured question arrived as
+`Job Execution (…) <br/>Team Work (…)` and the tags showed literally.
+
+This is not a regression — the standalone app renders these questions as plain text too, so it has
+the same behaviour. The cause is an authoring mismatch: the settings screen offers a **plain multiline
+text box**, and admins have typed HTML into it. Real data therefore carries both conventions, hand-typed
+`<br/>` and actual newlines, and printing as text serves neither author — the tags show, and the
+newlines collapse.
+
+Both are now rendered through `parConfiguredTextToHtml`, which converts newlines to breaks and then
+applies the same allow-list as employee prose, so a question cannot inject markup the rest of the
+feature refuses. Applied to the employee question and the 360° question.
+
+The deeper fix belongs to Slice 4: the settings screen should either offer a rich-text field or state
+that the box is plain text. Until then, rendering what admins have actually written is the closer
+approximation of intent.
+
+---
+
 ## 9. Defects and questions in the source
 
 Carried forward deliberately, so they are tracked rather than rediscovered. Items 1 and 2 want a

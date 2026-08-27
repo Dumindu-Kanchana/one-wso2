@@ -18,6 +18,7 @@
 import { useState, type JSX } from "react";
 import {
   Alert,
+  Box,
   Button,
   CircularProgress,
   Dialog,
@@ -34,7 +35,8 @@ import { describeError } from "@api/errors";
 import { useMyThreeSixtyDraft } from "../api/useParEmployee";
 import { useSubmitThreeSixtyReview } from "../api/useParEmployeeMutations";
 import type { ParCycle } from "../api/parTypes";
-import { isParHtmlEmpty } from "../util/parHtml";
+import { isParHtmlEmpty, parConfiguredTextToHtml } from "../util/parHtml";
+import ParHtml from "./ParHtml";
 import ParRichText from "./ParRichText";
 
 // Writing the 360 feedback a colleague asked for.
@@ -77,9 +79,12 @@ export default function ThreeSixtyReviewDialog({
   }
 
   const options = cycle.parCycleConfigurations?.threeSixtyReviewRatings ?? [];
-  const question =
+  // Admin-authored in a plain text box, so the same treatment as the employee
+  // question: rendered, not printed.
+  const questionHtml = parConfiguredTextToHtml(
     cycle.parCycleConfigurations?.threeSixtyReviewQuestion ??
-    "How has this person contributed this cycle?";
+      "How has this person contributed this cycle?",
+  );
 
   const send = (reviewStatus: "DRAFT" | "SHARED" | "REJECTED") => {
     submit.mutate(
@@ -137,9 +142,9 @@ export default function ThreeSixtyReviewDialog({
               </Alert>
             )}
 
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {question}
-            </Typography>
+            <Box sx={{ mb: 2 }}>
+              <ParHtml html={questionHtml} emptyText="No question was set for this cycle." />
+            </Box>
 
             <TextField
               select
