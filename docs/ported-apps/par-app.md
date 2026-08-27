@@ -535,10 +535,28 @@ reasons so twelve rows failing one quota produce one sentence.
 
 **The PDF needed two dependencies, and they came with a caveat.** `jspdf` and `jspdf-autotable`, both
 imported **dynamically** — roughly 600KB across their chunks, and only a lead who presses the button
-ever fetches them. `jspdf` is pinned to **4.2.1 or later**: every earlier line carries advisories,
-two of them critical, and `^3` installs a flagged package. `jspdf-autotable@5` accepts `^2 || ^3 || ^4`,
-so the major bump costs nothing. Production audit after the change: 7 findings, all pre-existing
-transitive ones, none from jspdf.
+ever fetches them. Both are pinned to an **exact version**, as every other dependency in this repo
+is: `jspdf` at 4.2.1, `jspdf-autotable` at 5.0.8.
+
+The exact pin is not housekeeping here. Every jspdf line up to 4.2.0 carries advisories, two of them
+critical, so `^3` installs a flagged package — and even `^4.2.1` would let a future 4.x with a fresh
+advisory arrive silently on a clean checkout. Pinned, a version change is a reviewed diff.
+
+Exposure to that history was always small: the advisories concern AcroForm fields, the `addJS`
+plugin, the image decoders and HTML injection in new-window paths, while this uses text output and
+`autoTable` only. But shipping a flagged package is its own problem. `jspdf-autotable@5` accepts
+`^2 || ^3 || ^4`, so the major bump cost nothing.
+
+`html2canvas` (197KB) arrives as an **optional** dependency of jspdf, needed only by `doc.html()`,
+which this never calls. It lands in its own chunk and is therefore never fetched.
+
+Production audit after the change: 7 findings, all pre-existing transitive ones — the single high is
+`brace-expansion`, via `exceljs → archiver → glob → minimatch` — and none from jspdf.
+
+**The maintenance cost is worth knowing:** ten advisories up to 4.2.0 is an active vulnerability
+stream, so jspdf will be flagged again and someone will have to bump it. If that churn stops being
+worth it, the zero-dependency escape is a print stylesheet plus `window.print()`, letting the browser
+make the PDF — at the cost of control over pagination and table styling.
 
 **Deviations taken in 3d:**
 
