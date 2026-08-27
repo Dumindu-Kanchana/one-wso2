@@ -1,0 +1,241 @@
+// Copyright (c) 2026 WSO2 LLC. (https://www.wso2.com).
+//
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+
+import { useState, type JSX } from "react";
+import { Alert, Chip, Skeleton, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@wso2/oxygen-ui";
+import { UsersRoundIcon } from "@wso2/oxygen-ui-icons-react";
+import { describeError } from "@api/errors";
+import ParShell from "../components/ParShell";
+import ParSection from "../components/ParSection";
+import ParCompletionBar from "../components/ParCompletionBar";
+import ParTeamMemberTable from "../components/ParTeamMemberTable";
+import { useMyParCycle } from "../api/useParEmployee";
+import { useMyParTeams, useParTeamReport } from "../api/useParTeams";
+import { isDeadlinePassed } from "../util/parDeadlines";
+import { allTeamsTotals } from "../util/parTeamSummary";
+import type { ParTeam } from "../api/parTypes";
+
+// My Team's PAR — where a lead's reports have got to in the open cycle.
+//
+// See docs/ported-apps/par-app.md §6.1. This is sub-slice 3a and is read-only:
+// opening a member to write their review is 3b, so there is no row action yet.
+
+/** "Engineering · Platform · Integration · Gateway", skipping the blanks. */
+function teamLabel(team: ParTeam): string {
+  return [team.parBusinessUnit, team.parDepartment, team.parTeam, team.parSubTeam]
+    .filter((part) => typeof part === "string" && part.trim() !== "")
+    .join(" · ");
+}
+
+export default function ParTeamPage(): JSX.Element {
+  const cycleQuery = useMyParCycle();
+  const cycle = cycleQuery.data;
+  const teams = useMyParTeams(cycle?.parCycleId);
+  const [picked, setPicked] = useState<number | null>(null);
+
+  const list = teams.data ?? [];
+  // With exactly one team there is nothing to choose, so it opens directly.
+  // Derived rather than set in an effect, so the list arriving late cannot
+  // race a selection the lead has already made.
+  const selectedId = picked ?? (list.length === 1 ? list[0].parTeamId : null);
+  const selected = list.find((t) => t.parTeamId === selectedId);
+
+  return (
+    <ParShell
+      eyebrow={{ icon: UsersRoundIcon, label: "PAR" }}
+      title="My team's PAR"
+      subtitle="Where your reports have got to in the current cycle."
+      require="teamLead"
+    >
+      {cycleQuery.isPending || teams.isPending ? (
+        <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />
+      ) : cycleQuery.isError ? (
+        <Alert severity="error">
+          Couldn&apos;t load the current cycle. {describeError(cycleQuery.error)}
+        </Alert>
+      ) : cycle === undefined ? (
+        <Alert severity="info">
+          No review cycle is open at the moment. Your team&apos;s PARs appear here when the next
+          one starts.
+        </Alert>
+      ) : teams.isError ? (
+        <Alert severity="error">
+          Couldn&apos;t load your teams. {describeError(teams.error)}
+        </Alert>
+      ) : list.length === 0 ? (
+        // A team lead with no teams in THIS cycle is a real state — they may
+        // have been assigned since it opened. Not a permission problem, so it
+        // must not read like one.
+        <Alert severity="info">
+          You don&apos;t have any teams in {cycle.parCycleName}. If that looks wrong, a PAR
+          administrator can sync your team into the cycle.
+        </Alert>
+      ) : (
+        <>
+          <AcrossAllTeams cycleName={cycle.parCycleName} teams={list} />
+
+          {list.length > 1 && (
+            <ParSection
+              title="Your teams"
+              subtitle="Each team carries its own Top 5% / 20% quota."
+            >
+              <ToggleButtonGroup
+                exclusive
+                value={selectedId}
+                onChange={(_e, value: number | null) => setPicked(value)}
+                sx={{ flexWrap: "wrap", gap: 1 }}
+              >
+                {list.map((team) => (
+                  <ToggleButton
+                    key={team.parTeamId}
+                    value={team.parTeamId}
+                    size="small"
+                    sx={{ textTransform: "none", borderRadius: 1.5 }}
+                  >
+                    {teamLabel(team)}
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={team.numberOfTeamMembers}
+                      sx={{ ml: 1 }}
+                    />
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </ParSection>
+          )}
+
+          {selected === undefined ? (
+            <Alert severity="info">Pick a team to see its members.</Alert>
+          ) : (
+            <TeamDetail
+              key={selected.parTeamId}
+              cycleId={cycle.parCycleId}
+              team={selected}
+              threeSixtyDeadlinePassed={isDeadlinePassed(
+                new Date(),
+                cycle.parThreeSixtyRatingDeadline,
+              )}
+            />
+          )}
+        </>
+      )}
+    </ParShell>
+  );
+}
+
+/** Totals across every team, so a lead with several sees one figure first. */
+function AcrossAllTeams({ cycleName, teams }: { cycleName: string; teams: readonly ParTeam[] }) {
+  const totals = allTeamsTotals(teams);
+  return (
+    <ParSection
+      title={cycleName}
+      subtitle={
+        teams.length > 1
+          ? `Across all ${teams.length} of your teams.`
+          : "Progress through each stage."
+      }
+      action={
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`${totals.totalMembers} ${totals.totalMembers === 1 ? "person" : "people"}`}
+        />
+      }
+    >
+      <Stack direction="row" sx={{ flexWrap: "wrap", gap: 2.5 }}>
+        <ParCompletionBar
+          label="Their PARs shared"
+          completed={totals.employeeParComplete}
+          total={totals.totalMembers}
+        />
+        <ParCompletionBar
+          label="360° complete"
+          completed={totals.threeSixtyComplete}
+          total={totals.totalMembers}
+        />
+        <ParCompletionBar
+          label="Your reviews shared"
+          completed={totals.leadReviewComplete}
+          total={totals.totalMembers}
+        />
+        <ParCompletionBar
+          label="Conversations held"
+          completed={totals.f2fComplete}
+          total={totals.totalMembers}
+        />
+      </Stack>
+    </ParSection>
+  );
+}
+
+/** One team: its own progress, remaining quota, and its members. */
+function TeamDetail({
+  cycleId,
+  team,
+  threeSixtyDeadlinePassed,
+}: {
+  cycleId: number;
+  team: ParTeam;
+  threeSixtyDeadlinePassed: boolean;
+}) {
+  const report = useParTeamReport(cycleId, team.parTeamId);
+
+  return (
+    <ParSection
+      title={teamLabel(team)}
+      subtitle="Quota is held per team, and the server refuses a special rating once it is used up."
+      action={
+        report.data ? (
+          <Stack direction="row" spacing={0.75}>
+            {/* Remaining, not allocated: the allocated figure tells a lead
+                nothing about whether they can still award one. */}
+            <Chip
+              size="small"
+              variant="outlined"
+              color={report.data.available5pSlots > 0 ? "warning" : "default"}
+              label={`Top 5%: ${report.data.available5pSlots} of ${team.numberOf5pSlots} left`}
+            />
+            <Chip
+              size="small"
+              variant="outlined"
+              color={report.data.available20pSlots > 0 ? "warning" : "default"}
+              label={`Top 20%: ${report.data.available20pSlots} of ${team.numberOf20pSlots} left`}
+            />
+          </Stack>
+        ) : undefined
+      }
+    >
+      {report.isPending ? (
+        <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 1.5 }} />
+      ) : report.isError ? (
+        <Alert severity="error">
+          Couldn&apos;t load this team. {describeError(report.error)}
+        </Alert>
+      ) : report.data === undefined ? (
+        <Typography variant="body2" color="text.secondary">
+          This team has no details recorded for the cycle.
+        </Typography>
+      ) : (
+        <ParTeamMemberTable
+          members={report.data.details ?? []}
+          threeSixtyDeadlinePassed={threeSixtyDeadlinePassed}
+        />
+      )}
+    </ParSection>
+  );
+}

@@ -50,6 +50,8 @@ describe("pinnableRoute", () => {
     expect(isKnownRoute("/me/par")).toBe(true);
     expect(pinnableRoute("/me/par/history").label).toBe("PAR · History");
     expect(isKnownRoute("/me/par/history")).toBe(true);
+    expect(pinnableRoute("/me/par/team").label).toBe("PAR · My Team's PAR");
+    expect(isKnownRoute("/me/par/team")).toBe(true);
   });
 
   // Detail routes aren't in the registry — one entry cannot enumerate every

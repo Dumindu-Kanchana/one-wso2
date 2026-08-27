@@ -108,6 +108,66 @@ export const PAR_RATING_NOT_ASSIGNED = "NOT_ASSIGNED";
 
 // --- 360 feedback ----------------------------------------------------------
 
+/** Per-stage completion counts the backend computes for one team. */
+export interface ParTeamSummary {
+  employeeParCompletedCount: number;
+  threeSixtyReviewCompletedCount: number;
+  leadsReviewCompletedCount: number;
+  f2fCompletedCount: number;
+}
+
+/**
+ * One of a lead's teams within a cycle.
+ *
+ * A lead can hold several: the team structure is business unit / department /
+ * team / sub-team, and each combination the lead owns is its own row with its
+ * own Top 5% / 20% quota.
+ */
+export interface ParTeam {
+  parTeamId: number;
+  parLeadEmail: string;
+  parBusinessUnit: string;
+  parDepartment: string;
+  parTeam: string;
+  parSubTeam: string;
+  numberOfTeamMembers: number;
+  numberOf5pSlots: number;
+  numberOf20pSlots: number;
+  summary: ParTeamSummary;
+}
+
+/** One member of a team, as the team-detail endpoint returns them. */
+export interface ParTeamMember {
+  parRatingId: number;
+  parEmployeeEmail: string;
+  parEmployeeName?: string;
+  parEmployeeStatus: ParEmployeeStatus;
+  parLeadStatus?: ParLeadStatus;
+  parF2fStatus: ParF2fStatus;
+  parF2fDate?: string;
+  parRating?: string;
+  parSpecialRating?: ParSpecialRating;
+  par360ReviewStatus?: ParThreeSixtyReviewStatus;
+  par360ReviewCounts?: {
+    requestedReviewCount: number;
+    sharedReviewCount: number;
+  };
+}
+
+/**
+ * A team with its members — `GET /par-cycles/{id}/teams/{teamId}`.
+ *
+ * `available*Slots` is the quota REMAINING, distinct from `numberOf*Slots`
+ * which is the quota allocated. The distinction matters: the server refuses a
+ * special rating once the remaining count reaches zero.
+ */
+export interface ParTeamReport extends ParTeam {
+  parCycleId: number;
+  available5pSlots: number;
+  available20pSlots: number;
+  details: ParTeamMember[];
+}
+
 /**
  * A request for THIS employee to review someone else.
  *

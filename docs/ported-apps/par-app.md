@@ -424,6 +424,30 @@ Three things to carry into the work rather than discover in it:
    rating converted to a label and back so the export and the chip disagree, and the edit form that
    ignores the F2F deadline. Each belongs to a named sub-slice above rather than to "Slice 3".
 
+### 8.9 What sub-slice 3a landed
+
+`/me/par/team`, registered as `par-team` and gated on `isTeamLead` — the first PAR screen that reads
+other people's appraisals, so the refusal path has its own test. Read-only by design: opening a member
+to write their review is 3b, so there is no row action yet rather than a control that does nothing.
+
+Totals across every team the lead holds, then per team its own progress, its **remaining** quota, and
+its members with each stage's status. New: `api/useParTeams.ts`, `util/parTeamSummary.ts` (9 tests),
+`ParCompletionBar`, `ParTeamMemberTable`, and the page (12 tests).
+
+**Deviations taken in 3a:**
+
+| Source behaviour | Here | Why |
+|---|---|---|
+| `CompletionStatusCard` computed `(completed * 100) / total` | Guarded, clamped, and 0 for an empty team | A team with no members produced **NaN** and handed it to the progress bar. Members can legitimately be zero — a team synced into a cycle before anyone is assigned |
+| Quota shown as allocated | Shown as **remaining**, out of allocated | The allocated figure tells a lead nothing about whether they can still award one, which is the only question they are asking |
+| A rating of `NOT_ASSIGNED` rendered as itself | An em dash | Same as §8.7; it is an absence, not a value |
+| Progress bars only | The count beside the bar | A bar cannot say 3 of 4, and 3/4 versus 30/40 changes what a lead does next |
+| A lead with no teams fell into a generic empty state | Its own message, naming the cycle, pointing at a sync | Being assigned after a cycle opens is normal, and it must not read as a permission problem |
+
+Not ported yet, and deliberately: the per-member 360° review status here comes from the team endpoint's
+own `par360ReviewStatus`, which is a summary. The full 360° list per member belongs to 3b's review
+screen.
+
 ---
 
 ## 9. Defects and questions in the source

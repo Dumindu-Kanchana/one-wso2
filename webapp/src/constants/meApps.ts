@@ -53,6 +53,7 @@ export const ME_APPS: readonly MenuApp[] = [
     items: [
       { id: "par-my", label: "My PAR", desc: "Your appraisal for the current cycle.", path: "/me/par" },
       { id: "par-history", label: "History", desc: "Your appraisals from closed cycles.", path: "/me/par/history" },
+      { id: "par-team", label: "My Team's PAR", desc: "Review your reports' appraisals.", path: "/me/par/team" },
     ],
   },
 ];
