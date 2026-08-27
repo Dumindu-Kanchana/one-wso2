@@ -137,8 +137,18 @@ export interface ParReportEntry {
   parEmployeeStatus: ParEmployeeStatus;
   parLeadStatus?: ParLeadStatus;
   parF2fStatus?: ParF2fStatus;
+  par360ReviewStatus?: ParThreeSixtyReviewStatus;
+  par360ReviewCounts?: {
+    requestedReviewCount: number;
+    sharedReviewCount: number;
+  };
+  // Only /reports supplies these two (AdditionalReportsParRating).
   parDirectLead?: string;
   reportingType?: string;
+  // Only /report-levels supplies the placement fields above and this one
+  // (ChainReportsParRating). A "where they sit" column on the /reports list
+  // renders blank for every row, because that payload carries parTeamId and
+  // nothing else about placement.
   isEmployeeALead?: string;
 }
 

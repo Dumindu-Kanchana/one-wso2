@@ -313,6 +313,30 @@ describe("with exactly one team", () => {
     expect(screen.getAllByText("Not started").length).toBeGreaterThan(0);
   });
 
+  it("carries the source's seven columns, in the source's order", () => {
+    renderPage();
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((th) => th.textContent?.trim())
+      .filter((t) => t !== "");
+    expect(headers).toEqual([
+      "Team Member",
+      "Employee PAR",
+      "360° Feedback",
+      "Lead's PAR",
+      "Rating",
+      "Top 5%/20% Rating",
+      "F2F",
+    ]);
+  });
+
+  it("opens a member from the trailing action, an eye once the review is shared", () => {
+    // TeamSummary.tsx:321 — VisibilityIcon when parLeadStatus is SHARED,
+    // RateReviewIcon while it is still to write.
+    renderPage();
+    expect(screen.getAllByRole("button", { name: /^(View|Review) / }).length).toBeGreaterThan(0);
+  });
+
   it("shows how many 360 reviews came back, not just that they are pending", () => {
     renderPage();
     expect(screen.getByText("1/3")).toBeInTheDocument();
@@ -416,10 +440,43 @@ describe("the additional-reports tab", () => {
     expect(screen.queryByText("Dee Rect")).toBeNull();
   });
 
-  it("says who actually reviews them, which the reading lead does not", async () => {
+  it("does not name their direct lead — no source view renders that field", async () => {
+    // parDirectLead is in the /reports payload and nothing displays it;
+    // reportingType is read only to filter the list to indirect reports
+    // (EmployeeReportView.tsx:291). "Reviewed by <lead>" was an addition, in a
+    // column the source does not have.
     renderPage();
     await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
-    expect(screen.getByText("Reviewed by sub@wso2.com")).toBeInTheDocument();
+    expect(screen.queryByText(/Reviewed by/)).toBeNull();
+    expect(screen.queryByText("sub@wso2.com")).toBeNull();
+  });
+
+  it("carries the source's seven columns, in the source's order", async () => {
+    // Three source views declare the same spec; the port had drifted to three
+    // different sets. TeamSummary.tsx:163-307.
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((th) => th.textContent?.trim())
+      .filter((t) => t !== "");
+    expect(headers).toEqual([
+      "Team Member",
+      "Employee PAR",
+      "360° Feedback",
+      "Lead's PAR",
+      "Rating",
+      "Top 5%/20% Rating",
+      "F2F",
+    ]);
+  });
+
+  it("opens a report from the trailing action, and only from there", async () => {
+    // EmployeeReportView sets no onRowClick and leaves the name as text.
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
+    expect(screen.getAllByRole("button", { name: /^(View|Review) / }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Ann Perera" })).toBeNull();
   });
 
   it("does not badge a report as a lead — no source view does", async () => {
@@ -516,6 +573,30 @@ describe("the report-chain tab", () => {
     renderPage();
     await open();
     expect(screen.getAllByRole("button", { name: /their team/i })).toHaveLength(1);
+  });
+
+  it("opens a review from the trailing action here too", async () => {
+    renderPage();
+    await open();
+    expect(screen.getAllByRole("button", { name: /^(View|Review) / }).length).toBeGreaterThan(0);
+  });
+
+  it("carries the source's seven columns here too", async () => {
+    renderPage();
+    await open();
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((th) => th.textContent?.trim())
+      .filter((t) => t !== "");
+    expect(headers).toEqual([
+      "Team Member",
+      "Employee PAR",
+      "360° Feedback",
+      "Lead's PAR",
+      "Rating",
+      "Top 5%/20% Rating",
+      "F2F",
+    ]);
   });
 
   it("narrows to leads on the switch — the source has it on this view", async () => {

@@ -19,33 +19,26 @@ import type { JSX } from "react";
 import {
   Box,
   Checkbox,
-  Chip,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Typography,
 } from "@wso2/oxygen-ui";
 import { useNavigate } from "react-router";
 import type { ParTeamMember } from "../api/parTypes";
-import { PAR_RATING_NOT_ASSIGNED } from "../api/parTypes";
 import ParEmpty from "./ParEmpty";
-import {
-  parEmployeeStatusMeta,
-  parF2fStatusMeta,
-  parLeadStatusMeta,
-  parSpecialRatingMeta,
-  parThreeSixtyStatusMeta,
-} from "../util/parStatus";
 import { ParEmployeeName } from "./ParEmployeeName";
+import { ParRatingCells, ParReviewAction } from "./ParRatingCells";
+import { PAR_RATING_HEADERS } from "../util/parRatingColumns";
 
-// A team's members and where each one's PAR has got to, each row opening that
-// person's review.
+// A team's members and where each one's PAR has got to — TeamSummary.tsx's
+// Members grid, which the admin portal renders as well (OrgSummary.tsx:1167).
 //
-// The whole row is the link, not just the name — the same arrangement My Team
-// uses, and for the same reason: a lead is picking a person, so the target
-// should be the row they are reading rather than a word inside it.
+// Nothing but the trailing icon opens a person. None of the three source views
+// sets onRowClick or makes the name a control, so neither does this. An earlier
+// version made the row and the name both clickable, which then had to fight the
+// checkbox and the copy button for the same click.
 
 export default function ParTeamMemberTable({
   members,
@@ -96,8 +89,8 @@ export default function ParTeamMemberTable({
                 />
               </TableCell>
             )}
-            {["Member", "Their PAR", "360°", "Your review", "Conversation", "Rating"].map((h) => (
-              <TableCell key={h} sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+            {["Team Member", ...PAR_RATING_HEADERS, ""].map((h, i) => (
+              <TableCell key={h || `blank-${i}`} sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
                 {h}
               </TableCell>
             ))}
@@ -105,21 +98,8 @@ export default function ParTeamMemberTable({
         </TableHead>
         <TableBody>
           {members.map((m) => {
-            const three = parThreeSixtyStatusMeta(m.par360ReviewStatus, {
-              deadlinePassed: threeSixtyDeadlinePassed,
-            });
-            const counts = m.par360ReviewCounts;
-            const special = parSpecialRatingMeta(m.parSpecialRating);
-            const awarded =
-              m.parRating && m.parRating !== PAR_RATING_NOT_ASSIGNED ? m.parRating : undefined;
-
             return (
-              <TableRow
-                key={m.parRatingId}
-                hover
-                onClick={() => open(m.parEmployeeEmail)}
-                sx={{ cursor: "pointer" }}
-              >
+              <TableRow key={m.parRatingId} hover>
                 {selectable && (
                   <TableCell padding="checkbox">
                     <Checkbox
@@ -136,57 +116,22 @@ export default function ParTeamMemberTable({
                   </TableCell>
                 )}
                 <TableCell>
-                  {/* The name is a real button inside the row, so the row is
-                      reachable by keyboard and announced as a control — a
-                      row-level onClick alone is invisible to anyone not using a
-                      mouse. TeamSummary.tsx:165-248. */}
+                  {/* Plain text. None of the three source views makes the name
+                      or the row clickable — the trailing icon is the only way
+                      in, so it is the only control here too. */}
                   <ParEmployeeName
                     name={m.parEmployeeName}
                     email={m.parEmployeeEmail}
                     copyable
-                    onOpen={() => open(m.parEmployeeEmail)}
                   />
                 </TableCell>
-                <TableCell>
-                  <StatusChip meta={parEmployeeStatusMeta(m.parEmployeeStatus)} />
-                </TableCell>
-                <TableCell sx={{ whiteSpace: "nowrap" }}>
-                  <StatusChip meta={three} />
-                  {/* The ratio matters more than the status here: "pending" says
-                      nothing about whether 1 of 5 or 4 of 5 have come back. */}
-                  {counts && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ ml: 0.75, fontVariantNumeric: "tabular-nums" }}
-                    >
-                      {counts.sharedReviewCount}/{counts.requestedReviewCount}
-                    </Typography>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <StatusChip meta={parLeadStatusMeta(m.parLeadStatus)} />
-                </TableCell>
-                <TableCell>
-                  <StatusChip meta={parF2fStatusMeta(m.parF2fStatus)} />
-                </TableCell>
-                <TableCell sx={{ whiteSpace: "nowrap" }}>
-                  {awarded ? (
-                    <Typography variant="body2">{awarded}</Typography>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      —
-                    </Typography>
-                  )}
-                  {special.label !== "—" && (
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      color={special.color}
-                      label={special.label}
-                      sx={{ ml: 0.75 }}
-                    />
-                  )}
+                <ParRatingCells row={m} threeSixtyDeadlinePassed={threeSixtyDeadlinePassed} />
+                <TableCell align="right">
+                  <ParReviewAction
+                    shared={m.parLeadStatus === "SHARED"}
+                    onOpen={() => open(m.parEmployeeEmail)}
+                    label={m.parEmployeeName ?? m.parEmployeeEmail}
+                  />
                 </TableCell>
               </TableRow>
             );
@@ -197,6 +142,3 @@ export default function ParTeamMemberTable({
   );
 }
 
-function StatusChip({ meta }: { meta: { label: string; color: "success" | "error" | "warning" | "info" | "default" } }) {
-  return <Chip size="small" variant="outlined" color={meta.color} label={meta.label} />;
-}

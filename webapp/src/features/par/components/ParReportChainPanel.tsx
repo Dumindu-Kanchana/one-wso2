@@ -21,7 +21,6 @@ import {
   Box,
   Breadcrumbs,
   Button,
-  Chip,
   FormControlLabel,
   Link,
   Skeleton,
@@ -38,9 +37,7 @@ import { ArrowLeftIcon, ChevronRightIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import { describeError } from "@api/errors";
 import { useReportsFor } from "../api/useParReports";
-import { PAR_RATING_NOT_ASSIGNED } from "../api/parTypes";
 import { isReportALead } from "../util/parReports";
-import { parEmployeeStatusMeta, parLeadStatusMeta } from "../util/parStatus";
 import {
   chainBack,
   chainPush,
@@ -49,6 +46,8 @@ import {
 } from "../util/parChain";
 import ParSection from "./ParSection";
 import { ParEmployeeName } from "./ParEmployeeName";
+import { ParRatingCells, ParReviewAction } from "./ParRatingCells";
+import { PAR_RATING_HEADERS } from "../util/parRatingColumns";
 
 // Walking down a reporting line, one level at a time.
 //
@@ -150,7 +149,7 @@ export default function ParReportChainPanel({
           <Table size="small">
             <TableHead>
               <TableRow>
-                {["Person", "Their PAR", "Lead's review", "Rating", ""].map((h, i) => (
+                {["Team Member", ...PAR_RATING_HEADERS, ""].map((h, i) => (
                   <TableCell key={h || `blank-${i}`} sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
                     {h}
                   </TableCell>
@@ -159,8 +158,6 @@ export default function ParReportChainPanel({
             </TableHead>
             <TableBody>
               {rows.map((r) => {
-                const awarded =
-                  r.parRating && r.parRating !== PAR_RATING_NOT_ASSIGNED ? r.parRating : undefined;
                 const name = r.parEmployeeName ?? r.parEmployeeEmail;
                 return (
                   <TableRow key={r.parRatingId} hover>
@@ -173,47 +170,35 @@ export default function ParReportChainPanel({
                         name={r.parEmployeeName}
                         email={r.parEmployeeEmail}
                         copyable
-                        onOpen={() =>
-                          void navigate(`/me/par/team/${encodeURIComponent(r.parEmployeeEmail)}`)
-                        }
                       />
                     </TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        color={parEmployeeStatusMeta(r.parEmployeeStatus).color}
-                        label={parEmployeeStatusMeta(r.parEmployeeStatus).label}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        color={parLeadStatusMeta(r.parLeadStatus).color}
-                        label={parLeadStatusMeta(r.parLeadStatus).label}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ whiteSpace: "nowrap" }}>{awarded ?? "—"}</TableCell>
+                    <ParRatingCells row={r} />
                     <TableCell align="right">
-                      {/* Offered only for someone who has reports of their own —
-                          a leaf drills into an empty level, which reads as the
-                          control being broken. */}
-                      {isReportALead(r) && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          endIcon={<ChevronRightIcon size={14} />}
-                          onClick={() =>
-                            setTrail(
-                              chainPush(trail, { email: r.parEmployeeEmail, name }),
-                            )
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <ParReviewAction
+                          shared={r.parLeadStatus === "SHARED"}
+                          onOpen={() =>
+                            void navigate(`/me/par/team/${encodeURIComponent(r.parEmployeeEmail)}`)
                           }
-                          sx={{ textTransform: "none", fontWeight: 600 }}
-                        >
-                          Their team
-                        </Button>
-                      )}
+                          label={name}
+                        />
+                        {/* Offered only for someone who has reports of their own —
+                            a leaf drills into an empty level, which reads as the
+                            control being broken. ReportChainView.tsx:283. */}
+                        {isReportALead(r) && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            endIcon={<ChevronRightIcon size={14} />}
+                            onClick={() =>
+                              setTrail(chainPush(trail, { email: r.parEmployeeEmail, name }))
+                            }
+                            sx={{ textTransform: "none", fontWeight: 600 }}
+                          >
+                            Their team
+                          </Button>
+                        )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 );

@@ -28,17 +28,17 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  Typography,
 } from "@wso2/oxygen-ui";
 import { SearchIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import { describeError } from "@api/errors";
-import { PAR_RATING_NOT_ASSIGNED, type ParReportEntry } from "../api/parTypes";
+import type { ParReportEntry } from "../api/parTypes";
 import { filterReports } from "../util/parReports";
-import { parEmployeeStatusMeta, parLeadStatusMeta } from "../util/parStatus";
 import ParEmpty from "./ParEmpty";
 import ParSection from "./ParSection";
 import { ParEmployeeName } from "./ParEmployeeName";
+import { ParRatingCells, ParReviewAction } from "./ParRatingCells";
+import { PAR_RATING_HEADERS } from "../util/parRatingColumns";
 
 // A list of people somewhere in the lead's reporting line.
 //
@@ -124,8 +124,8 @@ export default function ParReportsPanel({
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    {["Person", "Where they sit", "Their PAR", "Lead's review", "Rating"].map((h) => (
-                      <TableCell key={h} sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                    {["Team Member", ...PAR_RATING_HEADERS, ""].map((h, i) => (
+                      <TableCell key={h || `blank-${i}`} sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
                         {h}
                       </TableCell>
                     ))}
@@ -133,17 +133,8 @@ export default function ParReportsPanel({
                 </TableHead>
                 <TableBody>
                   {shown.map((r) => {
-                    const awarded =
-                      r.parRating && r.parRating !== PAR_RATING_NOT_ASSIGNED
-                        ? r.parRating
-                        : undefined;
                     return (
-                      <TableRow
-                        key={r.parRatingId}
-                        hover
-                        onClick={() => open(r.parEmployeeEmail)}
-                        sx={{ cursor: "pointer" }}
-                      >
+                      <TableRow key={r.parRatingId} hover>
                         <TableCell>
                           {/* EmployeeReportView.tsx:109-170. It never reads
                               isEmployeeALead — that field drives ReportChainView's
@@ -152,39 +143,15 @@ export default function ParReportsPanel({
                             name={r.parEmployeeName}
                             email={r.parEmployeeEmail}
                             copyable
+                          />
+                        </TableCell>
+                        <ParRatingCells row={r} />
+                        <TableCell align="right">
+                          <ParReviewAction
+                            shared={r.parLeadStatus === "SHARED"}
                             onOpen={() => open(r.parEmployeeEmail)}
+                            label={r.parEmployeeName ?? r.parEmployeeEmail}
                           />
-                        </TableCell>
-                        <TableCell sx={{ whiteSpace: "nowrap" }}>
-                          <Typography variant="body2">
-                            {[r.parTeam, r.parSubTeam].filter(Boolean).join(" · ") || "—"}
-                          </Typography>
-                          {/* Who actually reviews them, which is the point of
-                              this list — the lead reading it does not. */}
-                          {r.parDirectLead && (
-                            <Typography variant="caption" color="text.secondary">
-                              Reviewed by {r.parDirectLead}
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            color={parEmployeeStatusMeta(r.parEmployeeStatus).color}
-                            label={parEmployeeStatusMeta(r.parEmployeeStatus).label}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            color={parLeadStatusMeta(r.parLeadStatus).color}
-                            label={parLeadStatusMeta(r.parLeadStatus).label}
-                          />
-                        </TableCell>
-                        <TableCell sx={{ whiteSpace: "nowrap" }}>
-                          {awarded ?? "—"}
                         </TableCell>
                       </TableRow>
                     );

@@ -811,6 +811,53 @@ says so rather than claiming nobody reports to you.
 displays is not a term that finds it. The port matches the name too. That is a superset — it hides
 nothing — and it matters more now that the email is behind a hover.
 
+### 8.21 One column spec, not three
+
+The three lead views declare **the same seven columns in the same order** — `TeamSummary.tsx:163-307`,
+`EmployeeReportView.tsx:109-230`, `ReportChainView.tsx:147-258`:
+
+`Team Member` · `Employee PAR` · `360° Feedback` · `Lead's PAR` · `Rating` · `Top 5%/20% Rating` ·
+`F2F` · (action, `headerName: ""`)
+
+The port had drifted to three different sets under three different sets of headers:
+
+| Port | Was | Missing | Invented |
+|---|---|---|---|
+| `ParTeamMemberTable` | Member · Their PAR · 360° · Your review · Conversation · Rating | Top 5%/20% as its own column; the action | special rating folded into Rating as a chip |
+| `ParReportsPanel` | Person · Where they sit · Their PAR · Lead's review · Rating | 360° Feedback, Top 5%/20%, F2F; the action | "Where they sit" |
+| `ParReportChainPanel` | Person · Their PAR · Lead's review · Rating | 360° Feedback, Top 5%/20%, F2F; the action | — |
+
+`util/parRatingColumns.ts` holds the headers and `components/ParRatingCells.tsx` the six status cells,
+used by all three. Whatever the source repeats three times, this repeats once.
+
+**"Where they sit" could never have worked.** The backend types settle it: `/reports` returns
+`AdditionalReportsParRating` = `ParRatingMinimal` + `parDirectLead` + `reportingType`, and
+`ParRatingMinimal` carries `parTeamId` and nothing else about placement — no `parTeam`, no
+`parSubTeam`. So that column rendered "—" for every row on every load. `/report-levels` returns
+`ChainReportsParRating`, which does add the placement fields and `isEmployeeALead`; that is why
+`isEmployeeALead` works on the chain view and is absent from the flat report list entirely.
+
+`parDirectLead` is in the `/reports` payload and **no source view renders it**; `reportingType` is
+read only to filter the list to indirect reports (`EmployeeReportView.tsx:291`). The "Reviewed by
+&lt;lead&gt;" caption was an addition.
+
+**The 360° column is live, which took the backend to confirm.** The SQL for both endpoints selects no
+360 columns, so reading the query alone suggests a dead column. `ParRatingMinimal` declares
+`par360ReviewStatus` and `par360ReviewCounts` as required, and `manager.bal:943-956` and `:1968-1980`
+compute them for both endpoints. `ParReportEntry` was missing both fields.
+
+### 8.22 Nothing but the trailing icon opens a person
+
+None of the three source views sets `onRowClick`, and in all three the name is a plain
+`<Typography>`, not a control. The only way into someone's review is the trailing action: an eye once
+`parLeadStatus === SHARED`, a pen while the review is still to write (`TeamSummary.tsx:321`).
+
+The port had made both the row and the name clickable and had no action column at all — so it then
+had to stop propagation in the checkbox and in the copy button to keep three overlapping click
+targets apart. `ParReviewAction` is the source's control, and it is now the only one. It also answers
+the note the port used to carry about a row-level `onClick` being invisible to keyboard users: the
+source's own design is the accessible one.
+
 ---
 
 ## 9. Defects and questions in the source
