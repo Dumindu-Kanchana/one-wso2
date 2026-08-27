@@ -110,6 +110,38 @@ export const PAR_RATING_NOT_ASSIGNED = "NOT_ASSIGNED";
 
 // --- 360 feedback ----------------------------------------------------------
 
+/**
+ * One row of `GET /par-cycles/{id}/reports?leadEmail=` — a person somewhere in
+ * a lead's reporting line, with their PAR's state and where they sit.
+ *
+ * Two fields carry booleans as free text, which is why they are read through
+ * `util/parReports.ts` rather than compared directly:
+ *
+ *   `reportingType`   "direct" | "indirect", in unspecified case
+ *   `isEmployeeALead` "True" | "true" | "False" | …, likewise
+ */
+export interface ParReportEntry {
+  parRatingId: number;
+  parCycleId: number;
+  parEmployeeEmail: string;
+  parEmployeeName?: string;
+  parCompany?: string;
+  parLocation?: string;
+  parBusinessUnit?: string;
+  parDepartment?: string;
+  parTeam?: string;
+  parSubTeam?: string;
+  parLeadEmail?: string;
+  parRating?: string;
+  parSpecialRating?: ParSpecialRating;
+  parEmployeeStatus: ParEmployeeStatus;
+  parLeadStatus?: ParLeadStatus;
+  parF2fStatus?: ParF2fStatus;
+  parDirectLead?: string;
+  reportingType?: string;
+  isEmployeeALead?: string;
+}
+
 /** Per-stage completion counts the backend computes for one team. */
 export interface ParTeamSummary {
   employeeParCompletedCount: number;

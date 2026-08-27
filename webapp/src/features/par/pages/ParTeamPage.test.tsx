@@ -39,6 +39,8 @@ const state = vi.hoisted(() => ({
   cycle: undefined as unknown,
   teams: [] as unknown[],
   report: undefined as unknown,
+  reports: [] as unknown[],
+  reportsEnabled: [] as boolean[],
 }));
 
 vi.mock("../api/useParGate", () => ({
@@ -59,6 +61,12 @@ vi.mock("../api/useParEmployee", () => ({
 vi.mock("../api/useParTeams", () => ({
   useMyParTeams: () => ({ ...idle, data: state.teams }),
   useParTeamReport: () => ({ ...idle, data: state.report }),
+}));
+vi.mock("../api/useParReports", () => ({
+  useMyReports: (_cycleId: number | undefined, enabled: boolean) => {
+    state.reportsEnabled.push(enabled);
+    return { ...idle, data: state.reports };
+  },
 }));
 
 const CYCLE = {
@@ -122,11 +130,37 @@ function renderPage() {
   );
 }
 
+const INDIRECT = [
+  {
+    parRatingId: 91,
+    parCycleId: 7,
+    parEmployeeEmail: "deep@wso2.com",
+    parEmployeeName: "Deep Silva",
+    parEmployeeStatus: "DRAFT",
+    parLeadStatus: "PENDING",
+    reportingType: "Indirect",
+    isEmployeeALead: "true",
+    parDirectLead: "sub@wso2.com",
+    parTeam: "Integration",
+  },
+  {
+    parRatingId: 92,
+    parCycleId: 7,
+    parEmployeeEmail: "direct@wso2.com",
+    parEmployeeName: "Dee Rect",
+    parEmployeeStatus: "DRAFT",
+    reportingType: "direct",
+    isEmployeeALead: "False",
+  },
+];
+
 beforeEach(() => {
   state.isTeamLead = true;
   state.cycle = CYCLE;
   state.teams = [team()];
   state.report = report();
+  state.reports = INDIRECT;
+  state.reportsEnabled = [];
 });
 
 // The screen reads other people's appraisals, so the gate is the first thing
@@ -243,3 +277,69 @@ describe("an empty team", () => {
     expect(screen.getByText(/no members in the current cycle/i)).toBeInTheDocument();
   });
 });
+
+// Tabs here, unlike the review screen: these are alternative lists of people,
+// only one of which is read at a time.
+describe("the additional-reports tab", () => {
+  it("is offered alongside the lead's own team", () => {
+    renderPage();
+    expect(screen.getByRole("tab", { name: "My team" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Additional reports" })).toBeInTheDocument();
+  });
+
+  it("fetches nothing until it is opened", () => {
+    // Most leads never look, and it is a whole reporting line.
+    renderPage();
+    expect(state.reportsEnabled.every((e) => e === false)).toBe(true);
+  });
+
+  it("fetches once opened", async () => {
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
+    expect(state.reportsEnabled.some((e) => e === true)).toBe(true);
+  });
+
+  it("lists only the indirect reports", async () => {
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
+
+    expect(screen.getByText("Deep Silva")).toBeInTheDocument();
+    // A direct report belongs to the other tab, not this one.
+    expect(screen.queryByText("Dee Rect")).toBeNull();
+  });
+
+  it("says who actually reviews them, which the reading lead does not", async () => {
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
+    expect(screen.getByText("Reviewed by sub@wso2.com")).toBeInTheDocument();
+  });
+
+  it("badges a report who is themselves a lead, whatever case the flag arrives in", async () => {
+    // The source tested `=== "True"` exactly here, so a backend answering
+    // "true" never showed this badge.
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
+    expect(screen.getByText("Lead")).toBeInTheDocument();
+  });
+
+  it("narrows on search, and restores when cleared", async () => {
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Additional reports" }));
+
+    const box = screen.getByLabelText("Search reports");
+    await user.type(box, "zzz");
+    expect(screen.getByText(/nobody here matches that/i)).toBeInTheDocument();
+
+    await user.clear(box);
+    expect(screen.getByText("Deep Silva")).toBeInTheDocument();
+  });
+
+  it("explains an empty line rather than showing a bare table", async () => {
+    state.reports = [];
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
+    expect(screen.getByText(/nobody reports to you indirectly/i)).toBeInTheDocument();
+  });
+});
+

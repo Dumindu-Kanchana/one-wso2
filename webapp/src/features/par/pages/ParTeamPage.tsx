@@ -16,15 +16,30 @@
 
 
 import { useState, type JSX } from "react";
-import { Alert, Chip, Skeleton, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@wso2/oxygen-ui";
+import {
+  Alert,
+  Box,
+  Chip,
+  Skeleton,
+  Stack,
+  Tab,
+  Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@wso2/oxygen-ui";
+import { useSearchParams } from "react-router";
 import { UsersRoundIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
 import ParShell from "../components/ParShell";
 import ParSection from "../components/ParSection";
 import ParCompletionBar from "../components/ParCompletionBar";
 import ParTeamMemberTable from "../components/ParTeamMemberTable";
+import ParReportsPanel from "../components/ParReportsPanel";
 import { useMyParCycle } from "../api/useParEmployee";
 import { useMyParTeams, useParTeamReport } from "../api/useParTeams";
+import { useMyReports } from "../api/useParReports";
+import { indirectReports } from "../util/parReports";
 import { isDeadlinePassed } from "../util/parDeadlines";
 import { allTeamsTotals } from "../util/parTeamSummary";
 import type { ParTeam } from "../api/parTypes";
@@ -41,11 +56,38 @@ function teamLabel(team: ParTeam): string {
     .join(" · ");
 }
 
+/**
+ * The two lists a lead works from.
+ *
+ * Tabs here, unlike the review screen, which deliberately stacks its three
+ * areas: these are alternative lists of PEOPLE, only one of which is being
+ * read at a time. The review screen's areas are parts of a single task and have
+ * to be visible together.
+ */
+const VIEWS = [
+  { key: "team", label: "My team" },
+  { key: "indirect", label: "Additional reports" },
+] as const;
+
+type ViewKey = (typeof VIEWS)[number]["key"];
+
 export default function ParTeamPage(): JSX.Element {
   const cycleQuery = useMyParCycle();
   const cycle = cycleQuery.data;
   const teams = useMyParTeams(cycle?.parCycleId);
   const [picked, setPicked] = useState<number | null>(null);
+
+  // The tab lives in the URL so a lead can link to it and come back to it.
+  // An unrecognised value falls back rather than rendering nothing.
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("view");
+  const view: ViewKey = VIEWS.some((v) => v.key === requested)
+    ? (requested as ViewKey)
+    : "team";
+
+  // Only fetched once the indirect tab is opened: most leads never look, and it
+  // is a whole reporting line.
+  const reports = useMyReports(cycle?.parCycleId, view === "indirect");
 
   const list = teams.data ?? [];
   // With exactly one team there is nothing to choose, so it opens directly.
@@ -86,6 +128,63 @@ export default function ParTeamPage(): JSX.Element {
         </Alert>
       ) : (
         <>
+          <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2.25 }}>
+            <Tabs
+              value={view}
+              onChange={(_e, next: ViewKey) => {
+                const nextParams = new URLSearchParams(params);
+                // "team" is the default, so it stays out of the URL rather than
+                // leaving ?view=team on every link a lead copies.
+                if (next === "team") nextParams.delete("view");
+                else nextParams.set("view", next);
+                setParams(nextParams, { replace: true });
+              }}
+            >
+              {VIEWS.map((v) => (
+                <Tab key={v.key} value={v.key} label={v.label} sx={{ textTransform: "none" }} />
+              ))}
+            </Tabs>
+          </Box>
+
+          {view === "indirect" ? (
+            <ParReportsPanel
+              title="Additional reports"
+              subtitle="People under your reports, and anyone attached to you as an additional manager. Their own lead reviews them."
+              reports={indirectReports(reports.data ?? [])}
+              isPending={reports.isPending}
+              error={reports.isError ? reports.error : undefined}
+            />
+          ) : (
+            <TeamView
+              cycle={cycle}
+              list={list}
+              selectedId={selectedId}
+              selected={selected}
+              onPick={setPicked}
+            />
+          )}
+        </>
+      )}
+    </ParShell>
+  );
+}
+
+/** The lead's own teams — the default tab. */
+function TeamView({
+  cycle,
+  list,
+  selectedId,
+  selected,
+  onPick,
+}: {
+  cycle: NonNullable<ReturnType<typeof useMyParCycle>["data"]>;
+  list: readonly ParTeam[];
+  selectedId: number | null;
+  selected: ParTeam | undefined;
+  onPick: (id: number | null) => void;
+}): JSX.Element {
+  return (
+    <>
           <AcrossAllTeams cycleName={cycle.parCycleName} teams={list} />
 
           {list.length > 1 && (
@@ -96,7 +195,7 @@ export default function ParTeamPage(): JSX.Element {
               <ToggleButtonGroup
                 exclusive
                 value={selectedId}
-                onChange={(_e, value: number | null) => setPicked(value)}
+                onChange={(_e, value: number | null) => onPick(value)}
                 sx={{ flexWrap: "wrap", gap: 1 }}
               >
                 {list.map((team) => (
@@ -132,9 +231,7 @@ export default function ParTeamPage(): JSX.Element {
               )}
             />
           )}
-        </>
-      )}
-    </ParShell>
+    </>
   );
 }
 
