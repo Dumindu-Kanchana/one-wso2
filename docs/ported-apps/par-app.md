@@ -741,6 +741,31 @@ grepped for the same class of contract. Only one other exists — the promotion 
 `promotionStatement` — and this app neither writes nor renders that field. The type now carries a
 warning so the next person to render it does not repeat §8.14.
 
+### 8.18 Two more of mine, found in review
+
+**The email under every name was an addition, and it rendered wrongly.** Every source list view has a
+name column and no email one — `TeamSummary`, `EmployeeReportView` and `ReportChainView` all use
+`parEmployeeName` / "Team Member", and `ChainViewTab` uses `employeeName` / "Name". Showing the email
+beneath was mine, in five places.
+
+It also rendered badly in three of them. The name is a `Box component="button"` with `all: "unset"`,
+which makes it `display: inline`, and `Typography variant="caption"` is a `<span>` — so the two ran
+together as "Ann Pereraann@wso2.com". Two of the five had `display: block` and three did not.
+
+Removed from all five. `parEmployeeName ?? parEmployeeEmail` stays as the fallback for a record with
+no name, where the source would show nothing at all.
+
+**The quota figures on the lead's team screen came from dead code.** The standalone app has a
+"Top 5%/20% Ratings" card there, and the whole block sits inside
+`{/* Commented out temporarily for testing new features; to be removed later. */}` —
+`TeamSummary.tsx:620-678`. A lead never sees it. Removed; quota reaches a lead through the
+Top 5% / 20% tab, which is live.
+
+**How that one got through two audits.** §8.17 recorded "Quota shown as allocated → shows
+used-of-allocated" as a corrected note. That correction was itself wrong: the audit grepped for the
+quota strings, read the matching lines, and concluded the source displayed them — without checking
+whether the lines were live code. Reading a grep hit is not reading the source.
+
 ---
 
 ## 9. Defects and questions in the source

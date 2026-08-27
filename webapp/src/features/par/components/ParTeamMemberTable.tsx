@@ -161,11 +161,6 @@ export default function ParTeamMemberTable({
                   >
                     {m.parEmployeeName ?? m.parEmployeeEmail}
                   </Box>
-                  {m.parEmployeeName && (
-                    <Typography variant="caption" color="text.secondary">
-                      {m.parEmployeeEmail}
-                    </Typography>
-                  )}
                 </TableCell>
                 <TableCell>
                   <StatusChip meta={parEmployeeStatusMeta(m.parEmployeeStatus)} />

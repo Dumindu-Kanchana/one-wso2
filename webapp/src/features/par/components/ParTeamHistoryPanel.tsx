@@ -202,9 +202,6 @@ export default function ParTeamHistoryPanel({
                         <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                           {name}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {p.workEmail}
-                        </Typography>
                       </Box>
                       {hasReports && <Chip size="small" variant="outlined" label="Lead" />}
                       <Button

@@ -338,9 +338,6 @@ export default function ParAdminSummaryPanel({
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
                               {r.parEmployeeName ?? r.parEmployeeEmail}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {r.parEmployeeEmail}
-                            </Typography>
                           </TableCell>
                           <TableCell>
                             <Chip

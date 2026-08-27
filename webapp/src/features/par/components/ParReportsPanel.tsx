@@ -176,9 +176,6 @@ export default function ParReportsPanel({
                           >
                             {r.parEmployeeName ?? r.parEmployeeEmail}
                           </Box>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                            {r.parEmployeeEmail}
-                          </Typography>
                           {isReportALead(r) && (
                             <Chip size="small" variant="outlined" label="Lead" sx={{ mt: 0.5 }} />
                           )}

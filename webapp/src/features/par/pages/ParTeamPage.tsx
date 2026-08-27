@@ -338,30 +338,15 @@ function TeamDetail({
   return (
     <ParSection
       title={teamLabel(team)}
-      subtitle="A special rating is refused once this team's quota is used up."
-      action={
-        report.data ? (
-          <Stack direction="row" spacing={0.75}>
-            {/* USED of allocated, which is how the standalone app puts it. An
-                earlier version here showed what was LEFT, which reads absurdly
-                at the start of a cycle — "21 of 21 left" — and buries the fact
-                that nothing has been awarded yet. Used-of-total answers the same
-                question by subtraction and reads naturally from zero. */}
-            <Chip
-              size="small"
-              variant="outlined"
-              color={report.data.available5pSlots === 0 ? "warning" : "default"}
-              label={`Top 5%: ${team.numberOf5pSlots - report.data.available5pSlots} of ${team.numberOf5pSlots} used`}
-            />
-            <Chip
-              size="small"
-              variant="outlined"
-              color={report.data.available20pSlots === 0 ? "warning" : "default"}
-              label={`Top 20%: ${team.numberOf20pSlots - report.data.available20pSlots} of ${team.numberOf20pSlots} used`}
-            />
-          </Stack>
-        ) : undefined
-      }
+      // No quota figures here. The standalone app HAS a "Top 5%/20% Ratings"
+      // card on this screen and it is COMMENTED OUT — the whole block sits
+      // inside `{/* Commented out temporarily for testing new features */}` at
+      // TeamSummary.tsx:620-678 — so a lead does not see quota on their team
+      // screen. Quota reaches them through the Top 5% / 20% tab instead.
+      //
+      // Worth recording how this got here: an earlier audit grepped for the
+      // quota strings, read the matching lines, and concluded the source showed
+      // used-of-allocated — without noticing the lines were inside a comment.
     >
       {report.isPending ? (
         <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 1.5 }} />

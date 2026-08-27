@@ -300,10 +300,12 @@ describe("with exactly one team", () => {
     expect(screen.queryByText("Your teams")).toBeNull();
   });
 
-  it("shows each member and where their PAR has got to", () => {
+  it("shows each member by name, and where their PAR has got to", () => {
     renderPage();
     expect(screen.getByText("Ann Perera")).toBeInTheDocument();
-    expect(screen.getByText("ann@wso2.com")).toBeInTheDocument();
+    // Name only. Every source list view has a name column and no email one, and
+    // an email under each name both diverged and ran into the name inline.
+    expect(screen.queryByText("ann@wso2.com")).toBeNull();
     // Their own PAR is shared; the lead's review is not started.
     expect(screen.getByText("Shared")).toBeInTheDocument();
     expect(screen.getAllByText("Not started").length).toBeGreaterThan(0);
@@ -314,14 +316,13 @@ describe("with exactly one team", () => {
     expect(screen.getByText("1/3")).toBeInTheDocument();
   });
 
-  it("reports quota as USED of allocated, which reads sensibly from zero", () => {
-    // An earlier version showed what was LEFT, which reads absurdly at the
-    // start of a cycle — "21 of 21 left" — and hides that nothing has been
-    // awarded. The standalone app shows used/total; so does this.
-    // Fixture: 1 of 1 5% slots free -> 0 used; 0 of 2 20% slots free -> 2 used.
+  it("shows no quota figures at all on the team screen", () => {
+    // The standalone app's "Top 5%/20% Ratings" card on this screen is inside a
+    // JSX comment (TeamSummary.tsx:620-678), so a lead never sees it. Quota
+    // reaches them through the Top 5% / 20% tab instead.
     renderPage();
-    expect(screen.getByText("Top 5%: 0 of 1 used")).toBeInTheDocument();
-    expect(screen.getByText("Top 20%: 2 of 2 used")).toBeInTheDocument();
+    expect(screen.queryByText(/Top 5%:/)).toBeNull();
+    expect(screen.queryByText(/Top 20%:/)).toBeNull();
   });
 
   it("calls an unassigned rating an absence", () => {

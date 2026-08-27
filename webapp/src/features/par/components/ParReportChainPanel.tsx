@@ -167,9 +167,6 @@ export default function ParReportChainPanel({
                       >
                         {name}
                       </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                        {r.parEmployeeEmail}
-                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
