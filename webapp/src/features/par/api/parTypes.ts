@@ -142,6 +142,24 @@ export interface ParReportEntry {
   isEmployeeALead?: string;
 }
 
+/**
+ * One row of the Top 5% / 20% allocation — a team, and the quota group it draws
+ * from.
+ *
+ * Flat on the wire: several rows share a `parQuotaId`, and the quota figures are
+ * repeated on each. The screen groups them; see `util/parAllocation.ts`.
+ */
+export interface ParSpecialRatingAllocation {
+  parQuotaId: number;
+  parSpecialQuotaName?: string;
+  parTop5Quota: number;
+  parTop20Quota: number;
+  parBusinessUnit?: string;
+  parDepartment?: string;
+  parTeam?: string;
+  parSubTeam?: string;
+}
+
 /** Per-stage completion counts the backend computes for one team. */
 export interface ParTeamSummary {
   employeeParCompletedCount: number;

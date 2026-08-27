@@ -41,6 +41,8 @@ const state = vi.hoisted(() => ({
   report: undefined as unknown,
   reports: [] as unknown[],
   reportsEnabled: [] as boolean[],
+  allocation: [] as unknown[],
+  allocationEnabled: [] as boolean[],
 }));
 
 vi.mock("../api/useParGate", () => ({
@@ -66,6 +68,12 @@ vi.mock("../api/useParReports", () => ({
   useMyReports: (_cycleId: number | undefined, enabled: boolean) => {
     state.reportsEnabled.push(enabled);
     return { ...idle, data: state.reports };
+  },
+}));
+vi.mock("../api/useParAllocation", () => ({
+  useMyQuotaAllocation: (_cycleId: number | undefined, enabled: boolean) => {
+    state.allocationEnabled.push(enabled);
+    return { ...idle, data: state.allocation };
   },
 }));
 
@@ -154,6 +162,27 @@ const INDIRECT = [
   },
 ];
 
+const ALLOCATION = [
+  {
+    parQuotaId: 1,
+    parSpecialQuotaName: "Platform pool",
+    parTop5Quota: 2,
+    parTop20Quota: 4,
+    parBusinessUnit: "Engineering",
+    parDepartment: "Platform",
+    parTeam: "Integration",
+  },
+  {
+    parQuotaId: 2,
+    parSpecialQuotaName: "Small pool",
+    parTop5Quota: 1,
+    parTop20Quota: 0,
+    parBusinessUnit: "Engineering",
+    parDepartment: "Apps",
+    parTeam: "Console",
+  },
+];
+
 beforeEach(() => {
   state.isTeamLead = true;
   state.cycle = CYCLE;
@@ -161,6 +190,8 @@ beforeEach(() => {
   state.report = report();
   state.reports = INDIRECT;
   state.reportsEnabled = [];
+  state.allocation = ALLOCATION;
+  state.allocationEnabled = [];
 });
 
 // The screen reads other people's appraisals, so the gate is the first thing
@@ -340,6 +371,51 @@ describe("the additional-reports tab", () => {
     renderPage();
     await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
     expect(screen.getByText(/nobody reports to you indirectly/i)).toBeInTheDocument();
+  });
+});
+
+describe("the Top 5% / 20% tab", () => {
+  const open = async () =>
+    userEvent.setup().click(screen.getByRole("tab", { name: "Top 5% / 20%" }));
+
+  it("fetches nothing until opened", () => {
+    renderPage();
+    expect(state.allocationEnabled.every((e) => e === false)).toBe(true);
+  });
+
+  it("groups teams under the quota pool they draw from", async () => {
+    renderPage();
+    await open();
+    expect(screen.getByText("Platform pool")).toBeInTheDocument();
+    expect(screen.getByText("Engineering · Platform · Integration")).toBeInTheDocument();
+    expect(screen.getByText("Top 5%: 2")).toBeInTheDocument();
+  });
+
+  it("describes a 1-and-0 pool as one flexible slot", async () => {
+    // Read literally it says "one Top 5%, no Top 20%", which tells a lead they
+    // cannot award something they can.
+    renderPage();
+    await open();
+    expect(screen.getByText("1 slot · Top 5% or Top 20%")).toBeInTheDocument();
+    expect(screen.queryByText("Top 20%: 0")).toBeNull();
+  });
+
+  it("narrows teams without hiding the pool's own figures", async () => {
+    renderPage();
+    await open();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Search allocation"), "Console");
+
+    // The matching pool stays, with its quota visible; the other goes.
+    expect(screen.getByText("Small pool")).toBeInTheDocument();
+    expect(screen.queryByText("Platform pool")).toBeNull();
+  });
+
+  it("explains an empty allocation", async () => {
+    state.allocation = [];
+    renderPage();
+    await open();
+    expect(screen.getByText(/no Top 5% \/ 20% quota has been allocated/i)).toBeInTheDocument();
   });
 });
 

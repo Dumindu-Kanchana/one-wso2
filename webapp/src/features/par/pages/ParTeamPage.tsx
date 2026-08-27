@@ -36,9 +36,11 @@ import ParSection from "../components/ParSection";
 import ParCompletionBar from "../components/ParCompletionBar";
 import ParTeamMemberTable from "../components/ParTeamMemberTable";
 import ParReportsPanel from "../components/ParReportsPanel";
+import ParAllocationPanel from "../components/ParAllocationPanel";
 import { useMyParCycle } from "../api/useParEmployee";
 import { useMyParTeams, useParTeamReport } from "../api/useParTeams";
 import { useMyReports } from "../api/useParReports";
+import { useMyQuotaAllocation } from "../api/useParAllocation";
 import { indirectReports } from "../util/parReports";
 import { isDeadlinePassed } from "../util/parDeadlines";
 import { allTeamsTotals } from "../util/parTeamSummary";
@@ -67,6 +69,7 @@ function teamLabel(team: ParTeam): string {
 const VIEWS = [
   { key: "team", label: "My team" },
   { key: "indirect", label: "Additional reports" },
+  { key: "allocation", label: "Top 5% / 20%" },
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
@@ -88,6 +91,7 @@ export default function ParTeamPage(): JSX.Element {
   // Only fetched once the indirect tab is opened: most leads never look, and it
   // is a whole reporting line.
   const reports = useMyReports(cycle?.parCycleId, view === "indirect");
+  const allocation = useMyQuotaAllocation(cycle?.parCycleId, view === "allocation");
 
   const list = teams.data ?? [];
   // With exactly one team there is nothing to choose, so it opens directly.
@@ -146,7 +150,13 @@ export default function ParTeamPage(): JSX.Element {
             </Tabs>
           </Box>
 
-          {view === "indirect" ? (
+          {view === "allocation" ? (
+            <ParAllocationPanel
+              rows={allocation.data ?? []}
+              isPending={allocation.isPending}
+              error={allocation.isError ? allocation.error : undefined}
+            />
+          ) : view === "indirect" ? (
             <ParReportsPanel
               title="Additional reports"
               subtitle="People under your reports, and anyone attached to you as an additional manager. Their own lead reviews them."
