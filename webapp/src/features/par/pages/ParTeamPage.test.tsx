@@ -343,10 +343,11 @@ describe("with several teams", () => {
   });
 
   it("totals every team together above the picker", () => {
-    // 2 members each, one PAR shared each.
+    // 2 members each, one PAR shared each -> 2 of 4 done, so 2 pending. Labelled
+    // the way the standalone app labels it.
     renderPage();
     expect(screen.getByText("4 people")).toBeInTheDocument();
-    expect(screen.getByText("2 / 4")).toBeInTheDocument();
+    expect(screen.getAllByText("2 pending").length).toBeGreaterThan(0);
   });
 
   it("opens the team that was picked", async () => {
@@ -576,7 +577,7 @@ describe("bulk sharing", () => {
     expect(state.notify.success).toHaveBeenCalled();
   });
 
-  it("reports a partial result in full rather than as success", async () => {
+  it("reports a partial result with the source's wording and severity", async () => {
     state.report = report({ details: [{ ...MEMBERS[0], parLeadStatus: "DRAFT" }] });
     state.bulkResult = {
       succeeded: 3,
@@ -590,10 +591,11 @@ describe("bulk sharing", () => {
     await user.click(screen.getByRole("button", { name: /share selected/i }));
     await user.click(screen.getByRole("button", { name: "Share" }));
 
-    // Both halves, who failed, and why — none of it collapsed away.
-    expect(state.notify.warning).toHaveBeenCalledWith("3 shared, 2 couldn't be");
-    expect(screen.getByText(/not shared: x@wso2.com, y@wso2.com/i)).toBeInTheDocument();
-    expect(screen.getByText("Top 5% group is full")).toBeInTheDocument();
+    // A warning naming the failures and the reason. The source's wording omits
+    // the successes; matched rather than improved inside a port.
+    expect(state.notify.warning).toHaveBeenCalledWith(
+      "Failed to update 2 ratings. Top 5% group is full",
+    );
   });
 
   it("selects and clears every member from the header", async () => {

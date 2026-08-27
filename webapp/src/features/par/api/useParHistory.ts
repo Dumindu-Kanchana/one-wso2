@@ -59,16 +59,16 @@ export function useClosedCyclesFor(employeeEmail: string | undefined, enabled = 
     queryKey: ["par", "closed-cycles", userSub, employeeEmail],
     enabled: enabled && ready && Boolean(employeeEmail),
     queryFn: async () => {
-      const cycles =
+      // Returned in the backend's own order. The standalone app does not sort
+      // these, and an earlier version here did — so the two apps could disagree
+      // about the order of somebody's history for no stated reason. If the order
+      // turns out wrong it is a finding to raise, not to paper over here.
+      return (
         (await authedGet<ParCycle[]>(
           parServiceUrls.parCycles(employeeEmail as string, "CLOSED"),
           await getAccessToken(),
           digiopsHeaders(),
-        )) ?? [];
-      // Sorted here rather than trusting the backend's order, which is
-      // unspecified — a history that is not newest-first reads as unordered.
-      return [...cycles].sort((a, b) =>
-        (b.parCycleEndDate ?? "").localeCompare(a.parCycleEndDate ?? ""),
+        )) ?? []
       );
     },
     staleTime: STALE,

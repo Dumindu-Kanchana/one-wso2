@@ -101,23 +101,38 @@ describe("summarising what happened", () => {
 });
 
 describe("describing the result", () => {
-  const summary = (succeeded: number, failed: number) => ({
+  const summary = (succeeded: number, failed: number, reasons: string[] = []) => ({
     succeeded,
     failed,
-    reasons: [],
+    reasons,
     failedEmails: [],
   });
 
-  it("says both halves on a partial result", () => {
-    // Reporting only failures hides work that was done; only successes hides
-    // work that was not.
-    expect(describeBulkShare(summary(4, 1))).toBe("4 shared, 1 couldn't be");
+  // Wording and severity are the standalone app's. It mentions only the
+  // failures on a partial result, which hides the work that succeeded — a real
+  // shortcoming, and deliberately not corrected inside a port.
+  it("uses the source's wording and severity for a partial result", () => {
+    expect(describeBulkShare(summary(4, 1, ["Quota full"]))).toEqual({
+      message: "Failed to update 1 ratings. Quota full",
+      severity: "warning",
+    });
   });
 
-  it("reads naturally for one and for many", () => {
-    expect(describeBulkShare(summary(1, 0))).toBe("Review shared");
-    expect(describeBulkShare(summary(3, 0))).toBe("3 reviews shared");
-    expect(describeBulkShare(summary(0, 1))).toBe("That review couldn't be shared");
-    expect(describeBulkShare(summary(0, 3))).toBe("None of the 3 could be shared");
+  it("is an error when nothing went through", () => {
+    expect(describeBulkShare(summary(0, 3, ["Quota full"]))).toEqual({
+      message: "Failed to share 3 ratings. Quota full",
+      severity: "error",
+    });
+  });
+
+  it("is a success when everything did", () => {
+    expect(describeBulkShare(summary(3, 0))).toEqual({
+      message: "Successfully updated 3 ratings",
+      severity: "success",
+    });
+  });
+
+  it("does not leave a trailing space when there is no reason", () => {
+    expect(describeBulkShare(summary(0, 2)).message).toBe("Failed to share 2 ratings.");
   });
 });

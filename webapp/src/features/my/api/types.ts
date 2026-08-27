@@ -242,6 +242,15 @@ export interface PromotionHistoryEntry {
   currentJobRole: string;
   nextJobBand: number;
   promotionCycle: string;
+  /**
+   * BASE64-ENCODED on the wire, not plain text.
+   *
+   * The promotion app encodes it before sending (safeBase64Encode in its
+   * specialPromotionApplication form), so rendering this field directly shows
+   * base64. Nothing here renders or writes it today; decode it if that changes.
+   * The identical contract on PAR's comment fields was missed for four slices —
+   * see features/par/util/parCommentCodec.ts.
+   */
   promotionStatement: string | null;
   businessUnit: string;
   department: string;

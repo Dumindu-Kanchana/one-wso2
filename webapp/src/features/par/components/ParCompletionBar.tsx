@@ -42,17 +42,21 @@ export default function ParCompletionBar({
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
           {label}
         </Typography>
-        {/* The count, not just the bar: a bar alone cannot say 3 of 4, and the
-            difference between 3/4 and 30/40 matters to whoever has to chase it. */}
+        {/* "N Pending", which is how the standalone app labels these. An
+            earlier version here showed "3 / 4" — arguably clearer, but a visible
+            difference from the app people use, and not worth introducing
+            silently. If the ratio is wanted it should be proposed on its own. */}
         <Typography variant="caption" sx={{ fontVariantNumeric: "tabular-nums" }}>
-          {nothingToDo ? "—" : `${completed} / ${total}`}
+          {nothingToDo ? "—" : `${Math.max(0, total - completed)} pending`}
         </Typography>
       </Stack>
       <LinearProgress
         variant="determinate"
         value={percent}
         // Announced so the figure is available without seeing the bar.
-        aria-label={`${label}: ${nothingToDo ? "nothing to do" : `${completed} of ${total}`}`}
+        // The ratio stays in the accessible name: it is not visual clutter there,
+      // and "3 pending" alone does not say pending out of how many.
+      aria-label={`${label}: ${nothingToDo ? "nothing to do" : `${completed} of ${total} done`}`}
         sx={{ height: 8, borderRadius: 1, mt: 0.5 }}
       />
     </Box>

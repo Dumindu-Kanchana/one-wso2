@@ -102,14 +102,32 @@ export function summarizeBulkShare(
 }
 
 /**
- * One line describing what happened.
+ * The message and severity for a bulk-share result.
  *
- * A partial result says both halves. Reporting only the failures hides work
- * that was done; reporting only the successes hides work that was not.
+ * Wording and severity are the standalone app's, from TeamSummary's three
+ * branches. An earlier version here said "3 shared, 2 couldn't be" on a partial
+ * result — which tells the reader more, since the source's wording mentions only
+ * the failures and hides the work that succeeded. That is a real improvement and
+ * it is deliberately NOT taken here: it is a visible difference from the app
+ * people use, and belongs in its own proposal rather than inside a port.
  */
-export function describeBulkShare(summary: BulkShareSummary): string {
-  const { succeeded, failed } = summary;
-  if (failed === 0) return succeeded === 1 ? "Review shared" : `${succeeded} reviews shared`;
-  if (succeeded === 0) return failed === 1 ? "That review couldn't be shared" : `None of the ${failed} could be shared`;
-  return `${succeeded} shared, ${failed} couldn't be`;
+export function describeBulkShare(summary: BulkShareSummary): {
+  message: string;
+  severity: "success" | "warning" | "error";
+} {
+  const { succeeded, failed, reasons } = summary;
+  const reason = reasons.join(" ");
+  if (succeeded === 0) {
+    return {
+      message: `Failed to share ${failed} ratings. ${reason}`.trim(),
+      severity: "error",
+    };
+  }
+  if (failed !== 0) {
+    return {
+      message: `Failed to update ${failed} ratings. ${reason}`.trim(),
+      severity: "warning",
+    };
+  }
+  return { message: `Successfully updated ${succeeded} ratings`, severity: "success" };
 }

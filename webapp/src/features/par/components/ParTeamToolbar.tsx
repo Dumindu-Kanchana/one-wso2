@@ -68,7 +68,6 @@ export default function ParTeamToolbar({
 
   const [confirmShare, setConfirmShare] = useState(false);
   const [confirmRemind, setConfirmRemind] = useState(false);
-  const [lastSummary, setLastSummary] = useState<string[] | null>(null);
 
   const selected = members.filter((m) => selectedIds.has(m.parRatingId));
   const problem = bulkShareProblem(selected);
@@ -98,20 +97,16 @@ export default function ParTeamToolbar({
       {
         onSuccess: (summary) => {
           setConfirmShare(false);
-          // Never a bare "done": some may have failed, and which people did is
-          // what the lead has to act on.
-          if (summary.failed === 0) {
-            notifications.showSuccess(describeBulkShare(summary));
-            setLastSummary(null);
+          // The standalone app's three outcomes, with its wording and its
+          // severities — see describeBulkShare.
+          const { message, severity } = describeBulkShare(summary);
+          if (severity === "success") {
+            notifications.showSuccess(message);
             onClearSelection();
             return;
           }
-          notifications.showWarning(describeBulkShare(summary));
-          setLastSummary([
-            `${describeBulkShare(summary)}.`,
-            `Not shared: ${summary.failedEmails.join(", ")}.`,
-            ...summary.reasons,
-          ]);
+          if (severity === "warning") notifications.showWarning(message);
+          else notifications.showError(message);
         },
         onError: (err) => {
           setConfirmShare(false);
@@ -170,16 +165,6 @@ export default function ParTeamToolbar({
       {problem === "notAllDrafts" && (
         <Alert severity="info" sx={{ mb: 1.75 }}>
           {BULK_SHARE_PROBLEM_TEXT[problem]}
-        </Alert>
-      )}
-
-      {lastSummary && (
-        <Alert severity="warning" sx={{ mb: 1.75 }} onClose={() => setLastSummary(null)}>
-          {lastSummary.map((line, i) => (
-            <Typography key={i} variant="body2" sx={{ display: "block" }}>
-              {line}
-            </Typography>
-          ))}
         </Alert>
       )}
 

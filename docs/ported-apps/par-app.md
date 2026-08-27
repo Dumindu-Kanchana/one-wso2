@@ -701,6 +701,46 @@ Found by tracing which source components were reachable and from where, while ch
 reviewing the port against its own specification, which is what should have caught it four slices
 earlier.
 
+### 8.17 The deviation audit
+
+Prompted by the user's review, which found six defects in one pass — four of them mine rather than
+the source's. 46 recorded deviations were re-checked against the source line by line.
+
+**Six of my own deviation notes were factually wrong.** Each *claimed* what the source did without
+that having been verified, so the record looked considered while being false:
+
+| My note said | The source actually |
+|---|---|
+| Quota shown as allocated | Shows used-of-allocated |
+| "No way to decline a 360° request" | `ReviewProvideModal.tsx:232` sets `REJECTED` |
+| "Accepted a rating with no comment" | Requires both, same as here |
+| "Progress bars only" | Shows "N Pending" beside each bar |
+| "A strict `reportingType === 'indirect'` check" | Already lowercases |
+| "`lead` gates nothing" | Gates the chain view (§2.1) |
+
+For the middle three the behaviour already matched and only the note lied. The others are corrected.
+
+**Reverted to source behaviour**, having been changes made on my judgement:
+
+| Was | Now | |
+|---|---|---|
+| Completion read "3 / 4" | "N pending" | The ratio is clearer, but it is a visible difference from the app people use. The ratio stays in the accessible name |
+| Closed cycles sorted newest-first in the client | The backend's own order | The source does not sort. If the order turns out wrong that is a finding to raise, not to paper over |
+| Bulk result read "3 shared, 2 couldn't be", plus a panel listing the failed addresses | The source's three messages and severities | Its wording mentions only the failures, hiding the work that succeeded. A real shortcoming, and not one to fix inside a port |
+
+Those three are genuine improvements. They are recorded here as **proposals**, not applied.
+
+**Kept, and flagged rather than silent:** both 360° nomination exclusions. The source skips only the
+lead when you nominate for your own PAR, so you can nominate yourself — feedback you write about
+yourself, shown to your lead as a colleague's view. A defect with a line number, and the fix can only
+prevent an action the backend is likely to refuse anyway.
+
+**Also checked: the other backends this app ports.** The PAR base64 contract (§8.14) was a
+data-integrity bug that four rounds of behaviour review never touched, so every sibling source was
+grepped for the same class of contract. Only one other exists — the promotion app base64-encodes
+`promotionStatement` — and this app neither writes nor renders that field. The type now carries a
+warning so the next person to render it does not repeat §8.14.
+
 ---
 
 ## 9. Defects and questions in the source
