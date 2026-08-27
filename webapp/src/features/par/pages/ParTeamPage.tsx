@@ -39,6 +39,7 @@ import ParTeamMemberTable from "../components/ParTeamMemberTable";
 import ParReportsPanel from "../components/ParReportsPanel";
 import ParAllocationPanel from "../components/ParAllocationPanel";
 import ParReportChainPanel from "../components/ParReportChainPanel";
+import ParTeamToolbar from "../components/ParTeamToolbar";
 import { useMyParCycle } from "../api/useParEmployee";
 import { useMyParTeams, useParTeamReport } from "../api/useParTeams";
 import { useMyReports } from "../api/useParReports";
@@ -314,6 +315,18 @@ function TeamDetail({
   threeSixtyDeadlinePassed: boolean;
 }) {
   const report = useParTeamReport(cycleId, team.parTeamId);
+  // Held here rather than in the table, so the toolbar and the rows agree, and
+  // so switching team clears it — the parent keys this component on team id.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<number>>(new Set());
+  const members = report.data?.details ?? [];
+
+  const toggle = (id: number) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   return (
     <ParSection
@@ -351,10 +364,23 @@ function TeamDetail({
           This team has no details recorded for the cycle.
         </Typography>
       ) : (
-        <ParTeamMemberTable
-          members={report.data.details ?? []}
-          threeSixtyDeadlinePassed={threeSixtyDeadlinePassed}
-        />
+        <>
+          <ParTeamToolbar
+            parCycleId={cycleId}
+            members={members}
+            selectedIds={selectedIds}
+            onClearSelection={() => setSelectedIds(new Set())}
+          />
+          <ParTeamMemberTable
+            members={members}
+            threeSixtyDeadlinePassed={threeSixtyDeadlinePassed}
+            selectedIds={selectedIds}
+            onToggle={toggle}
+            onToggleAll={(select) =>
+              setSelectedIds(select ? new Set(members.map((m) => m.parRatingId)) : new Set())
+            }
+          />
+        </>
       )}
     </ParSection>
   );

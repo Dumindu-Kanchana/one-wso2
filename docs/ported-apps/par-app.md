@@ -518,6 +518,37 @@ switched on a flag, so a caller cannot render "what you wrote" over somebody els
 | Chain trail held in component state with three handlers | `util/parChain.ts`, tested | Re-entering somebody already in the trail now truncates rather than appending, so a loop in the reporting data cannot grow it without bound |
 | Two near-identical history tables | One shared panel, copy as data | They would drift, and the wording differs by reader rather than by structure |
 
+### 8.12 What sub-slice 3d landed
+
+The six team-wide actions, as a toolbar above the member list: **share selected**, **copy emails**,
+**remind 360° reviewers**, **add someone to the cycle**, and on the review screen **download
+summary**. Requesting 360° feedback on a report's behalf reuses the nomination path from Slice 1.
+
+New: `util/parBulkShare.ts` (10 tests), `util/parPdf.ts` (8 tests), three mutations on
+`api/useParLead.ts`, `ParTeamToolbar`, and row selection on the member table.
+
+**Bulk share has no bulk endpoint.** It is one PATCH per person, sequential — parallel would make
+which writes win the Top 5% / 20% quota a race. So **partial success is the normal outcome**, and the
+summary is the mutation's return value rather than an exception: throwing would discard the record of
+what did go through. The result names both halves, who failed, and why, de-duplicating identical
+reasons so twelve rows failing one quota produce one sentence.
+
+**The PDF needed two dependencies, and they came with a caveat.** `jspdf` and `jspdf-autotable`, both
+imported **dynamically** — roughly 600KB across their chunks, and only a lead who presses the button
+ever fetches them. `jspdf` is pinned to **4.2.1 or later**: every earlier line carries advisories,
+two of them critical, and `^3` installs a flagged package. `jspdf-autotable@5` accepts `^2 || ^3 || ^4`,
+so the major bump costs nothing. Production audit after the change: 7 findings, all pre-existing
+transitive ones, none from jspdf.
+
+**Deviations taken in 3d:**
+
+| Source behaviour | Here | Why |
+|---|---|---|
+| A mixed bulk selection refused with a snackbar | Refused, with the button disabled and the reason stated | All-or-nothing is right — quietly filtering to the shareable rows would let a lead believe they had shared somebody they had not — but a disabled button that does not say why reads as broken |
+| Bulk result reported as counts in a snackbar | Counts, the failed addresses, and de-duplicated reasons, in a dismissible panel | A snackbar cannot hold which people to go back to, which is the only actionable part |
+| `navigator.clipboard` assumed available | Failure reported | An insecure origin or a denied permission both leave it unavailable, and doing nothing silently reads as a broken button |
+| PDF library bundled | Imported on demand | 600KB for a button most users never press |
+
 ---
 
 ## 9. Defects and questions in the source

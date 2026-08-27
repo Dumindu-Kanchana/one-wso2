@@ -29,6 +29,13 @@ vi.mock("@hooks/useAsgardeoUser", () => ({
   useAsgardeoUser: () => ({ ready: true, email: "lead@wso2.com", initials: "LE" }),
 }));
 vi.mock("@hooks/useSecureSignOut", () => ({ useSecureSignOut: () => vi.fn() }));
+vi.mock("@context/notifications/NotificationsContext", () => ({
+  useNotifications: () => ({
+    showSuccess: state.notify.success,
+    showError: state.notify.error,
+    showWarning: state.notify.warning,
+  }),
+}));
 vi.mock("../api/useParMe", () => ({
   isParBackendConfigured: () => true,
   useParMe: () => ({ data: { workEmail: "lead@wso2.com" } }),
@@ -45,6 +52,21 @@ const state = vi.hoisted(() => ({
   allocationEnabled: [] as boolean[],
   chainLevels: {} as Record<string, unknown[]>,
   chainAsked: [] as string[],
+  notify: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+  bulkResult: { succeeded: 0, failed: 0, reasons: [] as string[], failedEmails: [] as string[] },
+  bulkArgs: [] as unknown[],
+}));
+
+vi.mock("../api/useParLead", () => ({
+  useBulkShareLeadReviews: () => ({
+    mutate: (args: unknown, opts?: { onSuccess?: (s: unknown) => void }) => {
+      state.bulkArgs.push(args);
+      opts?.onSuccess?.(state.bulkResult);
+    },
+    isPending: false,
+  }),
+  useSendThreeSixtyReminders: () => ({ mutate: vi.fn(), isPending: false }),
+  useSyncEmployeeIntoCycle: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("../api/useParGate", () => ({
@@ -234,6 +256,11 @@ beforeEach(() => {
   state.allocationEnabled = [];
   state.chainLevels = CHAIN_LEVELS;
   state.chainAsked = [];
+  state.notify.success.mockClear();
+  state.notify.error.mockClear();
+  state.notify.warning.mockClear();
+  state.bulkArgs = [];
+  state.bulkResult = { succeeded: 1, failed: 0, reasons: [], failedEmails: [] };
 });
 
 // The screen reads other people's appraisals, so the gate is the first thing
@@ -506,6 +533,70 @@ describe("the report-chain tab", () => {
     renderPage();
     await open();
     expect(screen.getByText(/nobody reports to you in this cycle/i)).toBeInTheDocument();
+  });
+});
+
+// One PATCH per person with no bulk endpoint, so partial success is normal
+// rather than an edge case.
+describe("bulk sharing", () => {
+  it("is refused until something is selected", () => {
+    renderPage();
+    expect(screen.getByRole("button", { name: /share selected/i })).toBeDisabled();
+    expect(screen.getByText(/select people to share or copy/i)).toBeInTheDocument();
+  });
+
+  it("is refused for a selection that is not all drafts", async () => {
+    // Ann's lead review is PENDING, not DRAFT.
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("checkbox", { name: /select ann perera/i }));
+
+    expect(screen.getByRole("button", { name: /share selected/i })).toBeDisabled();
+    expect(screen.getByText(/every review you select has to be a draft/i)).toBeInTheDocument();
+  });
+
+  it("shares a draft selection once confirmed, and says it is one at a time", async () => {
+    state.report = report({
+      details: [{ ...MEMBERS[0], parLeadStatus: "DRAFT" }],
+    });
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("checkbox", { name: /select ann perera/i }));
+    await user.click(screen.getByRole("button", { name: /share selected/i }));
+
+    expect(screen.getByRole("dialog")).toHaveTextContent(/one at a time/i);
+    await user.click(screen.getByRole("button", { name: "Share" }));
+    expect(state.bulkArgs).toHaveLength(1);
+    expect(state.notify.success).toHaveBeenCalled();
+  });
+
+  it("reports a partial result in full rather than as success", async () => {
+    state.report = report({ details: [{ ...MEMBERS[0], parLeadStatus: "DRAFT" }] });
+    state.bulkResult = {
+      succeeded: 3,
+      failed: 2,
+      reasons: ["Top 5% group is full"],
+      failedEmails: ["x@wso2.com", "y@wso2.com"],
+    };
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("checkbox", { name: /select ann perera/i }));
+    await user.click(screen.getByRole("button", { name: /share selected/i }));
+    await user.click(screen.getByRole("button", { name: "Share" }));
+
+    // Both halves, who failed, and why — none of it collapsed away.
+    expect(state.notify.warning).toHaveBeenCalledWith("3 shared, 2 couldn't be");
+    expect(screen.getByText(/not shared: x@wso2.com, y@wso2.com/i)).toBeInTheDocument();
+    expect(screen.getByText("Top 5% group is full")).toBeInTheDocument();
+  });
+
+  it("selects and clears every member from the header", async () => {
+    renderPage();
+    const user = userEvent.setup();
+    const all = screen.getByRole("checkbox", { name: /select every member/i });
+    await user.click(all);
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    await user.click(all);
+    expect(screen.getByText(/select people to share or copy/i)).toBeInTheDocument();
   });
 });
 

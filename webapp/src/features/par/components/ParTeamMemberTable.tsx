@@ -18,6 +18,7 @@
 import type { JSX } from "react";
 import {
   Box,
+  Checkbox,
   Chip,
   Table,
   TableBody,
@@ -47,14 +48,27 @@ import {
 export default function ParTeamMemberTable({
   members,
   threeSixtyDeadlinePassed,
+  selectedIds,
+  onToggle,
+  onToggleAll,
 }: {
   members: readonly ParTeamMember[];
   threeSixtyDeadlinePassed: boolean;
+  /** Selected rating ids. Omitted entirely when selection is not offered. */
+  selectedIds?: ReadonlySet<number>;
+  onToggle?: (parRatingId: number) => void;
+  onToggleAll?: (select: boolean) => void;
 }): JSX.Element {
   // Above the early return: a hook after one is only called on some renders,
   // so the hook order changes between an empty team and a populated one.
   const navigate = useNavigate();
   const open = (email: string) => void navigate(`/me/par/team/${encodeURIComponent(email)}`);
+
+  const selectable = selectedIds !== undefined && onToggle !== undefined;
+  const allSelected = selectable && members.length > 0 && members.every((m) => selectedIds.has(m.parRatingId));
+  // Distinct from "all": a partially-filled box says something the other two
+  // states cannot, and without it selecting one row makes the header look off.
+  const someSelected = selectable && members.some((m) => selectedIds.has(m.parRatingId));
 
   if (members.length === 0) {
     return (
@@ -69,6 +83,17 @@ export default function ParTeamMemberTable({
       <Table size="small">
         <TableHead>
           <TableRow>
+            {selectable && (
+              <TableCell padding="checkbox">
+                <Checkbox
+                  size="small"
+                  checked={allSelected}
+                  indeterminate={someSelected && !allSelected}
+                  onChange={(e) => onToggleAll?.(e.target.checked)}
+                  inputProps={{ "aria-label": "Select every member" }}
+                />
+              </TableCell>
+            )}
             {["Member", "Their PAR", "360°", "Your review", "Conversation", "Rating"].map((h) => (
               <TableCell key={h} sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
                 {h}
@@ -93,6 +118,21 @@ export default function ParTeamMemberTable({
                 onClick={() => open(m.parEmployeeEmail)}
                 sx={{ cursor: "pointer" }}
               >
+                {selectable && (
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={selectedIds.has(m.parRatingId)}
+                      // Selecting is not opening, so the row's own click must
+                      // not fire underneath it.
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => onToggle?.(m.parRatingId)}
+                      inputProps={{
+                        "aria-label": `Select ${m.parEmployeeName ?? m.parEmployeeEmail}`,
+                      }}
+                    />
+                  </TableCell>
+                )}
                 <TableCell>
                   {/* A real button inside the row, so the row is reachable by
                       keyboard and announced as a link — a row-level onClick

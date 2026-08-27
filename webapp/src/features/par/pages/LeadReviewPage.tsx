@@ -15,9 +15,9 @@
 // under the License.
 
 
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 import { Alert, Box, Button, Chip, Skeleton, Stack } from "@wso2/oxygen-ui";
-import { ArrowLeftIcon, UsersRoundIcon } from "@wso2/oxygen-ui-icons-react";
+import { ArrowLeftIcon, DownloadIcon, UsersRoundIcon } from "@wso2/oxygen-ui-icons-react";
 import { Link as RouterLink, useParams } from "react-router";
 import { describeError } from "@api/errors";
 import ParShell from "../components/ParShell";
@@ -30,6 +30,8 @@ import { useReportParRating, useReportThreeSixtyReviews } from "../api/useParLea
 import { isDeadlinePassed } from "../util/parDeadlines";
 import { parEmployeeStatusMeta } from "../util/parStatus";
 import { useParNow } from "../util/useParNow";
+import { downloadParSummaryPdf } from "../util/parPdf";
+import { useNotifications } from "@context/notifications/NotificationsContext";
 
 // One report's PAR, as their lead reviews it.
 //
@@ -62,6 +64,8 @@ const REPORT_HISTORY = {
 
 export default function LeadReviewPage(): JSX.Element {
   const now = useParNow();
+  const notifications = useNotifications();
+  const [downloading, setDownloading] = useState(false);
   const { employeeEmail: raw } = useParams<{ employeeEmail: string }>();
   // The email is a path segment, so it arrives percent-encoded.
   const employeeEmail = raw ? safeDecode(raw) : undefined;
@@ -113,7 +117,11 @@ export default function LeadReviewPage(): JSX.Element {
         </Alert>
       ) : (
         <>
-          <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap", gap: 1 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ mb: 2, flexWrap: "wrap", gap: 1, alignItems: "center" }}
+          >
             <Chip
               size="small"
               variant="outlined"
@@ -121,6 +129,31 @@ export default function LeadReviewPage(): JSX.Element {
               label={`Their PAR: ${parEmployeeStatusMeta(rating.parEmployeeStatus).label}`}
             />
             <Chip size="small" variant="outlined" label={cycle.parCycleName} />
+            <Box sx={{ flex: 1 }} />
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<DownloadIcon size={15} />}
+              disabled={downloading}
+              onClick={() => {
+                setDownloading(true);
+                // The PDF library is fetched on demand, so this can fail on a
+                // bad connection — and a button that silently does nothing for
+                // three seconds reads as broken.
+                void downloadParSummaryPdf({
+                  cycle,
+                  rating,
+                  reviews: reviews.data ?? [],
+                })
+                  .catch(() =>
+                    notifications.showError("Couldn't build the PDF. Try again in a moment."),
+                  )
+                  .finally(() => setDownloading(false));
+              }}
+              sx={{ textTransform: "none", fontWeight: 600 }}
+            >
+              {downloading ? "Preparing…" : "Download summary"}
+            </Button>
           </Stack>
 
           <LeadFeedbackPanel key={rating.parRatingId} now={now} cycle={cycle} rating={rating} />

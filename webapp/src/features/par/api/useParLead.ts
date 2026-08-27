@@ -28,7 +28,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
-import { authedGet, authedPatch } from "@api/http";
+import { authedGet, authedPatch, authedPost } from "@api/http";
 import { httpRetry } from "@api/errors";
 import { digiopsHeaders } from "@api/digiopsHeaders";
 import { useAccessToken } from "@hooks/useAccessToken";
@@ -41,6 +41,13 @@ import type {
   ParSpecialRating,
   ParThreeSixtyReview,
 } from "./parTypes";
+import {
+  summarizeBulkShare,
+  type BulkShareCandidate,
+  type BulkShareOutcome,
+  type BulkShareSummary,
+} from "../util/parBulkShare";
+import { describeError } from "@api/errors";
 
 const STALE = 30 * 1000;
 
@@ -171,3 +178,111 @@ export function useRecordF2f() {
     },
   });
 }
+
+export interface BulkShareArgs {
+  parCycleId: number;
+  selected: readonly BulkShareCandidate[];
+}
+
+/**
+ * Share several lead reviews.
+ *
+ * There is no bulk endpoint, so this is one PATCH per person. Sequential rather
+ * than parallel, matching the source: the writes contend for the same Top 5% /
+ * 20% quota, and firing them together makes which ones win a race.
+ *
+ * It never rejects. A partial result is the normal outcome, so the summary IS
+ * the result — throwing would discard the record of what did go through.
+ */
+export function useBulkShareLeadReviews() {
+  const { getAccessToken, userSub } = useBasis();
+  const qc = useQueryClient();
+  return useMutation<BulkShareSummary, Error, BulkShareArgs>({
+    mutationFn: async ({ parCycleId, selected }) => {
+      const token = await getAccessToken();
+      const outcomes: BulkShareOutcome[] = [];
+      for (const row of selected) {
+        try {
+          await authedPatch<unknown>(
+            parServiceUrls.updateParRating(parCycleId, row.parEmployeeEmail, row.parRatingId),
+            token,
+            { parLeadStatus: "SHARED" },
+            digiopsHeaders(),
+          );
+          outcomes.push({ email: row.parEmployeeEmail, ok: true });
+        } catch (error) {
+          // describeError, not the raw body: these reasons are shown to the
+          // lead, and a gateway's HTML page is not an explanation.
+          outcomes.push({
+            email: row.parEmployeeEmail,
+            ok: false,
+            reason: describeError(error),
+          });
+        }
+      }
+      return summarizeBulkShare(outcomes);
+    },
+    onSuccess: async (_summary, { parCycleId }) => {
+      // Invalidated even on a partial failure: some rows moved, and the table
+      // showing them as drafts would be wrong.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["par", "team-report", userSub, parCycleId] }),
+        qc.invalidateQueries({ queryKey: ["par", "my-teams", userSub, parCycleId] }),
+      ]);
+    },
+  });
+}
+
+/**
+ * Nudge the outstanding 360 reviewers across the lead's teams.
+ *
+ * Fire-and-forget from the caller's point of view: the backend decides who is
+ * outstanding, so there is nothing to invalidate and no per-person result.
+ */
+export function useSendThreeSixtyReminders() {
+  const { getAccessToken } = useBasis();
+  return useMutation<void, Error, void>({
+    mutationFn: async () => {
+      await authedPost<unknown>(
+        parServiceUrls.remindThreeSixty,
+        await getAccessToken(),
+        {},
+        digiopsHeaders(),
+      );
+    },
+  });
+}
+
+export interface SyncEmployeeArgs {
+  parCycleId: number;
+  employeeEmail: string;
+}
+
+/**
+ * Pull an employee into the cycle.
+ *
+ * For somebody who joined or moved after the cycle opened and so has no PAR in
+ * it. The backend decides whether they belong to the caller's team.
+ */
+export function useSyncEmployeeIntoCycle() {
+  const { getAccessToken, userSub } = useBasis();
+  const qc = useQueryClient();
+  return useMutation<void, Error, SyncEmployeeArgs>({
+    mutationFn: async ({ parCycleId, employeeEmail }) => {
+      await authedPost<unknown>(
+        parServiceUrls.syncEmployee(parCycleId, employeeEmail),
+        await getAccessToken(),
+        {},
+        digiopsHeaders(),
+      );
+    },
+    onSuccess: async (_data, { parCycleId }) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["par", "team-report", userSub, parCycleId] }),
+        qc.invalidateQueries({ queryKey: ["par", "my-teams", userSub, parCycleId] }),
+        qc.invalidateQueries({ queryKey: ["par", "reports-for", userSub, parCycleId] }),
+      ]);
+    },
+  });
+}
+
