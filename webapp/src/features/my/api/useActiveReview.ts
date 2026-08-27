@@ -20,7 +20,7 @@ import { authedGet, HttpError, defaultQueryRetry } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { parBackendUrl, parServiceUrls } from "@config/apiConfig";
 import type { ParCycle, ParRating } from "./types";
-import { digiopsHeaders } from "../util/digiopsHeaders";
+import { digiopsHeaders } from "@api/digiopsHeaders";
 
 // Returns the caller's currently-OPEN par cycle (if any). Non-lead/non-admin
 // callers can only query their own email; backend enforces that.

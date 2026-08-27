@@ -46,6 +46,14 @@ window.config = {
   // "not configured" state. Same Choreo API gateway URL pattern.
   // ONE_WSO2_PAR_BACKEND_URL: "<your-par-app-backend-url>",
 
+  // Asgardeo group whose members administer PAR cycles — creating cycles,
+  // setting quotas and sending reminders for the whole organisation.
+  // Optional, and when absent NOBODY gets the PAR admin screens, which is the
+  // safe default: leaving it unset withholds access rather than granting it.
+  // Everyone still reaches their own PAR, and team leads still reach their
+  // reports', because those two come from PAR's own employee record instead.
+  // ONE_WSO2_PAR_ADMIN_GROUP: "<your-par-admin-group-name>",
+
   // digiops-hr banking-app backend base URL. Optional — when absent, the
   // Bank accounts card shows a "not configured" state. Same Choreo API
   // gateway URL pattern; unlike par/promotion apps, this one does NOT

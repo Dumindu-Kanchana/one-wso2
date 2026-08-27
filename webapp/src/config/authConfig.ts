@@ -45,6 +45,11 @@ declare global {
       // Cafeteria menu backend (daily menu, lunch feedback, dinner orders).
       // Optional — when absent the Menu screen shows a not-connected state.
       ONE_WSO2_MENU_BACKEND_URL?: string;
+      // Asgardeo group whose members administer PAR cycles. Optional — when
+      // unset nobody gets the PAR admin screens, which is the safe default.
+      // PAR has no backend endpoint that reports admin-ness, so this group is
+      // the only signal; see features/par/api/useParGate.ts.
+      ONE_WSO2_PAR_ADMIN_GROUP?: string;
       // Base URL for the digiops-hr promotion-app backend. Optional — when
       // absent, ConnectedServices' "Last promoted date" row falls back to a
       // "not configured" state and doesn't fire a request.

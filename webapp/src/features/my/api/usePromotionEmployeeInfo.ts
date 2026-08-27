@@ -20,7 +20,7 @@ import { authedGet, defaultQueryRetry } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { promotionBackendUrl, promotionServiceUrls } from "@config/apiConfig";
 import type { PromotionEmployeeInfoResponse } from "./types";
-import { digiopsHeaders } from "../util/digiopsHeaders";
+import { digiopsHeaders } from "@api/digiopsHeaders";
 
 // Fetches GET /employee-info?employeeWorkEmail=<email> from the digiops-hr
 // promotion app. Non-lead users can only fetch their own record (backend

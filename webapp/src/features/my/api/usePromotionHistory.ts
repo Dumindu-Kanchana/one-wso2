@@ -20,7 +20,7 @@ import { authedGet, defaultQueryRetry } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { promotionBackendUrl, promotionServiceUrls } from "@config/apiConfig";
 import type { PromotionHistoryResponse } from "./types";
-import { digiopsHeaders } from "../util/digiopsHeaders";
+import { digiopsHeaders } from "@api/digiopsHeaders";
 
 // Fetches the caller's APPROVED promotion history from the digiops-hr
 // promotion app. Only fires when `enabled` is true — used to defer the

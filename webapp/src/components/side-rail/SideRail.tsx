@@ -25,6 +25,7 @@ import { FINANCE_ITEM_IDS } from "@constants/financeApps";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
 import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
+import { PAR_ITEM_IDS, useParGate } from "@features/par/api/useParGate";
 
 // Context-sensitive left rail, built on Oxygen's compound `Sidebar`.
 //
@@ -96,6 +97,10 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Memoised because `?? []` would otherwise hand a fresh array to the
+  // dependency lists below on every render, defeating both useMemos.
+  const sections = useMemo(() => active.sections ?? [], [active.sections]);
+
   // Finance items (OPD/credit-card/expense, surfaced under Me) gate on each
   // finance app's OWN backend roles, not the coarse people-app capabilities
   // — so someone who is a people-app lead but not a cc-expenses lead/finance
@@ -116,15 +121,26 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   const isMarketingOps = active.key === "marketing";
   const marketingOpsGate = useMarketingOpsGate(isMarketingOps);
 
+  // PAR is a third variation on the same theme, and the third role vocabulary:
+  // its admin screens gate on an Asgardeo group, its lead screens on a flag in
+  // PAR's own employee record. Neither has anything to do with `caps`.
+  //
+  // Keyed off whether this perspective actually lists a PAR screen rather than
+  // off `active.key === "me"`. Same effect once the screens exist, but it also
+  // means the gate asks the PAR backend nothing at all until they do — the
+  // dispatch below can be wired ahead of the registry entries (so a new admin
+  // screen can never appear before the gate that hides it) without spending a
+  // request per page load in the meantime.
+  const hasParSections = useMemo(() => sections.some((s) => PAR_ITEM_IDS.has(s.id)), [sections]);
+  const parGate = useParGate(hasParSections);
+
   const resolveVisible = (s: PerspectiveSection): boolean => {
     if (FINANCE_ITEM_IDS.has(s.id)) return financeGate.canSee(s.id);
+    if (PAR_ITEM_IDS.has(s.id)) return parGate.canSee(s.id);
     if (isMarketingOps) return marketingOpsGate.canSee(s.id);
     return sectionAllowed(s.requires, caps);
   };
 
-  // Memoised because `?? []` would otherwise hand a fresh array to the
-  // dependency lists below on every render, defeating both useMemos.
-  const sections = useMemo(() => active.sections ?? [], [active.sections]);
 
   // Manual open/close choices for groups the user has explicitly clicked,
   // for when they're NOT the group containing the current route (see

@@ -108,17 +108,98 @@ export const parBackendUrl: string =
   window.config?.ONE_WSO2_PAR_BACKEND_URL ?? "";
 
 export const parServiceUrls = {
-  // GET /par-cycles?email=<workEmail>&status=OPEN — returns ParCycle[] for
-  // the caller's own active review cycles. Non-lead/non-admin callers can
-  // only query their own email.
-  parCycles: (workEmail: string, status: "OPEN" | "CLOSED" | "PENDING" = "OPEN") =>
+  // Cycles. Only one is ever PENDING / PENDING_QUOTA / OPEN at a time.
+  //
+  // The email-scoped form is what an employee uses: non-lead, non-admin callers
+  // may only query their own. Admin screens omit it to see the whole org.
+  parCycles: (workEmail: string, status: ParCycleStatusQuery = "OPEN") =>
     `${parBackendUrl}/par-cycles?email=${encodeURIComponent(workEmail)}&status=${status}`,
-  // GET /par-cycles/{cycleId}/employees/{workEmail}/par-ratings — returns
-  // the caller's ParRating record for that cycle (contains
-  // parEmployeeStatus / parLeadStatus we use for the chip + copy).
+  parCyclesByStatus: (status: ParCycleStatusQuery) =>
+    `${parBackendUrl}/par-cycles?status=${status}`,
+  parCycle: (parCycleId: number) => `${parBackendUrl}/par-cycles/${parCycleId}`,
+  createParCycle: `${parBackendUrl}/par-cycles`,
+
+  // One person's PAR within a cycle — the central object. The PATCH carries
+  // drafts, shares, F2F completion and special ratings alike.
   parRating: (parCycleId: number, workEmail: string) =>
     `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/par-ratings`,
+  updateParRating: (parCycleId: number, workEmail: string, parRatingId: number) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/par-ratings/${parRatingId}`,
+
+  // 360 feedback. `reviewers` is the nomination list; `reviews` is what came
+  // back; `reviewRequests` is what others have asked of you.
+  reviewers: (parCycleId: number, workEmail: string) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/reviewers`,
+  reviews: (parCycleId: number, workEmail: string) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/reviews`,
+  reviewRequests: (parCycleId: number, workEmail: string) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/review-requests`,
+  review: (parCycleId: number, workEmail: string) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/review`,
+
+  // Lead-facing views of a cycle.
+  teams: (parCycleId: number, leadEmail?: string) =>
+    leadEmail === undefined
+      ? `${parBackendUrl}/par-cycles/${parCycleId}/teams`
+      : `${parBackendUrl}/par-cycles/${parCycleId}/teams?leadEmail=${encodeURIComponent(leadEmail)}`,
+  team: (parCycleId: number, parTeamId: number) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/teams/${parTeamId}`,
+  reports: (parCycleId: number, leadEmail: string) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/reports?leadEmail=${encodeURIComponent(leadEmail)}`,
+  reportLevels: (parCycleId: number, leadEmail: string) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/report-levels?leadEmail=${encodeURIComponent(leadEmail)}`,
+
+  // Admin views.
+  participants: (parCycleId: number, leadEmail?: string) =>
+    leadEmail === undefined
+      ? `${parBackendUrl}/par-cycles/${parCycleId}/participants`
+      : `${parBackendUrl}/par-cycles/${parCycleId}/participants?leadEmail=${encodeURIComponent(leadEmail)}`,
+  cycleParRatings: (parCycleId: number) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/par-ratings`,
+  rejectedReviews: (parCycleId: number) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/rejected-reviews`,
+
+  // Special ratings: the ungrouped teams, and the quota per group.
+  specialRatingGroups: (parCycleId: number) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/special-rating-groups`,
+  specialRatingQuota: (parCycleId: number, leadEmail?: string) =>
+    leadEmail === undefined
+      ? `${parBackendUrl}/par-cycles/${parCycleId}/special-rating-groups-quota`
+      : `${parBackendUrl}/par-cycles/${parCycleId}/special-rating-groups-quota?leadEmail=${encodeURIComponent(leadEmail)}`,
+
+  /** Past cycles for one person, for the history screen. */
+  ratingSummary: (workEmail: string) =>
+    `${parBackendUrl}/par-ratings/summary/${encodeURIComponent(workEmail)}`,
+
+  // Reminders. All PATCH, all fire-and-forget. Two of the six the source ships
+  // are never called by the UI — they run on server crons that are disabled by
+  // default — so only the four the screens actually use are wired here.
+  remindEmployees: `${parBackendUrl}/reminders/schedule-employee-reminders`,
+  remindLeads: `${parBackendUrl}/reminders/schedule-lead-reminders`,
+  remindSpecialRating: `${parBackendUrl}/reminders/schedule-special-rating-reminders`,
+  remindThreeSixty: `${parBackendUrl}/reminders/schedule-360-reminders`,
+
+  // Calendar, for the face-to-face meeting.
+  calendarBusyTimes: (date: string) =>
+    `${parBackendUrl}/calendar/busy-times?date=${encodeURIComponent(date)}`,
+  scheduleF2f: `${parBackendUrl}/calendar/schedule-f2f`,
+
+  // Configuration and reference data. `metaConfigurations` is org-wide default
+  // config, edited on the settings screen and applied to FUTURE cycles only.
+  metaConfigurations: `${parBackendUrl}/meta/configurations`,
+  metaEmployees: `${parBackendUrl}/meta/employees`,
+  employees: (leadEmail?: string) =>
+    leadEmail === undefined
+      ? `${parBackendUrl}/employees`
+      : `${parBackendUrl}/employees?leadEmail=${encodeURIComponent(leadEmail)}`,
+  employee: (workEmail: string) =>
+    `${parBackendUrl}/employees/${encodeURIComponent(workEmail)}`,
+  syncEmployee: (parCycleId: number, workEmail: string) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/employees/${encodeURIComponent(workEmail)}/sync`,
 };
+
+/** The statuses the cycle list endpoint accepts as a filter. */
+type ParCycleStatusQuery = "PENDING" | "PENDING_QUOTA" | "OPEN" | "CLOSED";
 
 // Leave app backend (people-ops-suite/apps/leave-app). Its own service
 // with its own /user-info + privilege scheme (LEAD=879, not people-app's

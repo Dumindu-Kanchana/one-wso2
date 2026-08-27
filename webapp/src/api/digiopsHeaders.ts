@@ -14,6 +14,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// Lives in the API layer rather than under a feature: every digiops-hr backend
+// needs this, and PAR alone will call ~39 endpoints across four screens.
+//
 // digiops-hr apps (promotion-app, par-app, and other siblings) share a
 // JwtInterceptor that reads `x-user-timezone-offset` before validating
 // the JWT. Missing → the backend rejects the call with a generic
