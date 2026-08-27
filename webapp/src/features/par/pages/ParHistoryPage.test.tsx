@@ -44,6 +44,7 @@ vi.mock("../api/useParMe", () => ({
 }));
 vi.mock("../api/useParDirectory", () => ({
   useDirectoryReports: () => ({ ...idle, data: state.directory }),
+  useDirectoryManagers: () => ({ ...idle, data: new Set(state.managers) }),
 }));
 
 const state = vi.hoisted(() => ({
@@ -52,6 +53,7 @@ const state = vi.hoisted(() => ({
   ratingCalls: [] as unknown[],
   lead: false as boolean | string | null,
   directory: [] as unknown[],
+  managers: [] as string[],
 }));
 
 const idle = { isPending: false, isError: false, error: null };
@@ -103,6 +105,7 @@ beforeEach(() => {
   state.ratingCalls = [];
   state.lead = false;
   state.directory = [];
+  state.managers = [];
 });
 
 describe("with no closed cycles", () => {
@@ -271,6 +274,8 @@ describe("the team-history tab", () => {
   it("lists the reporting line, and drills only into someone with reports", async () => {
     state.lead = true;
     state.directory = DIRECTORY;
+    // Ann carries the lead flag AND manages somebody.
+    state.managers = ["ann@wso2.com"];
     render(
       <MemoryRouter>
         <ParHistoryPage />
@@ -289,6 +294,7 @@ describe("the team-history tab", () => {
   it("reads one person's history at a time", async () => {
     state.lead = true;
     state.directory = DIRECTORY;
+    state.managers = ["ann@wso2.com"];
     render(
       <MemoryRouter>
         <ParHistoryPage />
@@ -302,5 +308,24 @@ describe("the team-history tab", () => {
     expect(screen.getByText("Ann Perera · closed cycles")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hide history" })).toBeInTheDocument();
   });
-});
 
+  it("offers no drill-down for a lead flag on somebody who manages nobody", async () => {
+    // The flag alone was showing "Their team" for members with no team. The
+    // standalone app requires both the flag AND the directory agreeing they
+    // manage somebody.
+    state.lead = true;
+    state.directory = DIRECTORY;
+    state.managers = []; // Ann carries the flag but manages nobody.
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Team history" }));
+
+    expect(screen.getByText("Ann Perera")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /their team/i })).toBeNull();
+    // Her history is still readable — only the drill is withheld.
+    expect(screen.getAllByRole("button", { name: "History" })).toHaveLength(2);
+  });
+});

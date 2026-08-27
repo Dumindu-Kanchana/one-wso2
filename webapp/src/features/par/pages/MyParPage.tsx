@@ -22,6 +22,7 @@ import { describeError } from "@api/errors";
 import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 import ParShell from "../components/ParShell";
 import ParSection from "../components/ParSection";
+import ParPanel from "../components/ParPanel";
 import MyParAnswerPanel from "../components/MyParAnswerPanel";
 import MyParReviewersPanel from "../components/MyParReviewersPanel";
 import MyParRequestsPanel from "../components/MyParRequestsPanel";
@@ -75,8 +76,11 @@ export default function MyParPage(): JSX.Element {
         </Alert>
       ) : (
         <>
+          {/* One frame for the whole screen: the cycle's dates, the answer, the
+              360 nominations and the incoming requests are all one person's
+              PAR, and reading them as four separate cards was the problem. */}
+          <ParPanel>
           <CycleHeader now={now} cycle={cycle} />
-
           {ratingQuery.isPending ? (
             <Skeleton variant="rectangular" height={260} sx={{ borderRadius: 1.5, mb: 2.25 }} />
           ) : ratingQuery.isError ? (
@@ -112,6 +116,7 @@ export default function MyParPage(): JSX.Element {
             isLoading={requests.isPending}
             error={requests.isError ? requests.error : undefined}
           />
+          </ParPanel>
         </>
       )}
     </ParShell>

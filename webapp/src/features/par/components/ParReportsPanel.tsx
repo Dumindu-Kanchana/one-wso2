@@ -38,6 +38,7 @@ import { describeError } from "@api/errors";
 import { PAR_RATING_NOT_ASSIGNED, type ParReportEntry } from "../api/parTypes";
 import { filterReports, isReportALead } from "../util/parReports";
 import { parEmployeeStatusMeta, parLeadStatusMeta } from "../util/parStatus";
+import ParEmpty from "./ParEmpty";
 import ParSection from "./ParSection";
 
 // A list of people somewhere in the lead's reporting line.
@@ -87,9 +88,9 @@ export default function ParReportsPanel({
       ) : isPending ? (
         <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 1.5 }} />
       ) : reports.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
+        <ParEmpty>
           Nobody reports to you indirectly in this cycle.
-        </Typography>
+        </ParEmpty>
       ) : (
         <>
           <Stack
@@ -124,9 +125,9 @@ export default function ParReportsPanel({
           </Stack>
 
           {shown.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
+            <ParEmpty>
               Nobody here matches that.
-            </Typography>
+            </ParEmpty>
           ) : (
             <Box sx={{ overflowX: "auto" }}>
               <Table size="small">

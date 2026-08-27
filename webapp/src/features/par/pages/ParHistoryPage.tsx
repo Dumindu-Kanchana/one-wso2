@@ -37,7 +37,7 @@ import { parseTextBoolean } from "../util/parReports";
 
 const OWN_HISTORY = {
   title: "Closed cycles",
-  subtitle: "Newest first. Open one to read what was written.",
+  subtitle: "Newest first.",
   none: "You don't have any closed cycles yet. Your first appraisal appears here once its cycle closes.",
   employeeHeading: "WHAT YOU WROTE",
   leadHeading: "WHAT YOUR LEAD WROTE",

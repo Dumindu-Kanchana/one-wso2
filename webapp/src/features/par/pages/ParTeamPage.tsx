@@ -26,14 +26,15 @@ import {
   Tabs,
   ToggleButton,
   ToggleButtonGroup,
-  Typography,
 } from "@wso2/oxygen-ui";
 import { useSearchParams } from "react-router";
 import { UsersRoundIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
 import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 import ParShell from "../components/ParShell";
+import ParEmpty from "../components/ParEmpty";
 import ParSection from "../components/ParSection";
+import ParPanel from "../components/ParPanel";
 import ParCompletionBar from "../components/ParCompletionBar";
 import ParTeamMemberTable from "../components/ParTeamMemberTable";
 import ParReportsPanel from "../components/ParReportsPanel";
@@ -156,6 +157,7 @@ export default function ParTeamPage(): JSX.Element {
           </Box>
 
           {view === "chain" ? (
+            <ParPanel>
             <ParReportChainPanel
               // Remounted per cycle so the trail cannot outlive the data it
               // was built against.
@@ -164,13 +166,17 @@ export default function ParTeamPage(): JSX.Element {
               rootEmail={email ?? ""}
               rootName="You"
             />
+            </ParPanel>
           ) : view === "allocation" ? (
-            <ParAllocationPanel
-              rows={allocation.data ?? []}
-              isPending={allocation.isPending}
-              error={allocation.isError ? allocation.error : undefined}
-            />
+            <ParPanel>
+              <ParAllocationPanel
+                rows={allocation.data ?? []}
+                isPending={allocation.isPending}
+                error={allocation.isError ? allocation.error : undefined}
+              />
+            </ParPanel>
           ) : view === "indirect" ? (
+            <ParPanel>
             <ParReportsPanel
               title="Additional reports"
               subtitle="People under your reports, and anyone attached to you as an additional manager. Their own lead reviews them."
@@ -178,6 +184,7 @@ export default function ParTeamPage(): JSX.Element {
               isPending={reports.isPending}
               error={reports.isError ? reports.error : undefined}
             />
+            </ParPanel>
           ) : (
             <TeamView
               cycle={cycle}
@@ -208,7 +215,7 @@ function TeamView({
   onPick: (id: number | null) => void;
 }): JSX.Element {
   return (
-    <>
+    <ParPanel>
           <AcrossAllTeams cycleName={cycle.parCycleName} teams={list} />
 
           {list.length > 1 && (
@@ -255,7 +262,7 @@ function TeamView({
               )}
             />
           )}
-    </>
+    </ParPanel>
   );
 }
 
@@ -331,23 +338,26 @@ function TeamDetail({
   return (
     <ParSection
       title={teamLabel(team)}
-      subtitle="Quota is held per team, and the server refuses a special rating once it is used up."
+      subtitle="A special rating is refused once this team's quota is used up."
       action={
         report.data ? (
           <Stack direction="row" spacing={0.75}>
-            {/* Remaining, not allocated: the allocated figure tells a lead
-                nothing about whether they can still award one. */}
+            {/* USED of allocated, which is how the standalone app puts it. An
+                earlier version here showed what was LEFT, which reads absurdly
+                at the start of a cycle — "21 of 21 left" — and buries the fact
+                that nothing has been awarded yet. Used-of-total answers the same
+                question by subtraction and reads naturally from zero. */}
             <Chip
               size="small"
               variant="outlined"
-              color={report.data.available5pSlots > 0 ? "warning" : "default"}
-              label={`Top 5%: ${report.data.available5pSlots} of ${team.numberOf5pSlots} left`}
+              color={report.data.available5pSlots === 0 ? "warning" : "default"}
+              label={`Top 5%: ${team.numberOf5pSlots - report.data.available5pSlots} of ${team.numberOf5pSlots} used`}
             />
             <Chip
               size="small"
               variant="outlined"
-              color={report.data.available20pSlots > 0 ? "warning" : "default"}
-              label={`Top 20%: ${report.data.available20pSlots} of ${team.numberOf20pSlots} left`}
+              color={report.data.available20pSlots === 0 ? "warning" : "default"}
+              label={`Top 20%: ${team.numberOf20pSlots - report.data.available20pSlots} of ${team.numberOf20pSlots} used`}
             />
           </Stack>
         ) : undefined
@@ -360,9 +370,9 @@ function TeamDetail({
           Couldn&apos;t load this team. {describeError(report.error)}
         </Alert>
       ) : report.data === undefined ? (
-        <Typography variant="body2" color="text.secondary">
+        <ParEmpty>
           This team has no details recorded for the cycle.
-        </Typography>
+        </ParEmpty>
       ) : (
         <>
           <ParTeamToolbar

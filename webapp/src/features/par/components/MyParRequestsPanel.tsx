@@ -21,6 +21,7 @@ import { describeError } from "@api/errors";
 import type { ParCycle, ParThreeSixtyReviewRequest } from "../api/parTypes";
 import { isDeadlinePassed } from "../util/parDeadlines";
 import { parThreeSixtyStatusMeta } from "../util/parStatus";
+import ParEmpty from "./ParEmpty";
 import ParSection from "./ParSection";
 import ThreeSixtyReviewDialog from "./ThreeSixtyReviewDialog";
 
@@ -51,7 +52,6 @@ export default function MyParRequestsPanel({
   return (
     <ParSection
       title="Feedback others asked you for"
-      subtitle="Colleagues who named you as a reviewer this cycle."
       action={
         outstanding.length > 0 ? (
           <Chip size="small" color="warning" variant="outlined" label={`${outstanding.length} to do`} />
@@ -61,9 +61,9 @@ export default function MyParRequestsPanel({
       {error ? (
         <Alert severity="error">Couldn&apos;t load these requests. {describeError(error)}</Alert>
       ) : requests.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
+        <ParEmpty>
           {isLoading ? "Loading…" : "Nobody has asked you for feedback this cycle."}
-        </Typography>
+        </ParEmpty>
       ) : (
         <Stack spacing={1}>
           {requests.map((r) => {

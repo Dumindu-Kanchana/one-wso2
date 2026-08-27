@@ -25,6 +25,7 @@ import LeadFeedbackPanel from "../components/LeadFeedbackPanel";
 import LeadThreeSixtyPanel from "../components/LeadThreeSixtyPanel";
 import LeadF2fPanel from "../components/LeadF2fPanel";
 import ParPastCyclesPanel from "../components/ParPastCyclesPanel";
+import ParPanel from "../components/ParPanel";
 import { useMyParCycle } from "../api/useParEmployee";
 import { useReportParRating, useReportThreeSixtyReviews } from "../api/useParLead";
 import { isDeadlinePassed } from "../util/parDeadlines";
@@ -53,7 +54,7 @@ import { useNotifications } from "@context/notifications/NotificationsContext";
  */
 const REPORT_HISTORY = {
   title: "Earlier cycles",
-  subtitle: "How previous cycles went for them. Useful context, and read-only.",
+  subtitle: "Context for this review. Read-only.",
   none: "They don't have any closed cycles yet.",
   employeeHeading: "WHAT THEY WROTE",
   leadHeading: "WHAT THEIR LEAD WROTE",
@@ -156,19 +157,25 @@ export default function LeadReviewPage(): JSX.Element {
             </Button>
           </Stack>
 
-          <LeadFeedbackPanel key={rating.parRatingId} now={now} cycle={cycle} rating={rating} />
+          {/* One frame, not six cards. Everything here is one task — reading
+              what they wrote, weighing the 360 feedback, and writing the review
+              — so it reads as one surface with hairlines rather than a stack of
+              separate notices. */}
+          <ParPanel>
+            <LeadFeedbackPanel key={rating.parRatingId} now={now} cycle={cycle} rating={rating} />
 
-          <LeadThreeSixtyPanel
-            reviews={reviews.data ?? []}
-            isPending={reviews.isPending}
-            error={reviews.isError ? reviews.error : undefined}
-            deadlinePassed={isDeadlinePassed(now, cycle.parThreeSixtyRatingDeadline)}
-          />
+            <LeadThreeSixtyPanel
+              reviews={reviews.data ?? []}
+              isPending={reviews.isPending}
+              error={reviews.isError ? reviews.error : undefined}
+              deadlinePassed={isDeadlinePassed(now, cycle.parThreeSixtyRatingDeadline)}
+            />
 
-          <LeadF2fPanel now={now} cycle={cycle} rating={rating} />
+            <LeadF2fPanel now={now} cycle={cycle} rating={rating} />
+          </ParPanel>
 
-          {/* Last, and below the current cycle's work: it is context for the
-              review being written, not the subject of the screen. */}
+          {/* Its own frame, and below: context for the review rather than part
+              of it, and it carries a table of its own. */}
           <ParPastCyclesPanel employeeEmail={employeeEmail} copy={REPORT_HISTORY} />
         </>
       )}

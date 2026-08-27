@@ -34,6 +34,7 @@ import {
   isFlexibleSlot,
   matchesAllocationSearch,
 } from "../util/parAllocation";
+import ParEmpty from "./ParEmpty";
 import ParSection from "./ParSection";
 
 // How much Top 5% / 20% each quota group holds, and which teams draw from it.
@@ -70,9 +71,14 @@ export default function ParAllocationPanel({
       ) : isPending ? (
         <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 1.5 }} />
       ) : groups.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          No Top 5% / 20% quota has been allocated for your teams in this cycle.
-        </Typography>
+        <ParEmpty>
+          {/* Deliberately not "nothing has been allocated". The endpoint answers
+              with an empty list both when no quota exists AND when the caller
+              may not see it, so asserting the first states something we cannot
+              know — the standalone app hedges here for the same reason. */}
+          No Top 5% / 20% allocation to show. Either none has been set for your
+          teams this cycle, or it isn&apos;t visible to you.
+        </ParEmpty>
       ) : (
         <>
           <OutlinedInput
@@ -90,9 +96,9 @@ export default function ParAllocationPanel({
           />
 
           {shown.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
+            <ParEmpty>
               No team here matches that.
-            </Typography>
+            </ParEmpty>
           ) : (
             <Stack spacing={2}>
               {shown.map((group) => (

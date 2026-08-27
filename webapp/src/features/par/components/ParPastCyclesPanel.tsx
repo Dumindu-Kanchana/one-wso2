@@ -15,12 +15,13 @@
 // under the License.
 
 
-import { useState, type JSX } from "react";
+import { Fragment, useState, type JSX } from "react";
 import {
   Alert,
   Box,
   Button,
   Chip,
+  Collapse,
   Skeleton,
   Stack,
   Table,
@@ -41,6 +42,7 @@ import {
   parSpecialRatingMeta,
 } from "../util/parStatus";
 import ParHtml from "./ParHtml";
+import ParPanel from "./ParPanel";
 import ParSection from "./ParSection";
 
 // Somebody's closed cycles, one openable at a time.
@@ -49,6 +51,12 @@ import ParSection from "./ParSection";
 // the shape is identical and only the copy differs — the alternative was two
 // tables that drift. The copy is passed in rather than switched on a boolean,
 // so a caller cannot get "your" and "their" the wrong way round.
+//
+// The detail expands INSIDE the table, directly beneath the row that opened it.
+// It used to render after the whole table, which put it below the fold on the
+// lead's review screen — you pressed Open and nothing appeared to happen,
+// because what appeared was off-screen. A row that expands in place is also what
+// an Open button on a table row leads a reader to expect.
 
 export interface ParPastCyclesCopy {
   title: string;
@@ -81,7 +89,7 @@ export default function ParPastCyclesPanel({
   const list = cycles.data ?? [];
 
   return (
-    <>
+    <ParPanel>
       <ParSection title={copy.title} subtitle={copy.subtitle}>
         {cycles.isPending ? (
           <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 1.5 }} />
@@ -108,23 +116,47 @@ export default function ParPastCyclesPanel({
                 {list.map((cycle) => {
                   const isOpen = openCycleId === cycle.parCycleId;
                   return (
-                    <TableRow key={cycle.parCycleId} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>{cycle.parCycleName}</TableCell>
-                      <TableCell>
-                        {formatParPeriod(cycle.parCycleStartDate, cycle.parCycleEndDate)}
-                      </TableCell>
-                      <TableCell>{formatParDate(cycle.parCycleEndDate)}</TableCell>
-                      <TableCell align="right">
-                        <Button
-                          size="small"
-                          variant={isOpen ? "contained" : "outlined"}
-                          onClick={() => setOpenCycleId(isOpen ? null : cycle.parCycleId)}
-                          sx={{ textTransform: "none", fontWeight: 600 }}
+                    <Fragment key={cycle.parCycleId}>
+                      <TableRow hover>
+                        <TableCell sx={{ fontWeight: 600 }}>{cycle.parCycleName}</TableCell>
+                        <TableCell>
+                          {formatParPeriod(cycle.parCycleStartDate, cycle.parCycleEndDate)}
+                        </TableCell>
+                        <TableCell>{formatParDate(cycle.parCycleEndDate)}</TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            variant={isOpen ? "contained" : "outlined"}
+                            onClick={() => setOpenCycleId(isOpen ? null : cycle.parCycleId)}
+                            sx={{ textTransform: "none", fontWeight: 600 }}
+                          >
+                            {isOpen ? "Hide" : "Open"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        {/* No padding and no border when closed, so a collapsed
+                            row adds no height and leaves no stray hairline
+                            between the rows above and below it. */}
+                        <TableCell
+                          colSpan={4}
+                          sx={{ p: 0, borderBottom: isOpen ? undefined : "none" }}
                         >
-                          {isOpen ? "Hide" : "Open"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                          <Collapse in={isOpen} unmountOnExit>
+                            {/* Mounted only while open, so nothing is fetched
+                                until asked for and a reopen cannot show the
+                                previous cycle. */}
+                            {isOpen && (
+                              <PastCycleDetail
+                                employeeEmail={employeeEmail}
+                                cycle={cycle}
+                                copy={copy}
+                              />
+                            )}
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
+                    </Fragment>
                   );
                 })}
               </TableBody>
@@ -132,18 +164,7 @@ export default function ParPastCyclesPanel({
           </Box>
         )}
       </ParSection>
-
-      {/* Mounted only for the cycle actually open, so nothing is fetched until
-          it is asked for and the detail cannot show a stale cycle. */}
-      {openCycleId !== null && (
-        <PastCycleDetail
-          key={openCycleId}
-          employeeEmail={employeeEmail}
-          cycle={list.find((c) => c.parCycleId === openCycleId)}
-          copy={copy}
-        />
-      )}
-    </>
+    </ParPanel>
   );
 }
 

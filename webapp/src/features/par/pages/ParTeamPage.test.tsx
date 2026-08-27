@@ -314,10 +314,14 @@ describe("with exactly one team", () => {
     expect(screen.getByText("1/3")).toBeInTheDocument();
   });
 
-  it("reports quota REMAINING, which is what decides whether one can be awarded", () => {
+  it("reports quota as USED of allocated, which reads sensibly from zero", () => {
+    // An earlier version showed what was LEFT, which reads absurdly at the
+    // start of a cycle — "21 of 21 left" — and hides that nothing has been
+    // awarded. The standalone app shows used/total; so does this.
+    // Fixture: 1 of 1 5% slots free -> 0 used; 0 of 2 20% slots free -> 2 used.
     renderPage();
-    expect(screen.getByText("Top 5%: 1 of 1 left")).toBeInTheDocument();
-    expect(screen.getByText("Top 20%: 0 of 2 left")).toBeInTheDocument();
+    expect(screen.getByText("Top 5%: 0 of 1 used")).toBeInTheDocument();
+    expect(screen.getByText("Top 20%: 2 of 2 used")).toBeInTheDocument();
   });
 
   it("calls an unassigned rating an absence", () => {
@@ -480,11 +484,14 @@ describe("the Top 5% / 20% tab", () => {
     expect(screen.queryByText("Platform pool")).toBeNull();
   });
 
-  it("explains an empty allocation", async () => {
+  it("does not claim nothing was allocated when it cannot know", async () => {
+    // The endpoint answers with an empty list both when no quota exists and
+    // when the caller may not see it, so the message must not assert the first.
     state.allocation = [];
     renderPage();
     await open();
-    expect(screen.getByText(/no Top 5% \/ 20% quota has been allocated/i)).toBeInTheDocument();
+    expect(screen.getByText(/no Top 5% \/ 20% allocation to show/i)).toBeInTheDocument();
+    expect(screen.getByText(/isn't visible to you/i)).toBeInTheDocument();
   });
 });
 

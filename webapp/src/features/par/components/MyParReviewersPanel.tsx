@@ -116,7 +116,7 @@ export default function MyParReviewersPanel({
   return (
     <ParSection
       title="360° feedback"
-      subtitle="Ask colleagues who have worked with you this cycle. Your lead reviews your PAR separately."
+      subtitle="Your lead reviews your PAR separately."
     >
       {error ? (
         <Alert severity="error">Couldn&apos;t load your reviewers. {describeError(error)}</Alert>

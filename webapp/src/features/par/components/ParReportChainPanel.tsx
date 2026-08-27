@@ -76,7 +76,7 @@ export default function ParReportChainPanel({
   return (
     <ParSection
       title="Report chain"
-      subtitle="Everyone beneath you, level by level. Their own lead reviews them."
+      subtitle="Their own lead reviews them."
       action={
         trail.length > 1 ? (
           <Button

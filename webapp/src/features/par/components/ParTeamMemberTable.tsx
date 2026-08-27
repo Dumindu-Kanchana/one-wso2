@@ -30,6 +30,7 @@ import {
 import { useNavigate } from "react-router";
 import type { ParTeamMember } from "../api/parTypes";
 import { PAR_RATING_NOT_ASSIGNED } from "../api/parTypes";
+import ParEmpty from "./ParEmpty";
 import {
   parEmployeeStatusMeta,
   parF2fStatusMeta,
@@ -72,9 +73,9 @@ export default function ParTeamMemberTable({
 
   if (members.length === 0) {
     return (
-      <Typography variant="body2" color="text.secondary">
+      <ParEmpty>
         This team has no members in the current cycle.
-      </Typography>
+      </ParEmpty>
     );
   }
 

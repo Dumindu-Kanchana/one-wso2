@@ -170,7 +170,6 @@ export default function LeadFeedbackPanel({
     <>
       <ParSection
         title="Their review"
-        subtitle="What they wrote for this cycle."
       >
         <ParHtml
           html={rating.parEmployeeComment}

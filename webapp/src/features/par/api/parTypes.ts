@@ -170,8 +170,14 @@ export interface ParDirectoryEmployee {
   workEmail: string;
   employeeName?: string;
   employeeThumbnail?: string | null;
-  /** Whether they have reports of their own. Carried as text — see parReports.ts. */
+  /**
+   * A lead FLAG, which is not the same as having reports — somebody can carry it
+   * and manage nobody. On its own it is not enough to offer a drill-down; see
+   * `useDirectoryManagers`.
+   */
   isLead?: string | boolean;
+  /** Who they report to. Used to work out who actually manages somebody. */
+  managerEmail?: string | null;
 }
 
 /** Per-stage completion counts the backend computes for one team. */

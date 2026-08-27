@@ -18,8 +18,13 @@
 import { Box, Stack, Typography } from "@wso2/oxygen-ui";
 import type { JSX, ReactNode } from "react";
 
-// A titled, bordered block. PAR's screens are a stack of these, and they need
-// to look alike.
+// A titled section INSIDE a frame — see ParPanel, which supplies the border and
+// the hairlines between siblings.
+//
+// It carried its own border and bottom margin until the port was compared
+// against the standalone app: a stack of separately bordered cards is what made
+// PAR's screens read as loose. The section now contributes only its padding and
+// its heading, so a screen is one frame however many sections it holds.
 //
 // Written here rather than imported from another feature's UI file: the shared
 // `Panel` lives inside a Marketing Ops screen, and reaching across for four
@@ -38,14 +43,7 @@ export default function ParSection({
 }): JSX.Element {
   return (
     <Box
-      sx={{
-        border: 1,
-        borderColor: "divider",
-        borderRadius: 1.5,
-        p: 2.25,
-        mb: 2.25,
-        bgcolor: "background.paper",
-      }}
+      sx={{ p: 2.25 }}
     >
       <Stack
         direction="row"

@@ -24,17 +24,12 @@ import {
   DialogContent,
   DialogTitle,
   Stack,
-  TextField,
   Typography,
 } from "@wso2/oxygen-ui";
-import { BellIcon, CopyIcon, SendIcon, UserPlusIcon } from "@wso2/oxygen-ui-icons-react";
+import { BellIcon, CopyIcon, SendIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { describeError } from "@api/errors";
-import {
-  useBulkShareLeadReviews,
-  useSendThreeSixtyReminders,
-  useSyncEmployeeIntoCycle,
-} from "../api/useParLead";
+import { useBulkShareLeadReviews, useSendThreeSixtyReminders } from "../api/useParLead";
 import type { ParTeamMember } from "../api/parTypes";
 import {
   BULK_SHARE_PROBLEM_TEXT,
@@ -47,6 +42,14 @@ import {
 // Bulk sharing is the one with teeth: it is one PATCH per person with no bulk
 // endpoint, so a partial result is normal and the summary is reported in full
 // rather than collapsed to success or failure.
+//
+// There is deliberately NO "add someone to this cycle" control. The standalone
+// app has one for leads — a button labelled "Sync an Employee", carrying the
+// comment "Temporary dialog for this cycle" — but it is not visible in the
+// deployed app, and a write that pulls somebody into a live cycle is not a
+// capability to reinstate on the strength of a source comment calling itself
+// temporary. `useSyncEmployeeIntoCycle` remains in the API layer for the admin
+// screens, which is where it plainly belongs.
 
 export default function ParTeamToolbar({
   parCycleId,
@@ -62,12 +65,9 @@ export default function ParTeamToolbar({
   const notifications = useNotifications();
   const bulkShare = useBulkShareLeadReviews();
   const remind = useSendThreeSixtyReminders();
-  const sync = useSyncEmployeeIntoCycle();
 
   const [confirmShare, setConfirmShare] = useState(false);
   const [confirmRemind, setConfirmRemind] = useState(false);
-  const [syncOpen, setSyncOpen] = useState(false);
-  const [syncEmail, setSyncEmail] = useState("");
   const [lastSummary, setLastSummary] = useState<string[] | null>(null);
 
   const selected = members.filter((m) => selectedIds.has(m.parRatingId));
@@ -142,15 +142,6 @@ export default function ParTeamToolbar({
           sx={{ textTransform: "none", fontWeight: 600 }}
         >
           Copy emails
-        </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<UserPlusIcon size={15} />}
-          onClick={() => setSyncOpen(true)}
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        >
-          Add someone
         </Button>
         <Button
           size="small"
@@ -252,50 +243,6 @@ export default function ParTeamToolbar({
         </DialogActions>
       </Dialog>
 
-      <Dialog open={syncOpen} onClose={() => setSyncOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Add someone to this cycle</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            For somebody who joined or moved after the cycle opened and so has no PAR in it.
-          </Typography>
-          <TextField
-            size="small"
-            fullWidth
-            type="email"
-            label="Their work email"
-            value={syncEmail}
-            onChange={(e) => setSyncEmail(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => setSyncOpen(false)} disabled={sync.isPending}>
-            Cancel
-          </Button>
-          <Button
-            size="small"
-            variant="contained"
-            onClick={() =>
-              sync.mutate(
-                { parCycleId, employeeEmail: syncEmail.trim() },
-                {
-                  onSuccess: () => {
-                    setSyncOpen(false);
-                    setSyncEmail("");
-                    notifications.showSuccess("Added to the cycle");
-                  },
-                  onError: (err) => notifications.showError(describeError(err)),
-                },
-              )
-            }
-            // Shape only — whether they exist and belong to this team is the
-            // backend's call, and guessing here would refuse valid addresses.
-            disabled={!syncEmail.includes("@") || sync.isPending}
-            sx={{ fontWeight: 600 }}
-          >
-            {sync.isPending ? "Adding…" : "Add"}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 }

@@ -34,7 +34,7 @@ import {
   SearchIcon,
 } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
-import { useDirectoryReports } from "../api/useParDirectory";
+import { useDirectoryManagers, useDirectoryReports } from "../api/useParDirectory";
 import { parseTextBoolean } from "../util/parReports";
 import {
   chainBack,
@@ -43,6 +43,8 @@ import {
   type ParChainStep,
 } from "../util/parChain";
 import ParPastCyclesPanel, { type ParPastCyclesCopy } from "./ParPastCyclesPanel";
+import ParPanel from "./ParPanel";
+import ParEmpty from "./ParEmpty";
 import ParSection from "./ParSection";
 
 // Browsing PAR history down a reporting line.
@@ -57,7 +59,7 @@ import ParSection from "./ParSection";
 
 const PERSON_HISTORY: ParPastCyclesCopy = {
   title: "Their closed cycles",
-  subtitle: "Newest first. Open one to read what was written.",
+  subtitle: "Newest first.",
   none: "They don't have any closed cycles.",
   employeeHeading: "WHAT THEY WROTE",
   leadHeading: "WHAT THEIR LEAD WROTE",
@@ -84,6 +86,10 @@ export default function ParTeamHistoryPanel({
 
   const current = trail[trail.length - 1];
   const people = useDirectoryReports(current.email);
+  // Both signals, as the standalone app requires: the lead flag AND the
+  // directory agreeing this person manages somebody. The flag alone is set for
+  // people who manage nobody, and drilling into them lands on an empty level.
+  const managers = useDirectoryManagers();
   const term = query.trim().toLowerCase();
   const rows = (people.data ?? []).filter(
     (p) =>
@@ -94,9 +100,10 @@ export default function ParTeamHistoryPanel({
 
   return (
     <>
+      <ParPanel>
       <ParSection
         title="Team history"
-        subtitle="Past appraisals for anyone in your reporting line, however far down."
+        subtitle="Anyone in your reporting line, however far down."
         action={
           trail.length > 1 ? (
             <Button
@@ -146,11 +153,11 @@ export default function ParTeamHistoryPanel({
         ) : people.isPending ? (
           <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 1.5 }} />
         ) : (people.data ?? []).length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <ParEmpty>
             {trail.length === 1
               ? "Nobody reports to you."
               : `${current.name} has nobody reporting to them.`}
-          </Typography>
+          </ParEmpty>
         ) : (
           <>
             <OutlinedInput
@@ -168,14 +175,16 @@ export default function ParTeamHistoryPanel({
             />
 
             {rows.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <ParEmpty>
                 Nobody at this level matches that.
-              </Typography>
+              </ParEmpty>
             ) : (
               <Stack spacing={1}>
                 {rows.map((p) => {
                   const name = p.employeeName ?? p.workEmail;
-                  const hasReports = parseTextBoolean(p.isLead);
+                  const hasReports =
+                    parseTextBoolean(p.isLead) &&
+                    (managers.data?.has(p.workEmail.trim().toLowerCase()) ?? false);
                   const isReading = reading?.email === p.workEmail;
                   return (
                     <Stack
@@ -232,6 +241,7 @@ export default function ParTeamHistoryPanel({
           </>
         )}
       </ParSection>
+      </ParPanel>
 
       {/* Remounted per person, so opening someone else's history cannot show
           the previous person's cycles while the new ones load. */}

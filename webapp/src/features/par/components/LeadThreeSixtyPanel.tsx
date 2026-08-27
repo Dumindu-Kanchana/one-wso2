@@ -21,6 +21,7 @@ import { describeError } from "@api/errors";
 import type { ParThreeSixtyReview } from "../api/parTypes";
 import { parThreeSixtyStatusMeta } from "../util/parStatus";
 import ParHtml from "./ParHtml";
+import ParEmpty from "./ParEmpty";
 import ParSection from "./ParSection";
 
 // The 360 feedback colleagues wrote about this report.
@@ -47,7 +48,6 @@ export default function LeadThreeSixtyPanel({
   return (
     <ParSection
       title="360° feedback"
-      subtitle="What colleagues wrote about them this cycle."
       action={
         reviews.length > 0 ? (
           <Chip
@@ -62,13 +62,13 @@ export default function LeadThreeSixtyPanel({
       {error ? (
         <Alert severity="error">Couldn&apos;t load the 360° feedback. {describeError(error)}</Alert>
       ) : isPending ? (
-        <Typography variant="body2" color="text.secondary">
+        <ParEmpty>
           Loading…
-        </Typography>
+        </ParEmpty>
       ) : reviews.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
+        <ParEmpty>
           Nobody was asked for feedback about them this cycle.
-        </Typography>
+        </ParEmpty>
       ) : (
         <Stack spacing={2}>
           {answered.map((r, i) => (

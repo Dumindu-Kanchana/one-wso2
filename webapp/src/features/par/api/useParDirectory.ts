@@ -54,3 +54,47 @@ export function useDirectoryReports(leadEmail: string | undefined, enabled = tru
   });
   return foldIdentityError(query, subState, retryIdentity);
 }
+
+/**
+ * Everybody who is somebody's manager, by email.
+ *
+ * The chain view offers a drill-down only for a person who BOTH carries the lead
+ * flag and appears here — which is what the standalone app does, and the reason
+ * matters: the flag alone is set for people who manage nobody, so gating on it
+ * offers a drill into an empty level. An earlier version here checked only the
+ * flag and showed "Their team" for members who had no team.
+ *
+ * It costs one fetch of the whole directory. That is what the standalone app
+ * spends too, and org structure is shared and rarely edited, so it is held for
+ * ten minutes like the rest of the reference data.
+ */
+export function useDirectoryManagers(enabled = true) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
+  const ready = isSignedIn && isParBackendConfigured() && Boolean(userSub);
+
+  const query = useQuery<ReadonlySet<string>>({
+    queryKey: ["par", "directory-managers", userSub],
+    enabled: enabled && ready,
+    queryFn: async () => {
+      const everyone =
+        (await authedGet<ParDirectoryEmployee[]>(
+          parServiceUrls.employees(),
+          await getAccessToken(),
+          digiopsHeaders(),
+        )) ?? [];
+      const managers = new Set<string>();
+      for (const person of everyone) {
+        const email = person.managerEmail?.trim().toLowerCase();
+        if (email) managers.add(email);
+      }
+      return managers;
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: httpRetry,
+  });
+  return foldIdentityError(query, subState, retryIdentity);
+}
+
