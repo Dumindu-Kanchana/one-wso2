@@ -448,6 +448,40 @@ Not ported yet, and deliberately: the per-member 360° review status here comes 
 own `par360ReviewStatus`, which is a summary. The full 360° list per member belongs to 3b's review
 screen.
 
+### 8.10 What sub-slice 3b landed
+
+The lead's review of one report, at `/me/par/team/:employeeEmail` — a route rather than a dialog,
+matching the employee-detail screen under My Team, so a lead working through a list can link to,
+reopen and pin a person. Gated on `isTeamLead`, like the list it comes from.
+
+Three areas: what the employee wrote, the lead's own review (rating, feedback, Top 5%/20%, evidence,
+one-way share), and the face-to-face record. New: `api/useParLead.ts`, `util/parLeadReview.ts`
+(19 tests), `util/parEvidence.ts` (15 tests), `util/useDrivePicker.ts`, four components, and the page
+(16 tests).
+
+**The CSP was widened for the Drive picker**, by decision, to keep the source's UX. `apis.google.com`
+and `accounts.google.com` for script, `docs.google.com` and `accounts.google.com` for frames,
+`accounts.google.com` and `www.googleapis.com` for connect, and the two gstatic hosts for the
+picker's icons. Named hosts rather than a `*.google.com` wildcard, which would admit every Google
+property. All third-party script loading is confined to `useDrivePicker.ts` so that stays true. **The
+allow-list is derived from the picker's source and has not been verified against a live client id** —
+a missing origin shows as a specific CSP console error, and each entry is commented with its purpose.
+
+**Deviations taken in 3b:**
+
+| Source behaviour | Here | Why |
+|---|---|---|
+| The three areas behind tabs | Stacked on one screen | A lead needs the employee's words and the 360° feedback in front of them *while* writing the review, not one click away |
+| Evidence only via the Drive picker | Picker **and** a paste field | The evidence requirement blocks sharing, so a failed Drive consent would leave a lead unable to finish. The stored value is a URL list either way, so pasting is not a lesser path |
+| Both confirmation checkboxes restored from the saved draft | Always start unticked | They attest to something the lead did. A tick restored from storage asserts it on their behalf |
+| A duplicate document attached twice | Collapsed to one | The source kept both, showing two identical chips |
+| Any URL accepted as evidence | https and Google hosts only | `google.com.evil.example` passed a naive check, and an arbitrary link is not evidence of anything |
+| The share conditions duplicated across two buttons' `disabled=` clauses | One tested predicate | Two copies of a four-part rule is how they drift |
+| A "held" conversation could be saved with no date | Date required for scheduled and held | Recorded as having happened on no particular day |
+
+Still outstanding in Slice 3: **3c** (additional reports, report chain, employee history, read-only
+allocation) and **3d** (bulk share, reminders, sync, PDF).
+
 ---
 
 ## 9. Defects and questions in the source

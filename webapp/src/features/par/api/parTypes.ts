@@ -88,6 +88,8 @@ export interface ParRating {
   parRatingId: number;
   parCycleId: number;
   parEmployeeEmail: string;
+  /** Present on lead- and admin-facing reads; absent on an employee's own. */
+  parEmployeeName?: string;
   parEmployeeStatus: ParEmployeeStatus;
   parLeadStatus: ParLeadStatus;
   parF2fStatus: ParF2fStatus;

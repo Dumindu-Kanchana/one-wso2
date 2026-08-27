@@ -26,6 +26,7 @@ import {
   TableRow,
   Typography,
 } from "@wso2/oxygen-ui";
+import { useNavigate } from "react-router";
 import type { ParTeamMember } from "../api/parTypes";
 import { PAR_RATING_NOT_ASSIGNED } from "../api/parTypes";
 import {
@@ -36,11 +37,12 @@ import {
   parThreeSixtyStatusMeta,
 } from "../util/parStatus";
 
-// A team's members and where each one's PAR has got to.
+// A team's members and where each one's PAR has got to, each row opening that
+// person's review.
 //
-// Read-only in this slice. Opening a member to write their review is the next
-// one, so there is deliberately no row action yet rather than a control that
-// does nothing.
+// The whole row is the link, not just the name — the same arrangement My Team
+// uses, and for the same reason: a lead is picking a person, so the target
+// should be the row they are reading rather than a word inside it.
 
 export default function ParTeamMemberTable({
   members,
@@ -49,6 +51,11 @@ export default function ParTeamMemberTable({
   members: readonly ParTeamMember[];
   threeSixtyDeadlinePassed: boolean;
 }): JSX.Element {
+  // Above the early return: a hook after one is only called on some renders,
+  // so the hook order changes between an empty team and a populated one.
+  const navigate = useNavigate();
+  const open = (email: string) => void navigate(`/me/par/team/${encodeURIComponent(email)}`);
+
   if (members.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -80,11 +87,39 @@ export default function ParTeamMemberTable({
               m.parRating && m.parRating !== PAR_RATING_NOT_ASSIGNED ? m.parRating : undefined;
 
             return (
-              <TableRow key={m.parRatingId} hover>
+              <TableRow
+                key={m.parRatingId}
+                hover
+                onClick={() => open(m.parEmployeeEmail)}
+                sx={{ cursor: "pointer" }}
+              >
                 <TableCell>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {/* A real button inside the row, so the row is reachable by
+                      keyboard and announced as a link — a row-level onClick
+                      alone is invisible to anyone not using a mouse. */}
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      open(m.parEmployeeEmail);
+                    }}
+                    sx={{
+                      all: "unset",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      color: "text.primary",
+                      "&:focus-visible": {
+                        outline: 2,
+                        outlineStyle: "solid",
+                        outlineColor: "primary.main",
+                        outlineOffset: 2,
+                      },
+                    }}
+                  >
                     {m.parEmployeeName ?? m.parEmployeeEmail}
-                  </Typography>
+                  </Box>
                   {m.parEmployeeName && (
                     <Typography variant="caption" color="text.secondary">
                       {m.parEmployeeEmail}

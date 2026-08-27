@@ -27,6 +27,7 @@ import TeamMemberPage from "@features/my/my-team/pages/TeamMemberPage";
 import MyParPage from "@features/par/pages/MyParPage";
 import ParHistoryPage from "@features/par/pages/ParHistoryPage";
 import ParTeamPage from "@features/par/pages/ParTeamPage";
+import LeadReviewPage from "@features/par/pages/LeadReviewPage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import WorkspacePage from "@features/workspace/pages/WorkspacePage";
 import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
@@ -92,6 +93,7 @@ export default function App() {
           <Route path="me/par" element={<MyParPage />} />
           <Route path="me/par/history" element={<ParHistoryPage />} />
           <Route path="me/par/team" element={<ParTeamPage />} />
+          <Route path="me/par/team/:employeeEmail" element={<LeadReviewPage />} />
           {/* Me → Leave: native screens ported from leave-app. Lives here
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}
