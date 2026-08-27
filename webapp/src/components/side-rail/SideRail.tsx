@@ -22,6 +22,7 @@ import { useActivePerspective } from "@context/perspective/PerspectiveContext";
 import { CROSS_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
 import { FINANCE_ITEM_IDS } from "@constants/financeApps";
+import { matchSectionId } from "@components/side-rail/activeItem";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
 import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
@@ -191,25 +192,16 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   const activeItem = useMemo(() => {
     // Settings sits outside the registry, so it is matched before the sections.
     if (matchPath(SETTINGS_PATH, location.pathname)) return SETTINGS_ID;
-    for (const s of sections) {
-      if (s.path && matchPath(s.path, location.pathname)) return s.id;
-      for (const c of s.children ?? []) {
-        if (c.path && matchPath(c.path, location.pathname)) return c.id;
-      }
-    }
+    const exact = matchSectionId(sections, location.pathname);
+    if (exact) return exact;
+
     if (active.path && matchPath(active.path, location.pathname)) return OVERVIEW_ID;
 
     // Nothing matched exactly, so try again allowing descendants: a detail
     // route like /me/my-team/E123 should keep its own section lit rather than
     // clearing the rail. Deliberately a SECOND pass — an exact match must
-    // always win, or a section whose path prefixes another's would steal it.
-    for (const s of sections) {
-      for (const c of s.children ?? []) {
-        if (c.path && matchPath({ path: c.path, end: false }, location.pathname)) return c.id;
-      }
-      if (s.path && matchPath({ path: s.path, end: false }, location.pathname)) return s.id;
-    }
-    return "";
+    // always win, or an item whose path prefixes another's would steal it.
+    return matchSectionId(sections, location.pathname, { allowDescendants: true });
   }, [sections, active.path, location.pathname]);
 
   // Scroll a canvas anchor into view. If we're on a sub-route of the
