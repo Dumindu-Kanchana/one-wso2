@@ -686,6 +686,21 @@ Corrected.
 3. **Report is a table, not a download.** The source's "Report" view is an org-wide participant list;
    it renders as one here, behind a toggle so the row-per-employee fetch only happens when asked for.
 
+### 8.16 A slice-1 gap, closed
+
+§5.1's last bullet — "after the lead has shared their review, the employee sees it and the F2F
+record" — was specified in slice 1 and **never implemented**. `/me/par` showed the employee's own
+answer, their 360° nominations and the requests made of them, and nothing of what came back.
+
+The source shows both, from `components/common/EmployeePar.tsx`, gated on
+`parLeadStatus === SHARED`; and it renders the F2F panel with `isEmployeeView`, which makes it
+read-only for the employee. Both reproduced. Before the lead shares, their draft is not the
+employee's to read, and the panel is absent rather than empty.
+
+Found by tracing which source components were reachable and from where, while checking §9.6 — not by
+reviewing the port against its own specification, which is what should have caught it four slices
+earlier.
+
 ---
 
 ## 9. Defects and questions in the source

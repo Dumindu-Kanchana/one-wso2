@@ -211,3 +211,39 @@ describe("when the answer is locked", () => {
     expect(screen.getByText(/this cycle is closed/i)).toBeInTheDocument();
   });
 });
+
+// §5.1's last bullet, which slice 1 specified and did not implement.
+describe("once the lead has shared their review", () => {
+  it("shows it to the employee, with the rating and the conversation", () => {
+    state.rating = rating({
+      parLeadStatus: "SHARED",
+      parLeadComment: "<p>Strong cycle, well done.</p>",
+      parRating: "Successful",
+      parF2fStatus: "COMPLETED",
+      parF2fDate: "2026-07-20",
+    });
+    render(<MyParPage />);
+
+    expect(screen.getByText("Your lead's review")).toBeInTheDocument();
+    expect(screen.getByText("Strong cycle, well done.")).toBeInTheDocument();
+    expect(screen.getByText("Rating: Successful")).toBeInTheDocument();
+    expect(screen.getByText(/Completed · 20 Jul 2026/)).toBeInTheDocument();
+  });
+
+  it("says the conversation record is not theirs to change", () => {
+    state.rating = rating({ parLeadStatus: "SHARED", parF2fStatus: "SCHEDULED" });
+    render(<MyParPage />);
+    expect(screen.getByText(/recorded by your lead/i)).toBeInTheDocument();
+  });
+});
+
+describe("before the lead has shared", () => {
+  it("shows nothing of their draft", () => {
+    // Their draft is not the employee's to read.
+    state.rating = rating({ parLeadStatus: "DRAFT", parLeadComment: "<p>Not ready.</p>" });
+    render(<MyParPage />);
+    expect(screen.queryByText("Your lead's review")).toBeNull();
+    expect(screen.queryByText("Not ready.")).toBeNull();
+  });
+});
+

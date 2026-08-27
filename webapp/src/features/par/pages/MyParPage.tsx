@@ -26,6 +26,7 @@ import ParPanel from "../components/ParPanel";
 import MyParAnswerPanel from "../components/MyParAnswerPanel";
 import MyParReviewersPanel from "../components/MyParReviewersPanel";
 import MyParRequestsPanel from "../components/MyParRequestsPanel";
+import MyParLeadReviewPanel from "../components/MyParLeadReviewPanel";
 import { useParMe } from "../api/useParMe";
 import {
   useMyParCycle,
@@ -97,6 +98,12 @@ export default function MyParPage(): JSX.Element {
               cycle={cycle}
               rating={ratingQuery.data}
             />
+          )}
+
+          {/* Only once the lead has shared. Before that their draft is not the
+              employee's to read — the source's condition, and §5.1's rule. */}
+          {ratingQuery.data && ratingQuery.data.parLeadStatus === "SHARED" && (
+            <MyParLeadReviewPanel cycle={cycle} rating={ratingQuery.data} />
           )}
 
           <MyParReviewersPanel
