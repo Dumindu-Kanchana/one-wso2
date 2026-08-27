@@ -24,6 +24,7 @@ import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamPage from "@features/my/my-team/pages/MyTeamPage";
 import TeamMemberPage from "@features/my/my-team/pages/TeamMemberPage";
+import MyParPage from "@features/par/pages/MyParPage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import WorkspacePage from "@features/workspace/pages/WorkspacePage";
 import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
@@ -84,6 +85,9 @@ export default function App() {
               spec and the deviation list are in docs/ported-apps/my-team.md. */}
           <Route path="me/my-team" element={<MyTeamPage />} />
           <Route path="me/my-team/:employeeId" element={<TeamMemberPage />} />
+          {/* PAR. The specification, the deadline table and the deliberate
+              deviations are in docs/ported-apps/par-app.md. */}
+          <Route path="me/par" element={<MyParPage />} />
           {/* Me → Leave: native screens ported from leave-app. Lives here
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}

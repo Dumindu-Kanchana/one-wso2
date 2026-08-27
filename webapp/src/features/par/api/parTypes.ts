@@ -108,6 +108,20 @@ export const PAR_RATING_NOT_ASSIGNED = "NOT_ASSIGNED";
 
 // --- 360 feedback ----------------------------------------------------------
 
+/**
+ * A request for THIS employee to review someone else.
+ *
+ * `employeeEmail` is the person to be reviewed, not the reviewer — the reviewer
+ * is whoever the token belongs to. The two `is*Requested` flags say who asked:
+ * the employee nominated you themselves, or their lead did. Both can be true.
+ */
+export interface ParThreeSixtyReviewRequest {
+  employeeEmail: string;
+  reviewStatus: ParThreeSixtyReviewStatus;
+  isEmployeeRequested: boolean;
+  isLeadRequested: boolean;
+}
+
 export interface ParReviewer {
   reviewerEmail: string;
   reviewStatus: ParThreeSixtyReviewStatus;
@@ -129,9 +143,27 @@ export interface ParThreeSixtyReview {
  * not from people-app privileges, and only `isTeamLead` opens the lead portal.
  * ADMIN and EMPLOYEE come from Asgardeo groups instead — see useParGate.
  */
+/**
+ * PAR's own record of an employee, from its `/employee/{email}` endpoint.
+ *
+ * `leadEmail` is load-bearing rather than informational: it is who the PAR is
+ * shared WITH, and who must therefore be excluded from 360 nominations. PAR
+ * carries its own copy rather than deferring to people-app, and this is the one
+ * the backend will agree with.
+ *
+ * `isTeamLead` gates the lead screens. `lead` is a separate flag that gates
+ * nothing — see the note in api/useParGate.ts.
+ */
 export interface ParEmployeeInfo {
   workEmail: string;
   employeeName?: string;
-  lead?: boolean;
+  leadEmail?: string | null;
+  lead?: boolean | null;
   isTeamLead?: boolean;
+  startDate?: string;
+  jobRole?: string;
+  businessUnit?: string;
+  department?: string;
+  team?: string;
+  location?: string;
 }

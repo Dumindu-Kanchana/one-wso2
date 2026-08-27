@@ -166,7 +166,9 @@ blocked while the employee's status is `PENDING`.
 ### 5.2 PAR History — `/me/par/history`
 
 Past (`CLOSED`) cycles: what the employee wrote, what their lead wrote, the rating awarded, and any
-special rating. Includes the **chain view**, showing the appraisal up the reporting line.
+special rating.
+
+Includes the **chain view**, showing the appraisal up the reporting line.
 
 ---
 
@@ -300,6 +302,31 @@ The one source behaviour deliberately **kept**: a 360 review still `PENDING` onc
 passed renders as "—" rather than "Pending", because nobody can act on it any more.
 
 ---
+
+### 8.3 What Slice 1 landed
+
+`/me/par`, registered as the `par-my` item under a new PAR app group in `ME_APPS` — which is what
+switches on the rail dispatch built in Slice 0. Three panels: the employee's answer with draft/share,
+360° nomination, and the requests others made of them.
+
+New in `features/par/`: `util/parHtml.ts` (sanitising, 15 tests), `util/parEditability.ts` (why the
+answer is locked, 12 tests), `util/parReviewers.ts` (who may be nominated, 13 tests),
+`util/useParNow.ts` (one clock, ticking at local midnight), `api/useParEmployee.ts`,
+`api/useParEmployeeMutations.ts`, and six components. 12 further tests cover the page.
+
+### 8.4 Deviations from the source, taken in Slice 1
+
+| Source behaviour | Here | Why |
+|---|---|---|
+| The nomination dialog excluded only the **lead** when you nominated for your own PAR | Both the employee and their lead are excluded | You could nominate **yourself** as your own 360° reviewer — feedback you write about yourself, presented to your lead as a colleague's view. The mirror case is in the same function for Slice 3: nominating for someone else's PAR excluded only the reviewee, not their lead |
+| No way to **decline** a 360° request, though the backend has a `REJECTED` status | A Decline action | An unwanted or mistaken request otherwise sat outstanding forever, and the asker had no way to learn it would never be answered |
+| `react-quill` for rich text | A small field in `components/ParRichText.tsx` | Not a preference: react-quill 2 calls `ReactDOM.findDOMNode`, which **React 19 removed**. The five commands the stored HTML actually contains are cheaper than a fork or a larger editor |
+| HTML sanitised on display in one component | Sanitised on the way in **and** out, in one place | Sanitising only on display trusts whatever an older client stored; only on input trusts the backend. Every PAR free-text field is an injection site |
+| Submitting a 360° review accepted a rating with no comment, or a comment with no rating | Both required to submit | A bare rating is not feedback. Drafts are still saved with either half |
+| A missing cycle fell through the deadline checks | Its own state, `noCycle` | Reported as "the deadline passed" it names a date nobody set, and sends the reader to ask about it |
+
+One source oddity **kept**: nominations are additive and the backend appends, so there is no way to
+withdraw a request once sent. Removing one is a backend capability that does not exist.
 
 ## 9. Defects and questions in the source
 

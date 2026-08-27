@@ -44,6 +44,10 @@ describe("pinnableRoute", () => {
   it("qualifies a ported app's screen from the registry", () => {
     expect(pinnableRoute("/workspace/menu").label).toBe("Menu · Home");
     expect(isKnownRoute("/workspace/menu")).toBe(true);
+    // Same check for PAR: a route added to App.tsx but not to the registry
+    // would get a guessed label instead of a qualified one.
+    expect(pinnableRoute("/me/par").label).toBe("PAR · My PAR");
+    expect(isKnownRoute("/me/par")).toBe(true);
   });
 
   // Detail routes aren't in the registry — one entry cannot enumerate every

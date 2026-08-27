@@ -19,7 +19,10 @@
 // Same App → items shape as @constants/financeApps / workspaceApps; see
 // that file's header for the general rationale.
 
-import { TreePalmIcon } from "@wso2/oxygen-ui-icons-react";
+import {
+  ClipboardCheckIcon,
+  TreePalmIcon,
+} from "@wso2/oxygen-ui-icons-react";
 import type { MenuApp } from "@constants/appMenu";
 
 export const ME_APPS: readonly MenuApp[] = [
@@ -35,6 +38,20 @@ export const ME_APPS: readonly MenuApp[] = [
       // Sabbatical use cases (apply/approve/report) are on hold this
       // iteration — placeholder links out to the Leave app instead.
       { id: "leave-sabbatical", label: "Sabbatical", desc: "Coming soon — apply via the Leave app for now.", path: "/me/leave/sabbatical" },
+    ],
+  },
+  {
+    key: "par",
+    name: "PAR",
+    icon: ClipboardCheckIcon,
+    purpose: "Your performance appraisal review — write it, ask colleagues for 360° feedback, and read your lead's.",
+    // These ids are what SideRail routes to PAR's own gate (PAR_ITEM_IDS in
+    // features/par/util/parItems.ts), NOT to `requires`. Adding an item here
+    // without listing it there would resolve it against people-app privileges
+    // instead — the wrong vocabulary. The gate fails closed, so an unlisted id
+    // stays hidden rather than leaking.
+    items: [
+      { id: "par-my", label: "My PAR", desc: "Your appraisal for the current cycle.", path: "/me/par" },
     ],
   },
 ];
