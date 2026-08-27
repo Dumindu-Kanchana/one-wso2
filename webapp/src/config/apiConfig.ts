@@ -162,6 +162,10 @@ export const parServiceUrls = {
   // Special ratings: the ungrouped teams, and the quota per group.
   specialRatingGroups: (parCycleId: number) =>
     `${parBackendUrl}/par-cycles/${parCycleId}/special-rating-groups`,
+  // Saving the grouping AND its quota in one call. Distinct from
+  // `specialRatingGroups`, which reads the ungrouped teams.
+  saveSpecialRatingGroupsQuota: (parCycleId: number) =>
+    `${parBackendUrl}/par-cycles/${parCycleId}/special-rating-groups-quota`,
   specialRatingQuota: (parCycleId: number, leadEmail?: string) =>
     leadEmail === undefined
       ? `${parBackendUrl}/par-cycles/${parCycleId}/special-rating-groups-quota`
@@ -199,7 +203,7 @@ export const parServiceUrls = {
 };
 
 /** The statuses the cycle list endpoint accepts as a filter. */
-type ParCycleStatusQuery = "PENDING" | "PENDING_QUOTA" | "OPEN" | "CLOSED";
+export type ParCycleStatusQuery = "PENDING" | "PENDING_QUOTA" | "OPEN" | "CLOSED";
 
 // Leave app backend (people-ops-suite/apps/leave-app). Its own service
 // with its own /user-info + privilege scheme (LEAD=879, not people-app's

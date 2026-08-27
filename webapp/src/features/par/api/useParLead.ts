@@ -262,7 +262,10 @@ export function useSendThreeSixtyReminders() {
   const { getAccessToken } = useBasis();
   return useMutation<void, Error, void>({
     mutationFn: async () => {
-      await authedPost<unknown>(
+      // PATCH, not POST. The reminder endpoints are PATCH in the standalone app;
+      // this was POST until the slice-4 audit, which the backend would have
+      // refused with a 405.
+      await authedPatch<unknown>(
         parServiceUrls.remindThreeSixty,
         await getAccessToken(),
         {},

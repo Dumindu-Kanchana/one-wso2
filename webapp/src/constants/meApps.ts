@@ -54,6 +54,8 @@ export const ME_APPS: readonly MenuApp[] = [
       { id: "par-my", label: "My PAR", desc: "Your appraisal for the current cycle.", path: "/me/par" },
       { id: "par-history", label: "History", desc: "Your appraisals from closed cycles.", path: "/me/par/history" },
       { id: "par-team", label: "My Team's PAR", desc: "Review your reports' appraisals.", path: "/me/par/team" },
+      { id: "par-admin", label: "Administration", desc: "Create and configure review cycles.", path: "/me/par/admin" },
+      { id: "par-settings", label: "Settings", desc: "Defaults for new review cycles.", path: "/me/par/settings" },
     ],
   },
 ];

@@ -180,6 +180,35 @@ export interface ParDirectoryEmployee {
   managerEmail?: string | null;
 }
 
+/**
+ * An ungrouped team awaiting a quota group, from
+ * `GET /par-cycles/{id}/special-rating-groups`.
+ *
+ * `specialRatingGroupId` identifies the TEAM here, not a group — it is the row's
+ * own id, and it is what the grouping payload sends back.
+ */
+export interface ParQuotaTeam {
+  parCycleId: number;
+  specialRatingGroupId: number;
+  businessUnit: string;
+  department: string;
+  team: string;
+  subTeam: string | null;
+  headCount: number | null;
+  groupNumber: number | null;
+  specialRatingQuotaId: number | null;
+}
+
+/** A group an admin has formed, before it is saved. */
+export interface ParQuotaGroupDraft {
+  /** Client-side only, to key the list until the save assigns real ids. */
+  localId: number;
+  name: string;
+  top5Quota: number;
+  top20Quota: number;
+  teams: ParQuotaTeam[];
+}
+
 /** Per-stage completion counts the backend computes for one team. */
 export interface ParTeamSummary {
   employeeParCompletedCount: number;

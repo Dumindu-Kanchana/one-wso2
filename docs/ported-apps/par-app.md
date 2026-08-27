@@ -633,6 +633,61 @@ behaviour and copy.
 
 ---
 
+### 8.15 What Slice 4 landed
+
+`/me/par/admin` and `/me/par/settings`, both gated on `isAdmin`, each with a test that a non-admin is
+refused — these screens create and close cycles for the whole organisation.
+
+**Administration** is two tabs. *Ongoing* is a state machine over which cycle exists, ported branch
+for branch from `views/adminPortal/panels/OngoingPanel.tsx` into `util/parAdminState.ts` (10 tests),
+because the branches are not mutually exclusive in the data and the order they are checked in IS the
+behaviour: open > quota-pending > pending > none. *History* lists closed cycles into the same summary.
+
+New: `api/useParAdmin.ts`, `util/parAdminState.ts`, `util/parCycleForm.ts` (12 tests),
+`util/parQuotaDefaults.ts` (7 tests), `ParCycleForm`, `ParAdminQuotaPanel`, `ParAdminSummaryPanel`,
+and the two pages (18 tests).
+
+**A defect found while porting, in already-shipped code:** the four reminder endpoints are **PATCH**,
+and slice 3d's "Remind 360° reviewers" was sending POST. The backend would have refused it with a 405.
+Corrected.
+
+**Ported carefully rather than tidied:**
+
+- `calculateDefaultQuotaValues` is reproduced arithmetic-for-arithmetic. Its last step subtracts the
+  5% figure from the 20% one, so the stored 20% quota is the awards ABOVE the Top 5% ones, not the
+  whole top fifth — recomputing them independently would over-allocate. An empty group also ends up
+  at `{1, 0}`, because the `> 0` guard is skipped and both figures are then floored to 1; reproduced,
+  since an empty group has nobody to award to.
+- The cycle form's validation is field for field and **message for message**. Two source omissions are
+  reproduced: `parF2FDeadline` has no rule at all, and `parEvaluationStartDate` has none of its own.
+  Tightening either would refuse cycles the real app accepts. The lead deadline carries both a `.min()`
+  and a separate strict test, and only the strict one stops the two deadlines sharing a day.
+- §9.3 and §9.4 are carried forward, not fixed. The PENDING poll stops when the list empties for any
+  reason, including a failed job — so the screen then offers to create a cycle whose slot is occupied.
+  And the quota grouping lives in browser state until one save.
+
+**Deviations, and the reason for each:**
+
+| Source behaviour | Here | Why |
+|---|---|---|
+| `calculateDefaultQuotaValues` returns `{NaN, NaN}` for a non-finite headcount | Zeroed | Neither `=== 0` nor `< 1` is true of NaN, so nothing corrects it, and a NaN quota would be stored and then compared against. The only deliberate divergence in the arithmetic, and it can fire only on input the backend cannot send |
+| §9.4 unstated on screen | Stated | "There is no way to save one group at a time" is expensive to discover by losing an hour's grouping. It withholds nothing |
+| §9.3 unstated on screen | Stated | A poll that stops silently is indistinguishable from one that succeeded |
+| Two separate forms for creating and configuring a cycle | One component, two modes | The fields and the rules are identical; two copies would drift, and the rules are the part that must not |
+| Icon-only chip delete with no accessible name | Named | Unreachable by keyboard or screen reader. New UI, not source behaviour |
+
+**Judgement calls, since none of these had a source answer:**
+
+1. **Placement stays under Me** (`/me/par/admin`), as §8.8 recorded provisionally. It is an HR function
+   and People Ops is the perspective for that, but both screens are admin-gated either way, so moving
+   them is a registry entry and a route prefix. Not something to decide while porting.
+2. **The two unreachable reminder endpoints (§9.5) are still not surfaced.** They run on server crons
+   disabled by default, so a button would claim an effect that may not happen.
+3. **Report is a table, not a download.** The source's "Report" view is an org-wide participant list;
+   it renders as one here, behind a toggle so the row-per-employee fetch only happens when asked for.
+
+---
+
 ## 9. Defects and questions in the source
 
 Carried forward deliberately, so they are tracked rather than rediscovered. Items 1 and 2 want a
