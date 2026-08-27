@@ -38,6 +38,7 @@ import {
   parSpecialRatingMeta,
   parThreeSixtyStatusMeta,
 } from "../util/parStatus";
+import { ParEmployeeName } from "./ParEmployeeName";
 
 // A team's members and where each one's PAR has got to, each row opening that
 // person's review.
@@ -135,32 +136,16 @@ export default function ParTeamMemberTable({
                   </TableCell>
                 )}
                 <TableCell>
-                  {/* A real button inside the row, so the row is reachable by
-                      keyboard and announced as a link — a row-level onClick
-                      alone is invisible to anyone not using a mouse. */}
-                  <Box
-                    component="button"
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      open(m.parEmployeeEmail);
-                    }}
-                    sx={{
-                      all: "unset",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      fontSize: 14,
-                      color: "text.primary",
-                      "&:focus-visible": {
-                        outline: 2,
-                        outlineStyle: "solid",
-                        outlineColor: "primary.main",
-                        outlineOffset: 2,
-                      },
-                    }}
-                  >
-                    {m.parEmployeeName ?? m.parEmployeeEmail}
-                  </Box>
+                  {/* The name is a real button inside the row, so the row is
+                      reachable by keyboard and announced as a control — a
+                      row-level onClick alone is invisible to anyone not using a
+                      mouse. TeamSummary.tsx:165-248. */}
+                  <ParEmployeeName
+                    name={m.parEmployeeName}
+                    email={m.parEmployeeEmail}
+                    copyable
+                    onOpen={() => open(m.parEmployeeEmail)}
+                  />
                 </TableCell>
                 <TableCell>
                   <StatusChip meta={parEmployeeStatusMeta(m.parEmployeeStatus)} />

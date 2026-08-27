@@ -61,6 +61,7 @@ import ParCycleForm from "./ParCycleForm";
 import ParEmpty from "./ParEmpty";
 import ParPanel from "./ParPanel";
 import ParSection from "./ParSection";
+import { ParEmployeeName } from "./ParEmployeeName";
 
 // The org-wide view of a cycle: how far it has got, who still owes something,
 // and the two things only an admin can do — change the configuration and close
@@ -335,9 +336,14 @@ export default function ParAdminSummaryPanel({
                       return (
                         <TableRow key={r.parRatingId} hover>
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {r.parEmployeeName ?? r.parEmployeeEmail}
-                            </Typography>
+                            {/* The admin portal renders TeamSummary itself
+                                (OrgSummary.tsx:1167), so this list carries the
+                                same hover-reveal email and copy button. */}
+                            <ParEmployeeName
+                              name={r.parEmployeeName}
+                              email={r.parEmployeeEmail}
+                              copyable
+                            />
                           </TableCell>
                           <TableCell>
                             <Chip

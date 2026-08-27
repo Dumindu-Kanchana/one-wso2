@@ -22,8 +22,11 @@ import {
   Breadcrumbs,
   Button,
   Chip,
+  FormControlLabel,
   Link,
   Skeleton,
+  Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -45,6 +48,7 @@ import {
   type ParChainStep,
 } from "../util/parChain";
 import ParSection from "./ParSection";
+import { ParEmployeeName } from "./ParEmployeeName";
 
 // Walking down a reporting line, one level at a time.
 //
@@ -71,23 +75,39 @@ export default function ParReportChainPanel({
   ]);
   const current = trail[trail.length - 1];
   const reports = useReportsFor(parCycleId, current.email);
-  const rows = reports.data ?? [];
+  // ReportChainView.tsx:73,449 — the leads-only switch is on this view, not on
+  // the flat report list.
+  const [leadsOnly, setLeadsOnly] = useState(false);
+  const all = reports.data ?? [];
+  const rows = leadsOnly ? all.filter(isReportALead) : all;
 
   return (
     <ParSection
       title="Report chain"
       subtitle="Their own lead reviews them."
       action={
-        trail.length > 1 ? (
-          <Button
-            size="small"
-            startIcon={<ArrowLeftIcon size={15} />}
-            onClick={() => setTrail(chainBack(trail))}
-            sx={{ textTransform: "none", fontWeight: 600 }}
-          >
-            Back
-          </Button>
-        ) : undefined
+        <Stack direction="row" spacing={1} alignItems="center">
+          {trail.length > 1 && (
+            <Button
+              size="small"
+              startIcon={<ArrowLeftIcon size={15} />}
+              onClick={() => setTrail(chainBack(trail))}
+              sx={{ textTransform: "none", fontWeight: 600 }}
+            >
+              Back
+            </Button>
+          )}
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={leadsOnly}
+                onChange={(e) => setLeadsOnly(e.target.checked)}
+              />
+            }
+            label={<Typography variant="body2">Show Leads Only</Typography>}
+          />
+        </Stack>
       }
     >
       <Breadcrumbs separator={<ChevronRightIcon size={14} />} sx={{ mb: 1.75 }}>
@@ -119,9 +139,11 @@ export default function ParReportChainPanel({
         <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 1.5 }} />
       ) : rows.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          {trail.length === 1
-            ? "Nobody reports to you in this cycle."
-            : `${current.name} has nobody reporting to them in this cycle.`}
+          {leadsOnly && all.length > 0
+            ? "None of them is a lead."
+            : trail.length === 1
+              ? "Nobody reports to you in this cycle."
+              : `${current.name} has nobody reporting to them in this cycle.`}
         </Typography>
       ) : (
         <Box sx={{ overflowX: "auto" }}>
@@ -145,28 +167,16 @@ export default function ParReportChainPanel({
                     <TableCell>
                       {/* Opening the review and drilling deeper are different
                           intents, so they are different controls. A row-level
-                          click would have to guess which one was meant. */}
-                      <Box
-                        component="button"
-                        type="button"
-                        onClick={() =>
+                          click would have to guess which one was meant.
+                          ReportChainView.tsx:146-200. */}
+                      <ParEmployeeName
+                        name={r.parEmployeeName}
+                        email={r.parEmployeeEmail}
+                        copyable
+                        onOpen={() =>
                           void navigate(`/me/par/team/${encodeURIComponent(r.parEmployeeEmail)}`)
                         }
-                        sx={{
-                          all: "unset",
-                          cursor: "pointer",
-                          fontWeight: 600,
-                          fontSize: 14,
-                          "&:focus-visible": {
-                            outline: 2,
-                            outlineStyle: "solid",
-                            outlineColor: "primary.main",
-                            outlineOffset: 2,
-                          },
-                        }}
-                      >
-                        {name}
-                      </Box>
+                      />
                     </TableCell>
                     <TableCell>
                       <Chip

@@ -766,6 +766,51 @@ used-of-allocated" as a corrected note. That correction was itself wrong: the au
 quota strings, read the matching lines, and concluded the source displayed them — without checking
 whether the lines were live code. Reading a grep hit is not reading the source.
 
+### 8.19 The email was there all along — behind a hover
+
+§8.18 removed the member email from five list views on the grounds that no source view showed one.
+That was wrong, and it was wrong because I read the DataGrid column definitions and stopped there
+instead of reading the `renderCell`.
+
+Four source views render the same cell: the name on its own, with the email underneath at
+`opacity: 0`. On hover the block lifts 10px and the email fades in. The row never changes height.
+
+| Source view | Email | Copy button |
+|---|---|---|
+| `TeamSummary.tsx:165-248` — the lead's team, and the admin's team drill-down (`OrgSummary.tsx:1167` renders this component) | hover-reveal | yes, "Copy Email" → "Email copied" |
+| `EmployeeReportView.tsx:109-170` | hover-reveal | yes |
+| `ReportChainView.tsx:146-200` | hover-reveal | yes |
+| `OrgSummary.tsx:465,547` — its own employee and reviewer columns | hover-reveal | **no** |
+| `ChainViewTab.tsx:132` — PAR History | none | — |
+
+`components/ParEmployeeName.tsx` is that cell, with `copyable` as the one axis of variation. It is
+used in the four views that have it and not in the history one. `TeamSummary` also has a bulk "Copy
+Emails" button over the selection, which was already ported (`ParTeamToolbar.tsx:75`).
+
+**Two adaptations, both measured rather than judged.** The source's rows are ~52px because the cell
+carries a 2.2rem avatar, which leaves the 10px lift room to fit the email inside the row. These
+tables are `size="small"` and 32.5px, so the reveal reaches 9.5px past the cell — measured in
+headless Chrome, not estimated. Painting it opaque and above the rows below keeps it legible; at that
+size it lands in the 3px gap over the next row's name rather than on top of it. Second, the reveal
+also fires on `:focus-within`: the email box is `opacity: 0`, not `display: none`, so the copy button
+stays in the tab order, and hover alone would make it a control a keyboard user can reach and cannot
+see.
+
+### 8.20 Two more found in the same read
+
+**A "Lead" chip that no source view has.** `ParReportsPanel` badged a report who is themselves a
+lead. `EmployeeReportView` never reads `isEmployeeALead`. The field drives exactly two things, both
+on `ReportChainView`: the drill into someone's own reports (`:283`, which the port has as "Their
+team"), and a leads-only switch. Chip removed.
+
+**The leads-only switch was on the wrong view.** It belongs to `ReportChainView` (`:73`, `:449`,
+label "Show Leads Only"), not to the flat report list. Moved, and the filtered-to-nothing case now
+says so rather than claiming nobody reports to you.
+
+**Recorded, not changed:** `EmployeeReportView.tsx:287-289` searches the email only, so a name it
+displays is not a term that finds it. The port matches the name too. That is a superset — it hides
+nothing — and it matters more now that the email is behind a hover.
+
 ---
 
 ## 9. Defects and questions in the source

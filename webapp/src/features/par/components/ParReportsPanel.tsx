@@ -20,11 +20,9 @@ import {
   Alert,
   Box,
   Chip,
-  FormControlLabel,
   OutlinedInput,
   Skeleton,
   Stack,
-  Switch,
   Table,
   TableBody,
   TableCell,
@@ -36,10 +34,11 @@ import { SearchIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import { describeError } from "@api/errors";
 import { PAR_RATING_NOT_ASSIGNED, type ParReportEntry } from "../api/parTypes";
-import { filterReports, isReportALead } from "../util/parReports";
+import { filterReports } from "../util/parReports";
 import { parEmployeeStatusMeta, parLeadStatusMeta } from "../util/parStatus";
 import ParEmpty from "./ParEmpty";
 import ParSection from "./ParSection";
+import { ParEmployeeName } from "./ParEmployeeName";
 
 // A list of people somewhere in the lead's reporting line.
 //
@@ -62,9 +61,11 @@ export default function ParReportsPanel({
 }): JSX.Element {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [leadsOnly, setLeadsOnly] = useState(false);
 
-  const shown = filterReports(reports, { query, leadsOnly });
+  // EmployeeReportView.tsx:287-289 searches the email only, so a name it
+  // shows is not a term it finds. Matching the name too is a superset: it
+  // hides nothing, and the email is now behind a hover.
+  const shown = filterReports(reports, { query, leadsOnly: false });
   const open = (email: string) => void navigate(`/me/par/team/${encodeURIComponent(email)}`);
 
   return (
@@ -112,16 +113,6 @@ export default function ParReportsPanel({
               slotProps={{ input: { "aria-label": "Search reports" } }}
               sx={{ height: 36, fontSize: 13, width: { xs: "100%", sm: 300 } }}
             />
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={leadsOnly}
-                  onChange={(e) => setLeadsOnly(e.target.checked)}
-                />
-              }
-              label={<Typography variant="body2">Leads only</Typography>}
-            />
           </Stack>
 
           {shown.length === 0 ? (
@@ -154,31 +145,15 @@ export default function ParReportsPanel({
                         sx={{ cursor: "pointer" }}
                       >
                         <TableCell>
-                          <Box
-                            component="button"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              open(r.parEmployeeEmail);
-                            }}
-                            sx={{
-                              all: "unset",
-                              cursor: "pointer",
-                              fontWeight: 600,
-                              fontSize: 14,
-                              "&:focus-visible": {
-                                outline: 2,
-                                outlineStyle: "solid",
-                                outlineColor: "primary.main",
-                                outlineOffset: 2,
-                              },
-                            }}
-                          >
-                            {r.parEmployeeName ?? r.parEmployeeEmail}
-                          </Box>
-                          {isReportALead(r) && (
-                            <Chip size="small" variant="outlined" label="Lead" sx={{ mt: 0.5 }} />
-                          )}
+                          {/* EmployeeReportView.tsx:109-170. It never reads
+                              isEmployeeALead — that field drives ReportChainView's
+                              drill-in and its leads-only switch, and nothing here. */}
+                          <ParEmployeeName
+                            name={r.parEmployeeName}
+                            email={r.parEmployeeEmail}
+                            copyable
+                            onOpen={() => open(r.parEmployeeEmail)}
+                          />
                         </TableCell>
                         <TableCell sx={{ whiteSpace: "nowrap" }}>
                           <Typography variant="body2">

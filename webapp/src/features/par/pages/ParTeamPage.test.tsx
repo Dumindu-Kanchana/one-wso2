@@ -303,9 +303,11 @@ describe("with exactly one team", () => {
   it("shows each member by name, and where their PAR has got to", () => {
     renderPage();
     expect(screen.getByText("Ann Perera")).toBeInTheDocument();
-    // Name only. Every source list view has a name column and no email one, and
-    // an email under each name both diverged and ran into the name inline.
-    expect(screen.queryByText("ann@wso2.com")).toBeNull();
+    // The email sits under the name at opacity 0 and fades in on hover, with a
+    // copy button beside it — TeamSummary.tsx:165-248. Present in the DOM, so
+    // the reveal has something to reveal and the copy target is real.
+    expect(screen.getByText("ann@wso2.com")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Copy Email" }).length).toBeGreaterThan(0);
     // Their own PAR is shared; the lead's review is not started.
     expect(screen.getByText("Shared")).toBeInTheDocument();
     expect(screen.getAllByText("Not started").length).toBeGreaterThan(0);
@@ -420,12 +422,13 @@ describe("the additional-reports tab", () => {
     expect(screen.getByText("Reviewed by sub@wso2.com")).toBeInTheDocument();
   });
 
-  it("badges a report who is themselves a lead, whatever case the flag arrives in", async () => {
-    // The source tested `=== "True"` exactly here, so a backend answering
-    // "true" never showed this badge.
+  it("does not badge a report as a lead — no source view does", async () => {
+    // EmployeeReportView never reads isEmployeeALead. The flag drives two
+    // things, both on ReportChainView: the drill into someone's own reports,
+    // and the "Show Leads Only" switch. A "Lead" chip here was an addition.
     renderPage();
     await userEvent.setup().click(screen.getByRole("tab", { name: "Additional reports" }));
-    expect(screen.getByText("Lead")).toBeInTheDocument();
+    expect(screen.queryByText("Lead")).toBeNull();
   });
 
   it("narrows on search, and restores when cleared", async () => {
@@ -513,6 +516,27 @@ describe("the report-chain tab", () => {
     renderPage();
     await open();
     expect(screen.getAllByRole("button", { name: /their team/i })).toHaveLength(1);
+  });
+
+  it("narrows to leads on the switch — the source has it on this view", async () => {
+    // ReportChainView.tsx:73,449, label "Show Leads Only". Ann's flag arrives
+    // as "true", which the source's `=== "True"` test would have missed.
+    renderPage();
+    await open();
+    expect(screen.getByText("Bob Silva")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("switch", { name: /show leads only/i }));
+    expect(screen.getByText("Ann Perera")).toBeInTheDocument();
+    expect(screen.queryByText("Bob Silva")).toBeNull();
+  });
+
+  it("says why the list is empty when the switch has emptied it", async () => {
+    renderPage();
+    await open();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("switch", { name: /show leads only/i }));
+    await user.click(screen.getByRole("button", { name: /their team/i }));
+    // Cid is not a lead, so the level below Ann is empty under the filter.
+    expect(screen.getByText("None of them is a lead.")).toBeInTheDocument();
   });
 
   it("drills into the next level and shows the trail", async () => {
