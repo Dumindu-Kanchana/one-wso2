@@ -22,8 +22,11 @@
 //   ADMIN     → an Asgardeo group on the ID token, named per deployment
 //   TEAM_LEAD → PAR's own employee record (useParMe)
 //
-// Only TEAM_LEAD opens the lead screens. The source also carries a separate
-// `lead` flag that gates nothing; it is deliberately not used for access here.
+// Only `isTeamLead` opens the lead screens. The `lead` flag beside it is a
+// DIFFERENT thing and is not interchangeable: in the source it gates the chain
+// view alone, and only together with a directory check that the person actually
+// has reports. It is not an access signal for these screens, which is why this
+// gate does not read it.
 // See docs/ported-apps/par-app.md §2.
 //
 // Reading a group from the token is a compromise, not the house preference —

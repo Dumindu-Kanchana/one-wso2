@@ -151,8 +151,10 @@ export interface ParThreeSixtyReview {
  * carries its own copy rather than deferring to people-app, and this is the one
  * the backend will agree with.
  *
- * `isTeamLead` gates the lead screens. `lead` is a separate flag that gates
- * nothing — see the note in api/useParGate.ts.
+ * `isTeamLead` gates the lead screens. `lead` is a separate, weaker flag: the
+ * source uses it for the chain view only, and only in conjunction with the
+ * employee directory agreeing that the person has reports. The two are not
+ * interchangeable — see the note in api/useParGate.ts.
  */
 export interface ParEmployeeInfo {
   workEmail: string;

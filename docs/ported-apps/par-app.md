@@ -86,9 +86,29 @@ WSO2's people-app capability model.
 | `LEAD` | PAR's own employee-info response (`lead`) |
 | `TEAM_LEAD` | PAR's own employee-info response (`isTeamLead`) |
 
-**Only `TEAM_LEAD` opens the Lead Portal.** `LEAD` is read in exactly one place in the source and
-gates nothing meaningful — treat the two as distinct and do not conflate them. The source carries a
-standing note about moving both to Asgardeo groups eventually.
+**Only `TEAM_LEAD` opens the Lead Portal.** `LEAD` gates one different thing — see below. The source
+carries a standing note about moving both to Asgardeo groups eventually.
+
+### 2.1 `LEAD` versus `TEAM_LEAD` — settled
+
+This was an open question through Slices 0–2, and an earlier draft of this section said `LEAD` "gates
+nothing meaningful". That was wrong. Read from the source's `authSlice` and route table:
+
+| Role | Derived from | Gates, in the entire source |
+|---|---|---|
+| `TEAM_LEAD` | `employeeInfo.isTeamLead` | the **Lead Portal** route, and nothing else |
+| `LEAD` | `employeeInfo.lead` | the **chain view** tab in PAR History, and nothing else |
+
+Each is referenced exactly once outside the auth slice, and they gate different screens, so they are
+genuinely distinct rather than two names for one idea.
+
+The chain view's condition is `isLead && hasSubordinates` — both the `lead` flag AND the employee
+directory agreeing the person manages someone. The source computes the second half client-side from a
+full directory fetch. This port does not need that: `/employees?leadEmail=<self>` is the same request
+the chain view makes to populate its root, so "has reports" is whether that answers with anyone.
+
+**So:** `useParGate` gating the lead screens on `isTeamLead` alone is correct and stays. The chain
+view gets `lead` plus a non-empty reports list, and neither flag substitutes for the other.
 
 An administrator does **not** see the Lead Portal unless they are also a team lead. Instead they
 reach the same review screens through the Admin Portal in one of two modes (§6.4).
@@ -366,12 +386,51 @@ Everything else in §5.2 is in place.
 | A rating of `NOT_ASSIGNED` displayed as itself | "No rating recorded" | It is the backend's way of saying no rating was given — printing it states a value that is really an absence |
 | Both tabs held in one screen, one of them lead-only | One screen, employee-only | See §8.6 |
 
+### 8.8 Slice 3, proposed breakdown
+
+Slice 3 is the largest thing in this port and the first to write to **other people's** appraisals, so
+it is broken up rather than attempted whole.
+
+**The 5,520 figure understates it.** That counts `views/leadPortal/` only. The lead screens also pull
+in shared components not counted there — the allocation view (351), employee history (372), the two
+F2F components (724), the quota dialogs (332) and more — so the real scope is nearer **7,000 lines**.
+
+| Sub-slice | Contents | Source lines | Writes? |
+|---|---|---|---|
+| **3a** Team overview | The portal shell, team picking (one team vs many), completion counts, member list with per-member status | ~1,630 | no |
+| **3b** The lead's review | The three tabs, feedback, rating, evidence proof, Top 5%/20% and its confirmation, one-way share, the F2F record | ~3,100 | **yes** |
+| **3c** Browsing others' PARs | Additional reports, report chain, employee history, the read-only allocation view — and the chain view deferred from Slice 2 | ~1,740 | no |
+| **3d** Bulk and utility actions | Bulk share, copy emails, 360° reminder, employee sync, request 360° on a report's behalf, PDF summary | ~500 | yes |
+
+Ordered 3a → 3b → 3c → 3d. 3a first because it is read-only and settles the team/report data model
+before anything writes through it; 3b needs 3a's member selection to exist.
+
+**There are two chain views, and they are not duplicates.** `parHistory/ChainViewTab` (363) walks the
+employee directory to browse **history** down the chain; `leadPortal/ReportChainView` (535) walks it to
+browse the **live cycle's** PARs. Different endpoints, different purpose. Both are in 3c, and the
+Slice 2 deferral refers to the first only.
+
+Three things to carry into the work rather than discover in it:
+
+1. **The two write-blockers belong as pure predicates**, tested at their boundaries the way
+   `parEditability` is. The evidence rating blocks sharing until a confirmation is ticked AND a file
+   is attached; Top 5%/20% is disabled until a separate confirmation is ticked, and resets when the
+   rating changes. Both are conditional locks on a one-way action.
+2. **Quota is enforced server-side only** (§6.1). The client cannot pre-empt it, so the quota error
+   has to be surfaced legibly rather than as a generic failure — including the special one-flexible-slot
+   group shape.
+3. **§9.7's source bugs live here**: the team-row button that returns its handler instead of calling
+   it, the completion chips comparing a string to a number so they never turn green, the special
+   rating converted to a label and back so the export and the chip disagree, and the edit form that
+   ignores the F2F deadline. Each belongs to a named sub-slice above rather than to "Slice 3".
+
 ---
 
 ## 9. Defects and questions in the source
 
 Carried forward deliberately, so they are tracked rather than rediscovered. Items 1 and 2 want a
-decision before the relevant slice.
+decision before the relevant slice. The `LEAD` versus `TEAM_LEAD` question that stood here through
+Slices 0-2 is now answered in §2.1.
 
 1. **The special-rating deadline is informational — decided, not a defect.** `parSpecialRatingDeadline`
    is configured, validated on creation and shown in the cycle stepper, but no control enforces it and
