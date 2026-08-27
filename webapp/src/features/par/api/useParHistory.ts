@@ -31,6 +31,7 @@ import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { parServiceUrls } from "@config/apiConfig";
 import { isParBackendConfigured } from "./useParMe";
+import { decodeRatingComments } from "../util/parCommentCodec";
 import type { ParCycle, ParRating } from "./parTypes";
 
 // Closed cycles do not change, so this can be held far longer than anything in
@@ -102,7 +103,8 @@ export function useParRatingFor(
         await getAccessToken(),
         digiopsHeaders(),
       );
-      return Array.isArray(ratings) ? ratings[0] : (ratings ?? undefined);
+      const rating = Array.isArray(ratings) ? ratings[0] : (ratings ?? undefined);
+      return decodeRatingComments(rating);
     },
     staleTime: STALE,
     retry: httpRetry,

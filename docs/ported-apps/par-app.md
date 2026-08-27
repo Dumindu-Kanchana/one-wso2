@@ -599,6 +599,40 @@ approximation of intent.
 
 ---
 
+### 8.14 The wire format for comments — a port defect, found in audit
+
+**Every PAR comment field is stored base64-encoded, and this port was sending
+raw HTML.** The standalone app writes `btoa(encodeURIComponent(html))` and reads
+`decodeURIComponent(atob(stored))`, guarded by a base64 test, for four fields:
+`parEmployeeComment`, `parLeadComment`, `parAdminComment` and `reviewComment`.
+
+Consequences of getting it wrong, both directions:
+
+- Anything this port **wrote** was stored as raw HTML. The real app tests for
+  base64 and blanks anything that fails, so those comments read as EMPTY there —
+  silent data loss from the user's point of view.
+- Anything the real app **wrote** was rendered here as base64 gibberish.
+
+Neither is visible on a staging tenant with no comments in it, which is why it
+survived four slices of review.
+
+Now handled by `util/parCommentCodec.ts` at the API boundary — encoded in the
+three mutations, decoded in every query that returns a comment — so no component
+can get it wrong. Its `decodeParComment` reproduces the source's behaviour
+exactly, including blanking a value that is not base64: such a value is already
+invisible in the real app, and passing it through would show content the real
+app hides.
+
+`api/parWireFormat.test.tsx` asserts the PATCH body rather than the codec, because
+the codec having its own tests said nothing about whether it was wired in.
+
+**Why it was missed:** the audit that found it was prompted by the user's review,
+not by the port. The four slices before it recorded 37 deviations from the source
+without a single check that the data format matched — the reviews had all been of
+behaviour and copy.
+
+---
+
 ## 9. Defects and questions in the source
 
 Carried forward deliberately, so they are tracked rather than rediscovered. Items 1 and 2 want a

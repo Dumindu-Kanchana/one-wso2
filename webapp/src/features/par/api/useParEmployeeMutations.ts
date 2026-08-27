@@ -32,6 +32,7 @@ import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 import { useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { parServiceUrls } from "@config/apiConfig";
 import type { ParThreeSixtyReviewStatus } from "./parTypes";
+import { encodeParComment } from "../util/parCommentCodec";
 
 function useScope() {
   const getAccessToken = useAccessToken();
@@ -66,7 +67,9 @@ export function useSaveMyPar() {
         parServiceUrls.updateParRating(parCycleId, email as string, parRatingId),
         await getAccessToken(),
         {
-          parEmployeeComment,
+          // Encoded at the boundary: the backend stores comments as base64 of
+          // URI-encoded HTML, not HTML. See util/parCommentCodec.ts.
+          parEmployeeComment: encodeParComment(parEmployeeComment),
           ...(share ? { parEmployeeStatus: "SHARED" } : {}),
         },
         digiopsHeaders(),
@@ -124,11 +127,11 @@ export function useSubmitThreeSixtyReview() {
   const { getAccessToken, userSub } = useScope();
   const qc = useQueryClient();
   return useMutation<void, Error, SubmitReviewArgs>({
-    mutationFn: async ({ parCycleId, employeeEmail, ...values }) => {
+    mutationFn: async ({ parCycleId, employeeEmail, reviewComment, ...values }) => {
       await authedPatch<unknown>(
         parServiceUrls.review(parCycleId, employeeEmail),
         await getAccessToken(),
-        values,
+        { ...values, reviewComment: encodeParComment(reviewComment) },
         digiopsHeaders(),
       );
     },

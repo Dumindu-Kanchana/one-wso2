@@ -48,6 +48,11 @@ import {
   type BulkShareSummary,
 } from "../util/parBulkShare";
 import { describeError } from "@api/errors";
+import {
+  decodeRatingComments,
+  decodeReviewComments,
+  encodeParComment,
+} from "../util/parCommentCodec";
 
 const STALE = 30 * 1000;
 
@@ -72,7 +77,8 @@ export function useReportParRating(parCycleId: number | undefined, employeeEmail
         await getAccessToken(),
         digiopsHeaders(),
       );
-      return Array.isArray(ratings) ? ratings[0] : (ratings ?? undefined);
+      const rating = Array.isArray(ratings) ? ratings[0] : (ratings ?? undefined);
+      return decodeRatingComments(rating);
     },
     // Short: a lead often has the employee's own screen open in another tab, and
     // a stale "not shared yet" would block a review that is now ready.
@@ -92,11 +98,13 @@ export function useReportThreeSixtyReviews(
     queryKey: ["par", "report-360", userSub, parCycleId, employeeEmail],
     enabled: ready && parCycleId !== undefined && Boolean(employeeEmail),
     queryFn: async () =>
-      (await authedGet<ParThreeSixtyReview[]>(
-        parServiceUrls.reviews(parCycleId as number, employeeEmail as string),
-        await getAccessToken(),
-        digiopsHeaders(),
-      )) ?? [],
+      decodeReviewComments(
+        (await authedGet<ParThreeSixtyReview[]>(
+          parServiceUrls.reviews(parCycleId as number, employeeEmail as string),
+          await getAccessToken(),
+          digiopsHeaders(),
+        )) ?? [],
+      ),
     staleTime: STALE,
     retry: httpRetry,
   });
@@ -124,11 +132,22 @@ export function useSaveLeadReview() {
   const { getAccessToken, userSub } = useBasis();
   const qc = useQueryClient();
   return useMutation<void, Error, SaveLeadReviewArgs>({
-    mutationFn: async ({ parCycleId, parRatingId, employeeEmail, share, ...values }) => {
+    mutationFn: async ({
+      parCycleId,
+      parRatingId,
+      employeeEmail,
+      share,
+      parLeadComment,
+      ...values
+    }) => {
       await authedPatch<unknown>(
         parServiceUrls.updateParRating(parCycleId, employeeEmail, parRatingId),
         await getAccessToken(),
-        { ...values, ...(share ? { parLeadStatus: "SHARED" } : {}) },
+        {
+          ...values,
+          parLeadComment: encodeParComment(parLeadComment),
+          ...(share ? { parLeadStatus: "SHARED" } : {}),
+        },
         digiopsHeaders(),
       );
     },

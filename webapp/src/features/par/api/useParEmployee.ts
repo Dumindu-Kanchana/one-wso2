@@ -32,6 +32,7 @@ import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { parServiceUrls } from "@config/apiConfig";
 import { isParBackendConfigured } from "./useParMe";
+import { decodeRatingComments, decodeReviewComments } from "../util/parCommentCodec";
 import type {
   ParCycle,
   ParRating,
@@ -93,7 +94,9 @@ export function useMyParRating(parCycleId: number | undefined) {
       );
       // Tolerates both shapes: the endpoint is plural and has been seen to
       // answer with a bare object for a single record.
-      return Array.isArray(ratings) ? ratings[0] : (ratings ?? undefined);
+      const rating = Array.isArray(ratings) ? ratings[0] : (ratings ?? undefined);
+      // Decoded here, at the boundary — the wire format is base64, not HTML.
+      return decodeRatingComments(rating);
     },
     staleTime: STALE,
     retry: httpRetry,
@@ -131,11 +134,13 @@ export function useMyReviews(parCycleId: number | undefined, enabled = true) {
     queryKey: ["par", "my-reviews", userSub, parCycleId],
     enabled: enabled && ready && parCycleId !== undefined,
     queryFn: async () =>
-      (await authedGet<ParThreeSixtyReview[]>(
-        parServiceUrls.reviews(parCycleId as number, email as string),
-        await getAccessToken(),
-        digiopsHeaders(),
-      )) ?? [],
+      decodeReviewComments(
+        (await authedGet<ParThreeSixtyReview[]>(
+          parServiceUrls.reviews(parCycleId as number, email as string),
+          await getAccessToken(),
+          digiopsHeaders(),
+        )) ?? [],
+      ),
     staleTime: STALE,
     retry: httpRetry,
   });
@@ -164,7 +169,8 @@ export function useMyThreeSixtyDraft(
         await getAccessToken(),
         digiopsHeaders(),
       );
-      return Array.isArray(review) ? review[0] : (review ?? undefined);
+      const one = Array.isArray(review) ? review[0] : (review ?? undefined);
+      return one === undefined ? undefined : decodeReviewComments([one])[0];
     },
     // Not cached across opens: a stale draft shown in an editor is worse than a
     // brief spinner, because it is silently the wrong text to submit.
