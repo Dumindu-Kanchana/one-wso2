@@ -24,12 +24,22 @@ import path from "path";
 // img-src also allows Google's avatar CDN.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // Google's picker is loaded for PAR evidence attachment: `gsi/client` for the
+  // OAuth token client and `js/api.js` for the gapi loader, which then pulls the
+  // picker module from the same origin.
+  "script-src 'self' https://apis.google.com https://accounts.google.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.wso2.com https://wso2.cachefly.net https://*.asgardeo.io https://*.googleusercontent.com",
+  // gstatic serves the picker's own icons and thumbnails; googleusercontent was
+  // already allowed for employee avatars and also carries Drive thumbnails.
+  "img-src 'self' data: blob: https://*.wso2.com https://wso2.cachefly.net https://*.asgardeo.io https://*.googleusercontent.com https://ssl.gstatic.com https://www.gstatic.com",
   "font-src 'self' data: https://wso2.cachefly.net",
-  "connect-src 'self' https://*.wso2.com https://*.asgardeo.io",
-  "frame-src 'self' blob: data: https://*.asgardeo.io",
+  // accounts.google.com for the token endpoint, googleapis.com for the Drive
+  // calls the picker makes on the user's behalf.
+  "connect-src 'self' https://*.wso2.com https://*.asgardeo.io https://accounts.google.com https://www.googleapis.com",
+  // docs.google.com hosts the picker's own UI in an iframe; accounts.google.com
+  // is used by the token client. Narrowed to those two hosts rather than a
+  // google.com wildcard, which would admit every Google property.
+  "frame-src 'self' blob: data: https://*.asgardeo.io https://docs.google.com https://accounts.google.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -50,6 +50,17 @@ declare global {
       // PAR has no backend endpoint that reports admin-ness, so this group is
       // the only signal; see features/par/api/useParGate.ts.
       ONE_WSO2_PAR_ADMIN_GROUP?: string;
+      // Which rating value unlocks the Top 5% / 20% selector, and which one
+      // demands supporting evidence before a lead review can be shared. Both
+      // are rating STRINGS from the cycle's own scale, not flags, and both
+      // default to the values the standalone app used.
+      ONE_WSO2_PAR_TOP5P20P_RATING?: string;
+      ONE_WSO2_PAR_EVIDENCE_RATING?: string;
+      // Google OAuth client id for the Drive picker PAR uses to attach
+      // supporting evidence. Optional — without it the picker cannot open, and
+      // the evidence field falls back to accepting pasted Drive links, so a
+      // lead is never left unable to share.
+      ONE_WSO2_GOOGLE_OAUTH_CLIENT_ID?: string;
       // Base URL for the digiops-hr promotion-app backend. Optional — when
       // absent, ConnectedServices' "Last promoted date" row falls back to a
       // "not configured" state and doesn't fire a request.

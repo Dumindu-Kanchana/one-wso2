@@ -54,6 +54,23 @@ window.config = {
   // reports', because those two come from PAR's own employee record instead.
   // ONE_WSO2_PAR_ADMIN_GROUP: "<your-par-admin-group-name>",
 
+  // Two rating values with special behaviour, both from the cycle's own rating
+  // scale. Optional; these are the defaults.
+  //   TOP5P20P: the only rating for which Top 5% / 20% can be assigned.
+  //   EVIDENCE: the rating that cannot be shared without a confirmation that
+  //   discussions were held AND at least one supporting document link.
+  // Getting either wrong silently disables a control rather than erroring, so
+  // they are worth checking against the live rating scale after a change.
+  // ONE_WSO2_PAR_TOP5P20P_RATING: "Successful",
+  // ONE_WSO2_PAR_EVIDENCE_RATING: "Needs Improvement",
+
+  // Google OAuth client id for the Drive picker used to attach PAR evidence.
+  // Optional. Without it the "Choose from Drive" button is unavailable and the
+  // lead pastes Drive links instead — the stored value is the same either way,
+  // a newline-separated list of URLs.
+  // Requires the Google origins already present in the CSP (see vite.config.ts).
+  // ONE_WSO2_GOOGLE_OAUTH_CLIENT_ID: "<your-google-oauth-client-id>",
+
   // digiops-hr banking-app backend base URL. Optional — when absent, the
   // Bank accounts card shows a "not configured" state. Same Choreo API
   // gateway URL pattern; unlike par/promotion apps, this one does NOT
