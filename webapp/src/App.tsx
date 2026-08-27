@@ -25,6 +25,7 @@ import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamPage from "@features/my/my-team/pages/MyTeamPage";
 import TeamMemberPage from "@features/my/my-team/pages/TeamMemberPage";
 import MyParPage from "@features/par/pages/MyParPage";
+import ParHistoryPage from "@features/par/pages/ParHistoryPage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import WorkspacePage from "@features/workspace/pages/WorkspacePage";
 import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
@@ -88,6 +89,7 @@ export default function App() {
           {/* PAR. The specification, the deadline table and the deliberate
               deviations are in docs/ported-apps/par-app.md. */}
           <Route path="me/par" element={<MyParPage />} />
+          <Route path="me/par/history" element={<ParHistoryPage />} />
           {/* Me → Leave: native screens ported from leave-app. Lives here
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}

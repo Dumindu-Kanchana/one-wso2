@@ -52,6 +52,7 @@ export const ME_APPS: readonly MenuApp[] = [
     // stays hidden rather than leaking.
     items: [
       { id: "par-my", label: "My PAR", desc: "Your appraisal for the current cycle.", path: "/me/par" },
+      { id: "par-history", label: "History", desc: "Your appraisals from closed cycles.", path: "/me/par/history" },
     ],
   },
 ];

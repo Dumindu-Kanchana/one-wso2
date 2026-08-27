@@ -48,6 +48,8 @@ describe("pinnableRoute", () => {
     // would get a guessed label instead of a qualified one.
     expect(pinnableRoute("/me/par").label).toBe("PAR · My PAR");
     expect(isKnownRoute("/me/par")).toBe(true);
+    expect(pinnableRoute("/me/par/history").label).toBe("PAR · History");
+    expect(isKnownRoute("/me/par/history")).toBe(true);
   });
 
   // Detail routes aren't in the registry — one entry cannot enumerate every

@@ -168,7 +168,11 @@ blocked while the employee's status is `PENDING`.
 Past (`CLOSED`) cycles: what the employee wrote, what their lead wrote, the rating awarded, and any
 special rating.
 
-Includes the **chain view**, showing the appraisal up the reporting line.
+The source pairs this with a second tab, the **chain view**. This spec previously described it as
+showing the appraisal *up* the reporting line; that was wrong. It browses **downward** — an org-tree
+walker with breadcrumbs, search and a leads-only filter, opening any subordinate's PAR history — and
+it is shown only to people who have reports. It reads other employees' appraisals, so it belongs with
+the lead screens; see §8.6.
 
 ---
 
@@ -327,6 +331,42 @@ answer is locked, 12 tests), `util/parReviewers.ts` (who may be nominated, 13 te
 
 One source oddity **kept**: nominations are additive and the backend appends, so there is no way to
 withdraw a request once sent. Removing one is a backend capability that does not exist.
+
+### 8.5 What Slice 2 landed
+
+`/me/par/history`, registered as `par-history`. A table of closed cycles, newest first, opening one at
+a time into a full appraisal: what the employee wrote, what the lead wrote, the rating awarded, any
+special rating, and the three statuses the record ended on.
+
+New: `api/useParHistory.ts` and `util/parDates.ts` (9 tests), plus 10 tests on the page. The list and
+the detail are separate requests — a person with several years of cycles would otherwise fetch every
+appraisal to render a table showing none of them.
+
+### 8.6 What Slice 2 deliberately did NOT land
+
+**The chain view is deferred to Slice 3**, with the lead screens. It is 363 of the source view's 670
+lines, and it is not an employee feature: it walks the org tree and opens **other people's**
+appraisals.
+
+The reason for deferring rather than porting is the gate, not the effort. The source shows the tab
+when the signed-in user appears as somebody's manager in the employee directory — a set it computes
+client-side from a full directory fetch. This port has two candidate signals instead, `isTeamLead`
+from PAR's own record and the `lead` flag beside it, and **§9's open question about which of those
+means what is unresolved**. Guessing wrong in either direction on a screen that exposes colleagues'
+appraisals is not a trade worth making to close a slice. Slice 3 settles the role semantics, and the
+chain view lands behind whatever that turns out to be.
+
+Everything else in §5.2 is in place.
+
+### 8.7 Deviations from the source, taken in Slice 2
+
+| Source behaviour | Here | Why |
+|---|---|---|
+| History rendered in whatever order the backend returned | Sorted newest-first in the client | The endpoint does not specify an order, and a history that is not newest-first reads as unordered |
+| A rating of `NOT_ASSIGNED` displayed as itself | "No rating recorded" | It is the backend's way of saying no rating was given — printing it states a value that is really an absence |
+| Both tabs held in one screen, one of them lead-only | One screen, employee-only | See §8.6 |
+
+---
 
 ## 9. Defects and questions in the source
 
