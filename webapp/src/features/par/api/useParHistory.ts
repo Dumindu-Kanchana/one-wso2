@@ -41,22 +41,26 @@ function useBasis() {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
   const { state: subState, retry: retryIdentity } = useAsgardeoSub();
-  const { email } = useAsgardeoUser();
   const userSub = subState.status === "ready" ? subState.sub : undefined;
-  const ready = isSignedIn && isParBackendConfigured() && Boolean(userSub) && Boolean(email);
-  return { getAccessToken, subState, retryIdentity, userSub, email, ready };
+  const ready = isSignedIn && isParBackendConfigured() && Boolean(userSub);
+  return { getAccessToken, subState, retryIdentity, userSub, ready };
 }
 
-/** Every closed cycle this employee took part in, newest first. */
-export function useMyClosedCycles() {
-  const { getAccessToken, subState, retryIdentity, userSub, email, ready } = useBasis();
+/**
+ * Every closed cycle a given employee took part in, newest first.
+ *
+ * Takes the email rather than assuming the signed-in user, so a lead can read a
+ * report's history through the same path. The backend decides whether they may.
+ */
+export function useClosedCyclesFor(employeeEmail: string | undefined, enabled = true) {
+  const { getAccessToken, subState, retryIdentity, userSub, ready } = useBasis();
   const query = useQuery<ParCycle[]>({
-    queryKey: ["par", "my-closed-cycles", userSub],
-    enabled: ready,
+    queryKey: ["par", "closed-cycles", userSub, employeeEmail],
+    enabled: enabled && ready && Boolean(employeeEmail),
     queryFn: async () => {
       const cycles =
         (await authedGet<ParCycle[]>(
-          parServiceUrls.parCycles(email as string, "CLOSED"),
+          parServiceUrls.parCycles(employeeEmail as string, "CLOSED"),
           await getAccessToken(),
           digiopsHeaders(),
         )) ?? [];
@@ -72,19 +76,29 @@ export function useMyClosedCycles() {
   return foldIdentityError(query, subState, retryIdentity);
 }
 
+/** The signed-in employee's own closed cycles. */
+export function useMyClosedCycles() {
+  const { email } = useAsgardeoUser();
+  return useClosedCyclesFor(email);
+}
+
 /**
- * One past appraisal in full.
+ * One past appraisal in full, for any employee.
  *
  * `enabled` so the detail is only fetched for the cycle actually opened.
  */
-export function useMyParRatingFor(parCycleId: number | undefined, enabled: boolean) {
-  const { getAccessToken, subState, retryIdentity, userSub, email, ready } = useBasis();
+export function useParRatingFor(
+  parCycleId: number | undefined,
+  employeeEmail: string | undefined,
+  enabled: boolean,
+) {
+  const { getAccessToken, subState, retryIdentity, userSub, ready } = useBasis();
   const query = useQuery<ParRating | undefined>({
-    queryKey: ["par", "my-rating", userSub, parCycleId],
-    enabled: enabled && ready && parCycleId !== undefined,
+    queryKey: ["par", "rating-for", userSub, parCycleId, employeeEmail],
+    enabled: enabled && ready && parCycleId !== undefined && Boolean(employeeEmail),
     queryFn: async () => {
       const ratings = await authedGet<ParRating[] | ParRating>(
-        parServiceUrls.parRating(parCycleId as number, email as string),
+        parServiceUrls.parRating(parCycleId as number, employeeEmail as string),
         await getAccessToken(),
         digiopsHeaders(),
       );
@@ -94,4 +108,10 @@ export function useMyParRatingFor(parCycleId: number | undefined, enabled: boole
     retry: httpRetry,
   });
   return foldIdentityError(query, subState, retryIdentity);
+}
+
+/** The signed-in employee's own appraisal for one past cycle. */
+export function useMyParRatingFor(parCycleId: number | undefined, enabled: boolean) {
+  const { email } = useAsgardeoUser();
+  return useParRatingFor(parCycleId, email, enabled);
 }

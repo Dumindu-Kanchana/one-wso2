@@ -160,6 +160,20 @@ export interface ParSpecialRatingAllocation {
   parSubTeam?: string;
 }
 
+/**
+ * A person as PAR's employee directory returns them.
+ *
+ * Cycle-independent, which is the point: browsing history down a reporting line
+ * has to work for people who are not in the open cycle, or were not in any.
+ */
+export interface ParDirectoryEmployee {
+  workEmail: string;
+  employeeName?: string;
+  employeeThumbnail?: string | null;
+  /** Whether they have reports of their own. Carried as text — see parReports.ts. */
+  isLead?: string | boolean;
+}
+
 /** Per-stage completion counts the backend computes for one team. */
 export interface ParTeamSummary {
   employeeParCompletedCount: number;

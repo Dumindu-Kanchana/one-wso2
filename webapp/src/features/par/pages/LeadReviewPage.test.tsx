@@ -41,6 +41,7 @@ const state = vi.hoisted(() => ({
   isTeamLead: true,
   cycle: undefined as unknown,
   rating: undefined as unknown,
+  closedCycles: [] as unknown[],
 }));
 
 vi.mock("../api/useParGate", () => ({
@@ -57,6 +58,10 @@ vi.mock("../api/useParGate", () => ({
 const idle = { isPending: false, isError: false, error: null };
 vi.mock("../api/useParEmployee", () => ({
   useMyParCycle: () => ({ ...idle, data: state.cycle }),
+}));
+vi.mock("../api/useParHistory", () => ({
+  useClosedCyclesFor: () => ({ ...idle, data: state.closedCycles }),
+  useParRatingFor: () => ({ ...idle, data: undefined }),
 }));
 
 const saveMutate = vi.fn();
@@ -119,6 +124,7 @@ beforeEach(() => {
   state.isTeamLead = true;
   state.cycle = CYCLE;
   state.rating = rating();
+  state.closedCycles = [];
 });
 
 describe("the gate", () => {
@@ -264,3 +270,29 @@ describe("the face-to-face record", () => {
     expect(f2fMutate).not.toHaveBeenCalled();
   });
 });
+
+// The shared panel takes its wording as data precisely so this reads from the
+// lead's side rather than the employee's.
+describe("the report's earlier cycles", () => {
+  it("is shown as context, worded from the lead's side", () => {
+    renderPage();
+    expect(screen.getByText("Earlier cycles")).toBeInTheDocument();
+    expect(screen.getByText(/they don't have any closed cycles yet/i)).toBeInTheDocument();
+  });
+
+  it("lists them when there are any", () => {
+    state.closedCycles = [
+      {
+        parCycleId: 3,
+        parCycleName: "H2 2025",
+        parCycleStatus: "CLOSED",
+        parCycleStartDate: "2025-07-01",
+        parCycleEndDate: "2025-12-31",
+      },
+    ];
+    renderPage();
+    expect(screen.getByText("H2 2025")).toBeInTheDocument();
+    expect(screen.getByText("1 Jul 2025 – 31 Dec 2025")).toBeInTheDocument();
+  });
+});
+

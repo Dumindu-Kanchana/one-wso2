@@ -15,11 +15,11 @@
 // under the License.
 
 
-// The lead's whole reporting line for a cycle, direct and indirect together.
+// PAR's employee directory, scoped to whoever reports to a given person.
 //
-// One request returns both: `reportingType` on each row says which. The screens
-// split them because a lead's own reports and the people under those reports
-// are different responsibilities, but there is no reason to ask twice.
+// Distinct from the `reports` endpoint, which is cycle-scoped: this one knows
+// nothing about cycles, which is what makes browsing HISTORY down a reporting
+// line possible for people who were not in the open cycle, or in any.
 
 import { useQuery } from "@tanstack/react-query";
 import { useAsgardeo } from "@asgardeo/react";
@@ -27,48 +27,30 @@ import { authedGet } from "@api/http";
 import { httpRetry } from "@api/errors";
 import { digiopsHeaders } from "@api/digiopsHeaders";
 import { useAccessToken } from "@hooks/useAccessToken";
-import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { parServiceUrls } from "@config/apiConfig";
 import { isParBackendConfigured } from "./useParMe";
-import type { ParReportEntry } from "./parTypes";
+import type { ParDirectoryEmployee } from "./parTypes";
 
-/**
- * The reporting line beneath any given lead.
- *
- * Takes the lead's email rather than assuming the signed-in user, which is what
- * makes the report chain possible: drilling into somebody is the same request
- * with them as the lead. The backend authorises it — a lead may only see within
- * their own line — so a drill outside it comes back refused rather than empty.
- */
-export function useReportsFor(
-  parCycleId: number | undefined,
-  leadEmail: string | undefined,
-  enabled = true,
-) {
+export function useDirectoryReports(leadEmail: string | undefined, enabled = true) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
   const { state: subState, retry: retryIdentity } = useAsgardeoSub();
   const userSub = subState.status === "ready" ? subState.sub : undefined;
   const ready = isSignedIn && isParBackendConfigured() && Boolean(userSub);
 
-  const query = useQuery<ParReportEntry[]>({
-    queryKey: ["par", "reports-for", userSub, parCycleId, leadEmail],
-    enabled: enabled && ready && parCycleId !== undefined && Boolean(leadEmail),
+  const query = useQuery<ParDirectoryEmployee[]>({
+    queryKey: ["par", "directory-reports", userSub, leadEmail],
+    enabled: enabled && ready && Boolean(leadEmail),
     queryFn: async () =>
-      (await authedGet<ParReportEntry[]>(
-        parServiceUrls.reports(parCycleId as number, leadEmail as string),
+      (await authedGet<ParDirectoryEmployee[]>(
+        parServiceUrls.employees(leadEmail as string),
         await getAccessToken(),
         digiopsHeaders(),
       )) ?? [],
-    staleTime: 60 * 1000,
+    // Org structure, not user data: shared by everyone and rarely edited.
+    staleTime: 10 * 60 * 1000,
     retry: httpRetry,
   });
   return foldIdentityError(query, subState, retryIdentity);
-}
-
-/** The signed-in lead's own reporting line. */
-export function useMyReports(parCycleId: number | undefined, enabled = true) {
-  const { email } = useAsgardeoUser();
-  return useReportsFor(parCycleId, email, enabled);
 }

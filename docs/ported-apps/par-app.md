@@ -376,7 +376,7 @@ means what is unresolved**. Guessing wrong in either direction on a screen that 
 appraisals is not a trade worth making to close a slice. Slice 3 settles the role semantics, and the
 chain view lands behind whatever that turns out to be.
 
-Everything else in §5.2 is in place.
+Everything else in §5.2 is in place. **The chain view landed in 3c** — see §8.11.
 
 ### 8.7 Deviations from the source, taken in Slice 2
 
@@ -481,6 +481,42 @@ a missing origin shows as a specific CSP console error, and each entry is commen
 
 Still outstanding in Slice 3: **3c** (additional reports, report chain, employee history, read-only
 allocation) and **3d** (bulk share, reminders, sync, PDF).
+
+### 8.11 What sub-slice 3c landed
+
+Four read-only views, all reached from screens that already existed.
+
+On `/me/par/team`, three further tabs: **Additional reports** (people under the lead's reports, and
+anyone attached as an additional manager), **Report chain** (drilling the open cycle's PARs level by
+level), and **Top 5% / 20%** (the quota pools and the teams drawing from them). Each fetches nothing
+until opened.
+
+On `/me/par/history`, a **Team history** tab — the chain view deferred out of Slice 2. It walks the
+employee DIRECTORY rather than the cycle, so it reaches people who were not in the open cycle or in
+any. Gated per §2.1 on the `lead` flag AND the directory agreeing the person has reports; either
+alone is wrong, because the flag can outlive a reorganisation and having reports does not by itself
+make somebody a lead in PAR's terms.
+
+On the review screen, **Earlier cycles** for the report being reviewed — context for the review being
+written, so it sits last.
+
+New: `api/useParReports.ts`, `api/useParAllocation.ts`, `api/useParDirectory.ts`,
+`util/parReports.ts` (12 tests), `util/parAllocation.ts` (12 tests), `util/parChain.ts` (10 tests),
+and five components. The history table and detail were extracted into one shared panel used by the
+employee's own history, a report's, and the team browser — its copy is passed in as data rather than
+switched on a flag, so a caller cannot render "what you wrote" over somebody else's words.
+
+**Deviations taken in 3c:**
+
+| Source behaviour | Here | Why |
+|---|---|---|
+| `isEmployeeALead` compared case-insensitively in the filter and `=== "True"` exactly in the badge, 200 lines apart | One case-insensitive parse | With a backend answering `"true"` the filter worked and the badge silently never appeared |
+| A strict `reportingType === "indirect"` check | Case-insensitive, and anything unrecognised counts as direct | A strict check drops an unexpected value from **both** lists; showing somebody in the wrong one is better than losing them |
+| A quota pool of 1 and 0 rendered literally | Labelled "1 slot · Top 5% or Top 20%" | Read literally it says "no Top 20%", telling a lead they cannot award something they can (§6.1) |
+| Allocation search hid whole pools | Narrows teams within a pool, keeping the pool | The quota belongs to the pool, so hiding it hides the figure being searched for |
+| Drill-down offered on every row | Only for someone with reports | A leaf drills into an empty level, which reads as a broken control |
+| Chain trail held in component state with three handlers | `util/parChain.ts`, tested | Re-entering somebody already in the trail now truncates rather than appending, so a loop in the reporting data cannot grow it without bound |
+| Two near-identical history tables | One shared panel, copy as data | They would drift, and the wording differs by reader rather than by structure |
 
 ---
 

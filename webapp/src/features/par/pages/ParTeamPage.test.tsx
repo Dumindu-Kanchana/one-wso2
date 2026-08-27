@@ -43,6 +43,8 @@ const state = vi.hoisted(() => ({
   reportsEnabled: [] as boolean[],
   allocation: [] as unknown[],
   allocationEnabled: [] as boolean[],
+  chainLevels: {} as Record<string, unknown[]>,
+  chainAsked: [] as string[],
 }));
 
 vi.mock("../api/useParGate", () => ({
@@ -68,6 +70,12 @@ vi.mock("../api/useParReports", () => ({
   useMyReports: (_cycleId: number | undefined, enabled: boolean) => {
     state.reportsEnabled.push(enabled);
     return { ...idle, data: state.reports };
+  },
+  // The chain browser asks per level; the stub answers from `chainLevels`,
+  // keyed by whose reports were requested.
+  useReportsFor: (_cycleId: number | undefined, leadEmail: string | undefined) => {
+    state.chainAsked.push(leadEmail ?? "");
+    return { ...idle, data: state.chainLevels[leadEmail ?? ""] ?? [] };
   },
 }));
 vi.mock("../api/useParAllocation", () => ({
@@ -183,6 +191,38 @@ const ALLOCATION = [
   },
 ];
 
+// lead@ -> Ann (a lead) and Bob (not); Ann -> Cid.
+const CHAIN_LEVELS: Record<string, unknown[]> = {
+  "lead@wso2.com": [
+    {
+      parRatingId: 1,
+      parCycleId: 7,
+      parEmployeeEmail: "ann@wso2.com",
+      parEmployeeName: "Ann Perera",
+      parEmployeeStatus: "SHARED",
+      isEmployeeALead: "true",
+    },
+    {
+      parRatingId: 2,
+      parCycleId: 7,
+      parEmployeeEmail: "bob@wso2.com",
+      parEmployeeName: "Bob Silva",
+      parEmployeeStatus: "DRAFT",
+      isEmployeeALead: "False",
+    },
+  ],
+  "ann@wso2.com": [
+    {
+      parRatingId: 3,
+      parCycleId: 7,
+      parEmployeeEmail: "cid@wso2.com",
+      parEmployeeName: "Cid Fernando",
+      parEmployeeStatus: "PENDING",
+      isEmployeeALead: "False",
+    },
+  ],
+};
+
 beforeEach(() => {
   state.isTeamLead = true;
   state.cycle = CYCLE;
@@ -192,6 +232,8 @@ beforeEach(() => {
   state.reportsEnabled = [];
   state.allocation = ALLOCATION;
   state.allocationEnabled = [];
+  state.chainLevels = CHAIN_LEVELS;
+  state.chainAsked = [];
 });
 
 // The screen reads other people's appraisals, so the gate is the first thing
@@ -416,6 +458,54 @@ describe("the Top 5% / 20% tab", () => {
     renderPage();
     await open();
     expect(screen.getByText(/no Top 5% \/ 20% quota has been allocated/i)).toBeInTheDocument();
+  });
+});
+
+describe("the report-chain tab", () => {
+  const open = async () =>
+    userEvent.setup().click(screen.getByRole("tab", { name: "Report chain" }));
+
+  it("starts at the signed-in lead", async () => {
+    renderPage();
+    await open();
+    expect(screen.getByText("Ann Perera")).toBeInTheDocument();
+    expect(screen.getByText("Bob Silva")).toBeInTheDocument();
+  });
+
+  it("offers a drill-down only for someone who has reports of their own", async () => {
+    // A leaf drills into an empty level, which reads as the control being broken.
+    renderPage();
+    await open();
+    expect(screen.getAllByRole("button", { name: /their team/i })).toHaveLength(1);
+  });
+
+  it("drills into the next level and shows the trail", async () => {
+    renderPage();
+    await open();
+    await userEvent.setup().click(screen.getByRole("button", { name: /their team/i }));
+
+    expect(screen.getByText("Cid Fernando")).toBeInTheDocument();
+    expect(screen.queryByText("Bob Silva")).toBeNull();
+    // The trail names where you came from and where you are.
+    expect(screen.getByRole("button", { name: "You" })).toBeInTheDocument();
+  });
+
+  it("comes back up via the trail", async () => {
+    renderPage();
+    await open();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /their team/i }));
+    await user.click(screen.getByRole("button", { name: "You" }));
+
+    expect(screen.getByText("Bob Silva")).toBeInTheDocument();
+    expect(screen.queryByText("Cid Fernando")).toBeNull();
+  });
+
+  it("says so when a level is empty rather than showing a bare table", async () => {
+    state.chainLevels = { "lead@wso2.com": [] };
+    renderPage();
+    await open();
+    expect(screen.getByText(/nobody reports to you in this cycle/i)).toBeInTheDocument();
   });
 });
 

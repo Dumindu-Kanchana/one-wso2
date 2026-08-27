@@ -18,6 +18,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import ParHistoryPage from "./ParHistoryPage";
 import type { ParCycle, ParRating } from "../api/parTypes";
 
@@ -39,19 +40,26 @@ vi.mock("../api/useParGate", () => ({
 }));
 vi.mock("../api/useParMe", () => ({
   isParBackendConfigured: () => true,
-  useParMe: () => ({ data: { workEmail: "me@wso2.com" } }),
+  useParMe: () => ({ data: { workEmail: "me@wso2.com", lead: state.lead } }),
+}));
+vi.mock("../api/useParDirectory", () => ({
+  useDirectoryReports: () => ({ ...idle, data: state.directory }),
 }));
 
 const state = vi.hoisted(() => ({
   cycles: [] as unknown[],
   rating: undefined as unknown,
   ratingCalls: [] as unknown[],
+  lead: false as boolean | string | null,
+  directory: [] as unknown[],
 }));
 
 const idle = { isPending: false, isError: false, error: null };
 vi.mock("../api/useParHistory", () => ({
   useMyClosedCycles: () => ({ ...idle, data: state.cycles }),
-  useMyParRatingFor: (id: number | undefined, enabled: boolean) => {
+  // The shared panel reads through the email-taking variants.
+  useClosedCyclesFor: () => ({ ...idle, data: state.cycles }),
+  useParRatingFor: (id: number | undefined, _email: string | undefined, enabled: boolean) => {
     state.ratingCalls.push({ id, enabled });
     return { ...idle, data: state.rating };
   },
@@ -93,12 +101,18 @@ beforeEach(() => {
   state.cycles = [cycle()];
   state.rating = rating();
   state.ratingCalls = [];
+  state.lead = false;
+  state.directory = [];
 });
 
 describe("with no closed cycles", () => {
   it("explains rather than showing an empty table", () => {
     state.cycles = [];
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     expect(screen.getByText(/don't have any closed cycles yet/i)).toBeInTheDocument();
     expect(screen.queryByRole("table")).toBeNull();
   });
@@ -106,7 +120,11 @@ describe("with no closed cycles", () => {
 
 describe("the list of closed cycles", () => {
   it("lists each cycle with its period", () => {
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     expect(screen.getByText("H1 2025")).toBeInTheDocument();
     expect(screen.getByText("1 Jan 2025 – 30 Jun 2025")).toBeInTheDocument();
   });
@@ -114,14 +132,22 @@ describe("the list of closed cycles", () => {
   it("fetches no appraisal until one is opened", () => {
     // A person with several years of cycles would otherwise fetch every
     // appraisal to render a table that shows none of them.
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     expect(state.ratingCalls.filter((c) => (c as { enabled: boolean }).enabled)).toHaveLength(0);
   });
 });
 
 describe("opening a cycle", () => {
   it("shows both sides of the appraisal", async () => {
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     await userEvent.setup().click(screen.getByRole("button", { name: "Open" }));
 
     expect(screen.getByText("I shipped the gateway.")).toBeInTheDocument();
@@ -129,7 +155,11 @@ describe("opening a cycle", () => {
   });
 
   it("shows the rating awarded", async () => {
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     await userEvent.setup().click(screen.getByRole("button", { name: "Open" }));
     expect(screen.getByText("Rating: Successful")).toBeInTheDocument();
   });
@@ -137,7 +167,11 @@ describe("opening a cycle", () => {
   it("calls an unassigned rating an absence, not a value", async () => {
     // "NOT_ASSIGNED" is the backend saying no rating was given.
     state.rating = rating({ parRating: "NOT_ASSIGNED" });
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     await userEvent.setup().click(screen.getByRole("button", { name: "Open" }));
 
     expect(screen.getByText("No rating recorded")).toBeInTheDocument();
@@ -146,20 +180,32 @@ describe("opening a cycle", () => {
 
   it("says so when a side wrote nothing, rather than leaving a blank", async () => {
     state.rating = rating({ parLeadComment: "" });
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     await userEvent.setup().click(screen.getByRole("button", { name: "Open" }));
     expect(screen.getByText(/lead didn't leave written feedback/i)).toBeInTheDocument();
   });
 
   it("reports the conversation alongside the two shares", async () => {
     // "Shared" on its own says nothing about whether the conversation happened.
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     await userEvent.setup().click(screen.getByRole("button", { name: "Open" }));
     expect(screen.getByText(/Conversation: Completed/)).toBeInTheDocument();
   });
 
   it("closes again", async () => {
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Open" }));
     await user.click(screen.getByRole("button", { name: "Hide" }));
@@ -170,8 +216,91 @@ describe("opening a cycle", () => {
 describe("a cycle with no appraisal recorded", () => {
   it("says so instead of rendering empty sections", async () => {
     state.rating = undefined;
-    render(<ParHistoryPage />);
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
     await userEvent.setup().click(screen.getByRole("button", { name: "Open" }));
     expect(screen.getByText(/no appraisal was recorded/i)).toBeInTheDocument();
   });
 });
+
+// The tab deferred out of Slice 2, whose gate §2.1 settled: the `lead` flag AND
+// the directory agreeing the person has reports. Either alone is wrong.
+describe("the team-history tab", () => {
+  const DIRECTORY = [
+    { workEmail: "ann@wso2.com", employeeName: "Ann Perera", isLead: "true" },
+    { workEmail: "bob@wso2.com", employeeName: "Bob Silva", isLead: "False" },
+  ];
+
+  it("is hidden from someone who is not a lead", () => {
+    state.lead = false;
+    state.directory = DIRECTORY;
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("tab", { name: "Team history" })).toBeNull();
+  });
+
+  it("is hidden from a lead whose reporting line is empty", () => {
+    // The flag can outlive a reorganisation, so it is not sufficient on its own.
+    state.lead = true;
+    state.directory = [];
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("tab", { name: "Team history" })).toBeNull();
+  });
+
+  it("appears when both signals agree", () => {
+    state.lead = "true";
+    state.directory = DIRECTORY;
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("tab", { name: "Team history" })).toBeInTheDocument();
+  });
+
+  it("lists the reporting line, and drills only into someone with reports", async () => {
+    state.lead = true;
+    state.directory = DIRECTORY;
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Team history" }));
+
+    expect(screen.getByText("Ann Perera")).toBeInTheDocument();
+    expect(screen.getByText("Bob Silva")).toBeInTheDocument();
+    // Only Ann is a lead, so only Ann can be drilled into.
+    expect(screen.getAllByRole("button", { name: /their team/i })).toHaveLength(1);
+    // Both can have their history read.
+    expect(screen.getAllByRole("button", { name: "History" })).toHaveLength(2);
+  });
+
+  it("reads one person's history at a time", async () => {
+    state.lead = true;
+    state.directory = DIRECTORY;
+    render(
+      <MemoryRouter>
+        <ParHistoryPage />
+      </MemoryRouter>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Team history" }));
+    await user.click(screen.getAllByRole("button", { name: "History" })[0]);
+
+    // Worded from the reader's side, not the subject's.
+    expect(screen.getByText("Ann Perera · closed cycles")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hide history" })).toBeInTheDocument();
+  });
+});
+

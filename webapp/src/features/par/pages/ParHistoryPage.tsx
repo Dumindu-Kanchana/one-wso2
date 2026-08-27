@@ -15,48 +15,54 @@
 // under the License.
 
 
-import { useState, type JSX } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Skeleton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@wso2/oxygen-ui";
+import { type JSX } from "react";
+import { Alert, Box, Skeleton, Tab, Tabs } from "@wso2/oxygen-ui";
+import { useSearchParams } from "react-router";
 import { HistoryIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
+import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 import ParShell from "../components/ParShell";
-import ParSection from "../components/ParSection";
-import ParHtml from "../components/ParHtml";
-import { useMyClosedCycles, useMyParRatingFor } from "../api/useParHistory";
-import { formatParDate, formatParPeriod } from "../util/parDates";
-import {
-  PAR_RATING_NOT_ASSIGNED,
-  type ParCycle,
-} from "../api/parTypes";
-import {
-  parEmployeeStatusMeta,
-  parF2fStatusMeta,
-  parLeadStatusMeta,
-  parSpecialRatingMeta,
-} from "../util/parStatus";
+import ParPastCyclesPanel from "../components/ParPastCyclesPanel";
+import ParTeamHistoryPanel from "../components/ParTeamHistoryPanel";
+import { useMyClosedCycles } from "../api/useParHistory";
+import { useParMe } from "../api/useParMe";
+import { useDirectoryReports } from "../api/useParDirectory";
+import { parseTextBoolean } from "../util/parReports";
 
 // PAR history — the employee's own past appraisals.
 //
-// See docs/ported-apps/par-app.md §5.2. The source paired this with a "chain
-// view" tab for browsing subordinates' history; that is a lead capability
-// reading other people's appraisals, and it lands with the lead screens.
+// See docs/ported-apps/par-app.md §5.2. The table and detail are shared with the
+// lead-facing view of a report's history, so the two cannot drift; only the copy
+// differs, and it is passed in rather than switched on a flag.
+
+const OWN_HISTORY = {
+  title: "Closed cycles",
+  subtitle: "Newest first. Open one to read what was written.",
+  none: "You don't have any closed cycles yet. Your first appraisal appears here once its cycle closes.",
+  employeeHeading: "WHAT YOU WROTE",
+  leadHeading: "WHAT YOUR LEAD WROTE",
+  employeeSilent: "You didn't write anything for this cycle.",
+  leadSilent: "Your lead didn't leave written feedback.",
+  ownerLabel: "Yours",
+};
 
 export default function ParHistoryPage(): JSX.Element {
+  const { email } = useAsgardeoUser();
+  // Asked here too, so the page can distinguish "nothing yet" from a failure
+  // before the panel renders either.
   const cycles = useMyClosedCycles();
-  const [openCycleId, setOpenCycleId] = useState<number | null>(null);
+
+  // The team-history tab's gate, settled in §2.1: the `lead` flag AND the
+  // directory agreeing this person actually has reports. Two signals because
+  // either alone is wrong — the flag can outlive a reorganisation, and having
+  // reports does not by itself make somebody a lead in PAR's terms.
+  const me = useParMe(email);
+  const myReports = useDirectoryReports(email, parseTextBoolean(me.data?.lead));
+  const canBrowseTeam =
+    parseTextBoolean(me.data?.lead) && (myReports.data ?? []).length > 0;
+
+  const [params, setParams] = useSearchParams();
+  const view = canBrowseTeam && params.get("view") === "team" ? "team" : "mine";
 
   return (
     <ParShell
@@ -65,175 +71,36 @@ export default function ParHistoryPage(): JSX.Element {
       subtitle="Your appraisals from cycles that have closed."
       require="employee"
     >
-      {cycles.isPending ? (
+      {canBrowseTeam && (
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2.25 }}>
+          <Tabs
+            value={view}
+            onChange={(_e, next: string) => {
+              const nextParams = new URLSearchParams(params);
+              if (next === "mine") nextParams.delete("view");
+              else nextParams.set("view", next);
+              setParams(nextParams, { replace: true });
+            }}
+          >
+            <Tab value="mine" label="My history" sx={{ textTransform: "none" }} />
+            <Tab value="team" label="Team history" sx={{ textTransform: "none" }} />
+          </Tabs>
+        </Box>
+      )}
+
+      {view === "team" ? (
+        <ParTeamHistoryPanel rootEmail={email ?? ""} rootName="You" />
+      ) : cycles.isPending ? (
         <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />
       ) : cycles.isError ? (
         <Alert severity="error">
           Couldn&apos;t load your history. {describeError(cycles.error)}
         </Alert>
       ) : (cycles.data ?? []).length === 0 ? (
-        <Alert severity="info">
-          You don&apos;t have any closed cycles yet. Your first appraisal appears here once its
-          cycle closes.
-        </Alert>
+        <Alert severity="info">{OWN_HISTORY.none}</Alert>
       ) : (
-        <>
-          <ParSection
-            title="Closed cycles"
-            subtitle="Newest first. Open one to read what was written."
-          >
-            <Box sx={{ overflowX: "auto" }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700 }}>Cycle</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Period</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Closed</TableCell>
-                    <TableCell />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {(cycles.data ?? []).map((cycle) => {
-                    const isOpen = openCycleId === cycle.parCycleId;
-                    return (
-                      <TableRow key={cycle.parCycleId} hover>
-                        <TableCell sx={{ fontWeight: 600 }}>{cycle.parCycleName}</TableCell>
-                        <TableCell>
-                          {formatParPeriod(cycle.parCycleStartDate, cycle.parCycleEndDate)}
-                        </TableCell>
-                        <TableCell>{formatParDate(cycle.parCycleEndDate)}</TableCell>
-                        <TableCell align="right">
-                          <Button
-                            size="small"
-                            variant={isOpen ? "contained" : "outlined"}
-                            onClick={() => setOpenCycleId(isOpen ? null : cycle.parCycleId)}
-                            sx={{ textTransform: "none", fontWeight: 600 }}
-                          >
-                            {isOpen ? "Hide" : "Open"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </Box>
-          </ParSection>
-
-          {/* Mounted only for the cycle actually open, so nothing is fetched
-              until it is asked for and the detail cannot show a stale cycle. */}
-          {openCycleId !== null && (
-            <PastCycleDetail
-              key={openCycleId}
-              cycle={(cycles.data ?? []).find((c) => c.parCycleId === openCycleId)}
-            />
-          )}
-        </>
+        <ParPastCyclesPanel employeeEmail={email} copy={OWN_HISTORY} />
       )}
     </ParShell>
-  );
-}
-
-/** One past appraisal in full: both sides of it, and what it concluded. */
-function PastCycleDetail({ cycle }: { cycle: ParCycle | undefined }): JSX.Element | null {
-  const rating = useMyParRatingFor(cycle?.parCycleId, cycle !== undefined);
-  if (cycle === undefined) return null;
-
-  if (rating.isPending) {
-    return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5, mb: 2.25 }} />;
-  }
-  if (rating.isError) {
-    return (
-      <Alert severity="error" sx={{ mb: 2.25 }}>
-        Couldn&apos;t load {cycle.parCycleName}. {describeError(rating.error)}
-      </Alert>
-    );
-  }
-
-  const r = rating.data;
-  if (r === undefined) {
-    return (
-      <Alert severity="info" sx={{ mb: 2.25 }}>
-        No appraisal was recorded for {cycle.parCycleName}.
-      </Alert>
-    );
-  }
-
-  // "NOT_ASSIGNED" is the backend's way of saying no rating was given; showing
-  // it raw states a value that is really an absence.
-  const awarded =
-    r.parRating && r.parRating !== PAR_RATING_NOT_ASSIGNED ? r.parRating : undefined;
-  const special = parSpecialRatingMeta(r.parSpecialRating);
-
-  return (
-    <ParSection
-      title={cycle.parCycleName}
-      subtitle={formatParPeriod(cycle.parCycleStartDate, cycle.parCycleEndDate)}
-      action={
-        <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <Chip
-            size="small"
-            variant="outlined"
-            color={awarded ? "success" : "default"}
-            label={awarded ? `Rating: ${awarded}` : "No rating recorded"}
-          />
-          {special.label !== "—" && (
-            <Chip size="small" variant="outlined" color={special.color} label={special.label} />
-          )}
-        </Stack>
-      }
-    >
-      <Stack spacing={2.25}>
-        <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-            WHAT YOU WROTE
-          </Typography>
-          <Box sx={{ mt: 0.5 }}>
-            <ParHtml
-              html={r.parEmployeeComment}
-              emptyText="You didn't write anything for this cycle."
-            />
-          </Box>
-        </Box>
-
-        <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-            WHAT YOUR LEAD WROTE
-          </Typography>
-          <Box sx={{ mt: 0.5 }}>
-            <ParHtml
-              html={r.parLeadComment}
-              emptyText="Your lead didn't leave written feedback."
-            />
-          </Box>
-        </Box>
-
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
-          {/* The three statuses the record ends on. Shown together because
-              "shared" on its own says nothing about whether the conversation
-              actually happened. */}
-          <Chip
-            size="small"
-            variant="outlined"
-            color={parEmployeeStatusMeta(r.parEmployeeStatus).color}
-            label={`Yours: ${parEmployeeStatusMeta(r.parEmployeeStatus).label}`}
-          />
-          <Chip
-            size="small"
-            variant="outlined"
-            color={parLeadStatusMeta(r.parLeadStatus).color}
-            label={`Lead's: ${parLeadStatusMeta(r.parLeadStatus).label}`}
-          />
-          <Chip
-            size="small"
-            variant="outlined"
-            color={parF2fStatusMeta(r.parF2fStatus).color}
-            label={`Conversation: ${parF2fStatusMeta(r.parF2fStatus).label}${
-              r.parF2fDate ? ` · ${formatParDate(r.parF2fDate)}` : ""
-            }`}
-          />
-        </Stack>
-      </Stack>
-    </ParSection>
   );
 }

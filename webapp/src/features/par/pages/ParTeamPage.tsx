@@ -31,12 +31,14 @@ import {
 import { useSearchParams } from "react-router";
 import { UsersRoundIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
+import { useAsgardeoUser } from "@hooks/useAsgardeoUser";
 import ParShell from "../components/ParShell";
 import ParSection from "../components/ParSection";
 import ParCompletionBar from "../components/ParCompletionBar";
 import ParTeamMemberTable from "../components/ParTeamMemberTable";
 import ParReportsPanel from "../components/ParReportsPanel";
 import ParAllocationPanel from "../components/ParAllocationPanel";
+import ParReportChainPanel from "../components/ParReportChainPanel";
 import { useMyParCycle } from "../api/useParEmployee";
 import { useMyParTeams, useParTeamReport } from "../api/useParTeams";
 import { useMyReports } from "../api/useParReports";
@@ -69,12 +71,14 @@ function teamLabel(team: ParTeam): string {
 const VIEWS = [
   { key: "team", label: "My team" },
   { key: "indirect", label: "Additional reports" },
+  { key: "chain", label: "Report chain" },
   { key: "allocation", label: "Top 5% / 20%" },
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
 
 export default function ParTeamPage(): JSX.Element {
+  const { email } = useAsgardeoUser();
   const cycleQuery = useMyParCycle();
   const cycle = cycleQuery.data;
   const teams = useMyParTeams(cycle?.parCycleId);
@@ -150,7 +154,16 @@ export default function ParTeamPage(): JSX.Element {
             </Tabs>
           </Box>
 
-          {view === "allocation" ? (
+          {view === "chain" ? (
+            <ParReportChainPanel
+              // Remounted per cycle so the trail cannot outlive the data it
+              // was built against.
+              key={cycle.parCycleId}
+              parCycleId={cycle.parCycleId}
+              rootEmail={email ?? ""}
+              rootName="You"
+            />
+          ) : view === "allocation" ? (
             <ParAllocationPanel
               rows={allocation.data ?? []}
               isPending={allocation.isPending}

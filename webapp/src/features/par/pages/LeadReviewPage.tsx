@@ -24,6 +24,7 @@ import ParShell from "../components/ParShell";
 import LeadFeedbackPanel from "../components/LeadFeedbackPanel";
 import LeadThreeSixtyPanel from "../components/LeadThreeSixtyPanel";
 import LeadF2fPanel from "../components/LeadF2fPanel";
+import ParPastCyclesPanel from "../components/ParPastCyclesPanel";
 import { useMyParCycle } from "../api/useParEmployee";
 import { useReportParRating, useReportThreeSixtyReviews } from "../api/useParLead";
 import { isDeadlinePassed } from "../util/parDeadlines";
@@ -41,6 +42,23 @@ import { useParNow } from "../util/useParNow";
 // areas are stacked rather than tabbed — the source used tabs, but the lead
 // needs the employee's words and the 360 feedback in front of them WHILE
 // writing, and tabs put them one click away from each other.
+
+/**
+ * Copy for the report's earlier cycles.
+ *
+ * Written from the lead's side — "what they wrote", not "what you wrote" — which
+ * is the whole reason the shared panel takes its wording as data.
+ */
+const REPORT_HISTORY = {
+  title: "Earlier cycles",
+  subtitle: "How previous cycles went for them. Useful context, and read-only.",
+  none: "They don't have any closed cycles yet.",
+  employeeHeading: "WHAT THEY WROTE",
+  leadHeading: "WHAT THEIR LEAD WROTE",
+  employeeSilent: "They didn't write anything for that cycle.",
+  leadSilent: "Their lead didn't leave written feedback.",
+  ownerLabel: "Theirs",
+};
 
 export default function LeadReviewPage(): JSX.Element {
   const now = useParNow();
@@ -115,6 +133,10 @@ export default function LeadReviewPage(): JSX.Element {
           />
 
           <LeadF2fPanel now={now} cycle={cycle} rating={rating} />
+
+          {/* Last, and below the current cycle's work: it is context for the
+              review being written, not the subject of the screen. */}
+          <ParPastCyclesPanel employeeEmail={employeeEmail} copy={REPORT_HISTORY} />
         </>
       )}
     </ParShell>
