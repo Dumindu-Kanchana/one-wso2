@@ -21,6 +21,10 @@ import MenuHomePage from "@features/menu/pages/MenuHomePage";
 import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
+import ActiveEmployeesReportPage from "@features/people-ops/pages/ActiveEmployeesReportPage";
+import ResignationsReportPage from "@features/people-ops/pages/ResignationsReportPage";
+import OrgStructurePage from "@features/people-ops/pages/OrgStructurePage";
+import EmployeeDetailPage from "@features/people-ops/pages/EmployeeDetailPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamPage from "@features/my/my-team/pages/MyTeamPage";
 import TeamMemberPage from "@features/my/my-team/pages/TeamMemberPage";
@@ -113,6 +117,30 @@ export default function App() {
           <Route path="me/expense/lead-approvals" element={<ExpenseLeadApprovalsPage />} />
           <Route path="me/expense/finance-approvals" element={<ExpenseFinanceApprovalsPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
+          {/* People Ops reports. Admin-only, but enforced by the backend and
+              explained by PeopleOpsShell — there is no route-level guard, so
+              a non-admin reaching this URL gets the shell's "no access"
+              message rather than a blank page. */}
+          <Route
+            path="people-ops/reports/active-employees"
+            element={<ActiveEmployeesReportPage />}
+          />
+          <Route
+            path="people-ops/reports/resignations"
+            element={<ResignationsReportPage />}
+          />
+          {/* Master Data → Org Structure. The four org-chart entity tabs;
+              the hierarchy drill-down is still to come. */}
+          <Route
+            path="people-ops/master-data/org-structure"
+            element={<OrgStructurePage />}
+          />
+          {/* One employee's record, reached from a report row. Same admin
+              gate; the backend allows an admin to read any employee. */}
+          <Route
+            path="people-ops/employees/:employeeId"
+            element={<EmployeeDetailPage />}
+          />
           {/* Finance perspective — skeleton "coming soon" tile; the actual
               claim apps are the me/opd, me/cc, me/expense routes above. */}
           <Route path="finance" element={<FinancePage />} />

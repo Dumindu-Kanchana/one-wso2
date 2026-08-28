@@ -61,14 +61,19 @@ function nextRowId(): string {
 // (PATCH /employees/{id}/personal-info) but only sends the emergencyContacts
 // field. Backend replaces the whole array atomically, so a Save here rewrites
 // the full list — deletes, edits, and adds all fold into one request.
+//
+// `viewOnly` drops the edit affordance entirely — see the same prop on
+// PersonalInfo. Used by the People Ops employee detail page.
 export default function EmergencyContacts({
   contacts,
   employeeId,
   isLoading,
+  viewOnly = false,
 }: {
   contacts?: EmergencyContact[];
   employeeId?: string;
   isLoading?: boolean;
+  viewOnly?: boolean;
 }) {
   const initial = useMemo<EmergencyContactRow[]>(() => normalize(contacts), [contacts]);
   const [form, setForm] = useState<EmergencyContactRow[]>(initial);
@@ -182,13 +187,15 @@ export default function EmergencyContacts({
             onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
           />
         )}
-        <EditToggle
-          editing={editing}
-          canEdit={Boolean(employeeId)}
-          pending={mutation.isPending}
-          onEnter={enterEdit}
-          onCancel={discardEdit}
-        />
+        {!viewOnly && (
+          <EditToggle
+            editing={editing}
+            canEdit={Boolean(employeeId)}
+            pending={mutation.isPending}
+            onEnter={enterEdit}
+            onCancel={discardEdit}
+          />
+        )}
       </Box>
 
       {editing && <RequiredLegend />}

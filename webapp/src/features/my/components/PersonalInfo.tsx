@@ -54,14 +54,21 @@ type FormState = Record<EditableKey, string>;
 // "Personal details (restricted)". Contact/address flips between a
 // read-only FieldGrid and controlled text inputs via the top-right Edit /
 // Cancel edit toggle. Save/Discard bar at the bottom in edit mode.
+//
+// `viewOnly` renders the card without any way into edit mode — used by the
+// People Ops employee detail page, which shows a colleague's profile. Named
+// `viewOnly` rather than `readOnly` only because a local `readOnly` field
+// list already exists below and shadowing it would read badly.
 export default function PersonalInfo({
   personalInfo,
   employeeId,
   isLoading,
+  viewOnly = false,
 }: {
   personalInfo?: EmployeePersonalInfo;
   employeeId?: string;
   isLoading?: boolean;
+  viewOnly?: boolean;
 }) {
   const initial = useMemo<FormState>(() => toFormState(personalInfo), [personalInfo]);
   const [form, setForm] = useState<FormState>(initial);
@@ -141,15 +148,17 @@ export default function PersonalInfo({
 
   return (
     <Card variant="outlined" sx={{ p: 2, position: "relative" }}>
-      <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}>
-        <EditToggle
-          editing={editing}
-          onEnter={enterEdit}
-          onCancel={discardEdit}
-          canEdit={Boolean(employeeId)}
-          pending={mutation.isPending}
-        />
-      </Box>
+      {!viewOnly && (
+        <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}>
+          <EditToggle
+            editing={editing}
+            onEnter={enterEdit}
+            onCancel={discardEdit}
+            canEdit={Boolean(employeeId)}
+            pending={mutation.isPending}
+          />
+        </Box>
+      )}
       {editing && (
         <Typography sx={{ fontSize: 11, color: "primary.dark", fontStyle: "italic", mb: 0.75 }}>
           Identity fields (name, DOB, gender, nationality, NIC) are managed by the people operations team.

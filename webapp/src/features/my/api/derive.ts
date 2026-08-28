@@ -55,19 +55,60 @@ function parseDateOnly(v: string | null | undefined): { y: number; m: number; d:
 }
 
 // "5y 4m" style — same shape people-app renders for length of service.
-// Anchor date is a param so callers can pass a fixed "today" if they need
-// deterministic tests; falls back to now.
-export function serviceLength(startDate: string | null | undefined, now: Date = new Date()): string {
+// `now` is a param so tests can fix "today"; it falls back to the real one.
+//
+// Service stops on the employee's last day. Without `endDate` a leaver's
+// tenure keeps growing after they have gone, so the same finished employment
+// reports a different figure every time the page is opened — someone who left
+// in 2019 reading as "8y 1m" in 2026.
+//
+// `endDate` is the final day of employment, and is ignored when absent or
+// unparseable, which is the correct behaviour for a current employee.
+export function serviceLength(
+  startDate: string | null | undefined,
+  now: Date = new Date(),
+  endDate?: string | null,
+): string {
   const start = parseDateOnly(startDate);
   if (!start) return DASH;
-  let years = now.getFullYear() - start.y;
-  let months = now.getMonth() - start.m;
-  if (now.getDate() < start.d) months -= 1;
+
+  // Local midnight, matching parseDateOnly's own components — constructing
+  // from parts avoids the UTC shift that Date("YYYY-MM-DD") would introduce.
+  //
+  // Round-tripped because parseDateOnly only range-checks (d <= 31), so a
+  // date like 2026-02-31 survives it and Date silently rolls it to 3 March —
+  // capping tenure on a day that does not exist. A failed round-trip falls
+  // back to `now`, same as any other unusable end date.
+  const finalDay = parseDateOnly(endDate);
+  let asOf = now;
+  if (finalDay) {
+    const candidate = new Date(finalDay.y, finalDay.m, finalDay.d);
+    if (
+      candidate.getFullYear() === finalDay.y &&
+      candidate.getMonth() === finalDay.m &&
+      candidate.getDate() === finalDay.d
+    ) {
+      asOf = candidate;
+    }
+  }
+
+  let years = asOf.getFullYear() - start.y;
+  let months = asOf.getMonth() - start.m;
+  if (asOf.getDate() < start.d) months -= 1;
   if (months < 0) {
     years -= 1;
     months += 12;
   }
+  // Also covers a final day earlier than the start date — bad data reads as
+  // the placeholder rather than a negative tenure.
   if (years < 0) return DASH;
+
+  // Drop the zero year: "0y 8m" reads like a formatting artifact, and under
+  // a year the year is not information anyone needs. Same reasoning for a
+  // whole number of years — "3y 0m" is just "3y".
+  if (years === 0 && months === 0) return "< 1m";
+  if (years === 0) return `${months}m`;
+  if (months === 0) return `${years}y`;
   return `${years}y ${months}m`;
 }
 
