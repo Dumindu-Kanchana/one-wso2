@@ -24,6 +24,7 @@ import PersonalInfo from "@features/my/components/PersonalInfo";
 import EmergencyContacts from "@features/my/components/EmergencyContacts";
 import { describeError } from "@api/errors";
 import PeopleOpsShell from "../components/PeopleOpsShell";
+import { usePeopleOpsGate } from "../api/usePeopleOpsGate";
 import SectionHeader from "../components/SectionHeader";
 import { ACTIVE_EMPLOYEES_REPORT_PATH, REPORTS_EYEBROW } from "../reports/reportRoutes";
 
@@ -42,7 +43,15 @@ import { ACTIVE_EMPLOYEES_REPORT_PATH, REPORTS_EYEBROW } from "../reports/report
 // self-only server-side, with no admin bypass.
 export default function EmployeeDetailPage() {
   const { employeeId } = useParams<{ employeeId: string }>();
-  const { data, isLoading, isError, error } = useMeProfile(employeeId);
+  // Held until the admin check has actually passed. PeopleOpsShell gates its
+  // CHILDREN, so a fetch started here would already have completed by the
+  // time the shell decided to hide the page — a guard in appearance only.
+  // The backend permits a lead to read their own subordinate, so a lead
+  // reaching this URL got a 200 and a cached record for a page they were not
+  // allowed to see. Nothing they could not read on My Team, but the request
+  // should not have been made.
+  const gate = usePeopleOpsGate();
+  const { data, isLoading, isError, error } = useMeProfile(employeeId, gate.isAdmin);
   const navigate = useNavigate();
   const location = useLocation();
 

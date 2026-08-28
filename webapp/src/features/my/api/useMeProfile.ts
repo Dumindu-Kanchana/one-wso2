@@ -48,7 +48,7 @@ export interface MeProfile {
 // Access is the backend's call: GET /employees/{id} and /personal-info allow
 // an ADMIN caller to read anyone, and 403 otherwise. Passing an id here is
 // therefore a request, not a grant.
-export function useMeProfile(employeeId?: string) {
+export function useMeProfile(employeeId?: string, enabled = true) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
   const { state: subState, retry: retryIdentity } = useAsgardeoSub();
@@ -63,7 +63,11 @@ export function useMeProfile(employeeId?: string) {
     // first one's record from cache; `null` keeps the own-profile key
     // exactly as it was before this parameter existed.
     queryKey: ["me-profile", userSub, employeeId ?? null],
-    enabled: isSignedIn && backendConfigured && Boolean(userSub),
+    // `enabled` lets a caller hold the request until it knows it is allowed
+    // to make it. The employee-detail page uses it to wait for the admin
+    // check: without it the fetch fired on mount and PeopleOpsShell only hid
+    // the result afterwards, which looks like a gate but is not one.
+    enabled: enabled && isSignedIn && backendConfigured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
 
