@@ -15,33 +15,133 @@
 // under the License.
 
 import { useEffect, useRef, useState } from "react";
-import { Box, CircularProgress } from "@wso2/oxygen-ui";
+import { Box, CircularProgress, Skeleton, Typography } from "@wso2/oxygen-ui";
 import { Mail } from "@wso2/oxygen-ui-icons-react";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { fetchThumbnail } from "../lib/thumbnails";
+import { COVER_TONE, coverInitials } from "../lib/templateCover";
 
 // Fetch a template's thumbnail as an object URL.
 //
 // The URL is owned by the shared cache in ../lib/thumbnails and is deliberately
 // NOT revoked when this component unmounts — the same URL may be on screen in the
 // other gallery, and revoking it there would blank a working image.
-function useThumbnailUrl(id: string, version: string | undefined, enabled: boolean) {
+//
+// Returns a STATE rather than `string | null`, because null meant two different
+// things and the callers rendered both the same way: "still fetching" and
+// "there is nothing to fetch, or the fetch failed". A tile mid-download looked
+// exactly like a tile with no thumbnail, which is why the empty ones read as
+// broken images — sometimes they genuinely were still loading.
+// "pending" covers both "not asked for yet" and "asked, still waiting". They are
+// the same thing to a caller and collapsing them keeps the effect free of a
+// synchronous setState, which cascades renders (react-hooks/set-state-in-effect).
+type ThumbState =
+  | { status: "pending" }
+  | { status: "ready"; url: string }
+  | { status: "none" }; // 404, zero bytes, or a failed request
+
+function useThumbnailUrl(id: string, version: string | undefined, enabled: boolean): ThumbState {
   const getAccessToken = useAccessToken();
-  const [url, setUrl] = useState<string | null>(null);
+  const [state, setState] = useState<ThumbState>({ status: "pending" });
 
   useEffect(() => {
     if (!enabled) return;
     let active = true;
     void (async () => {
       const u = await fetchThumbnail(id, version, await getAccessToken());
-      if (active) setUrl(u);
+      if (!active) return;
+      setState(u ? { status: "ready", url: u } : { status: "none" });
     })();
     return () => {
       active = false;
     };
   }, [id, version, enabled, getAccessToken]);
 
-  return url;
+  return state;
+}
+
+// ---- the generated cover ---------------------------------------------------
+
+// Was 170. Trimmed with the column count below it — three tiles across a wide
+// gallery were larger than the thing they preview deserves.
+const COVER_H = 140;
+
+// Drawn when a template has no thumbnail: the template's initials on the navy a
+// WSO2 email is built from, under a fine diagonal hatch.
+//
+// The hatch is the whole point, and it took a wrong turn to find. Flat navy was
+// unmistakably WSO2 — and unmistakably a SCREENSHOT, because a real WSO2 email
+// has a navy header, so covers stopped being tellable from actual thumbnails.
+// Colour could never fix that; surface had to. Texture is the oldest "nothing
+// here" signal there is, and no rendered email carries one, so a hatched field
+// reads as drawn rather than photographed while keeping the full-bleed weight.
+//
+// Kept deliberately low-contrast: at 6px on 13px it should register as a
+// treatment on the navy, not as stripes competing with the letters. If it ever
+// reads as a compression artefact rather than a pattern, raise the white alpha
+// before changing the geometry.
+function GeneratedCover({ name }: { name: string }) {
+  const initials = coverInitials(name);
+
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        width: "100%",
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: COVER_TONE.bg,
+        backgroundImage: `repeating-linear-gradient(135deg, ${COVER_TONE.hatch} 0 6px, transparent 6px 13px)`,
+      }}
+    >
+      {initials ? (
+        <Typography
+          aria-hidden="true"
+          sx={{
+            fontSize: 46,
+            fontWeight: 700,
+            letterSpacing: "-0.05em",
+            lineHeight: 1,
+            userSelect: "none",
+            color: COVER_TONE.fg,
+            // Not full strength: the letters are a mark on the cover, not a
+            // headline competing with the template name under the tile.
+            opacity: 0.72,
+          }}
+        >
+          {initials}
+        </Typography>
+      ) : (
+        // A name with no letters in it at all (digits, punctuation). Rare, but a
+        // cover reading "?" would look like the error state this replaces.
+        <Box sx={{ display: "inline-flex", color: COVER_TONE.fg, opacity: 0.72 }} aria-hidden="true">
+          <Mail size={30} />
+        </Box>
+      )}
+
+      {/* Colour and letters make the tile look deliberate; only the words tell
+          you it IS deliberate, which no icon or texture can do on its own. */}
+      <Typography
+        sx={{
+          position: "absolute",
+          bottom: 9,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.07em",
+          textTransform: "uppercase",
+          color: COVER_TONE.fg,
+          opacity: 0.6,
+        }}
+      >
+        No preview
+      </Typography>
+    </Box>
+  );
 }
 
 // Grid tile. Lazy: the image is only requested once the tile scrolls near the
@@ -49,10 +149,12 @@ function useThumbnailUrl(id: string, version: string | undefined, enabled: boole
 // request per template up front.
 export function Thumbnail({
   id,
+  name,
   hasThumbnail,
   version,
 }: {
   id: string;
+  name: string;
   hasThumbnail: boolean;
   version?: string;
 }) {
@@ -81,38 +183,56 @@ export function Thumbnail({
     return () => io.disconnect();
   }, [hasThumbnail, visible]);
 
-  const url = useThumbnailUrl(id, version, hasThumbnail && visible);
+  const thumb = useThumbnailUrl(id, version, hasThumbnail && visible);
+
+  // A template that HAS a thumbnail we haven't got yet is still loading — even
+  // before the observer fires, since the tile is about to request it. A fetch
+  // that came back empty or failed lands on "none" and falls through to the
+  // cover: a shimmer that never resolves would be a worse lie than a cover
+  // saying there is no preview.
+  const loading = hasThumbnail && thumb.status === "pending";
 
   return (
     <Box
       ref={ref}
       sx={{
-        height: 170,
-        // Emails are authored on white. A dark surface behind a transparent PNG
-        // would misrepresent the template, so this one surface stays white in
-        // both themes — it's a preview of the artefact, not app chrome.
-        bgcolor: "#fff",
+        height: COVER_H,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         borderBottom: 1,
         borderColor: "divider",
         overflow: "hidden",
+        // White only under a REAL thumbnail: emails are authored on white, and a
+        // dark surface behind a transparent PNG would misrepresent the template.
+        // The generated cover paints its own ground, so it must not inherit this.
+        ...(thumb.status === "ready" ? { bgcolor: "#fff" } : null),
       }}
     >
-      {url ? (
+      {thumb.status === "ready" ? (
         // cover + top: fill the tile edge-to-edge showing the top of the email and
         // crop the long tail, so every thumbnail is uniformly sized.
         <Box
           component="img"
-          src={url}
+          src={thumb.url}
           alt=""
           sx={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
         />
+      ) : loading ? (
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          width="100%"
+          height="100%"
+          // The sweep is what separates "still coming" from "never was". Anyone
+          // who has asked not to be moved gets the plain block instead, which is
+          // still visibly different from a cover.
+          sx={{
+            "@media (prefers-reduced-motion: reduce)": { "&::after": { animation: "none" } },
+          }}
+        />
       ) : (
-        <Box sx={{ color: "#9aa0a6", display: "inline-flex" }}>
-          <Mail size={28} />
-        </Box>
+        <GeneratedCover name={name} />
       )}
     </Box>
   );
@@ -121,11 +241,11 @@ export function Thumbnail({
 // Full-length image for the quick-preview popover: natural width, scrollable,
 // because emails are tall. Shares the same cached object URL as the grid tile.
 export function FullImagePreview({ id, version }: { id: string; version?: string }) {
-  const url = useThumbnailUrl(id, version, true);
+  const thumb = useThumbnailUrl(id, version, true);
   return (
     <Box sx={{ width: 360, maxHeight: "74vh", overflowY: "auto", bgcolor: "#fff" }}>
-      {url ? (
-        <Box component="img" src={url} alt="" sx={{ display: "block", width: "100%" }} />
+      {thumb.status === "ready" ? (
+        <Box component="img" src={thumb.url} alt="" sx={{ display: "block", width: "100%" }} />
       ) : (
         <Box sx={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <CircularProgress size={20} />

@@ -106,13 +106,13 @@ export function useOrgMasterData(enabled = true): OrgMasterData {
   const results = useQueries({
     queries: [
       listQuery<BusinessUnit>("business-units", peopleServiceUrls.businessUnits),
-      listQuery<Team>("teams", peopleServiceUrls.teams),
-      listQuery<SubTeam>("sub-teams", peopleServiceUrls.subTeams),
-      listQuery<Unit>("units", peopleServiceUrls.units),
+      listQuery<Team>("teams", peopleServiceUrls.teams()),
+      listQuery<SubTeam>("sub-teams", peopleServiceUrls.subTeams()),
+      listQuery<Unit>("units", peopleServiceUrls.units()),
       listQuery<CareerFunction>("career-functions", peopleServiceUrls.careerFunctions),
-      listQuery<Designation>("designations", peopleServiceUrls.designations),
+      listQuery<Designation>("designations", peopleServiceUrls.designations()),
       listQuery<Company>("companies", peopleServiceUrls.companies),
-      listQuery<Office>("offices", peopleServiceUrls.offices),
+      listQuery<Office>("offices", peopleServiceUrls.offices()),
       listQuery<EmploymentType>("employment-types", peopleServiceUrls.employmentTypes),
     ],
   });

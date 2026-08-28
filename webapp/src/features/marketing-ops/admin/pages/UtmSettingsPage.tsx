@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import { Alert, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
 import { describeError } from "@api/errors";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import SettingsMasterDetail from "../components/SettingsMasterDetail";
 import ParameterListManager from "../components/ParameterListManager";
@@ -88,7 +89,7 @@ export default function UtmSettingsPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="⚙️ Marketing Admin"
+      eyebrow={MARKETING_OPS_EYEBROW.admin}
       title="UTM Generator lists"
       subtitle="The Source, Medium, Region and Business Unit values offered by the UTM Link Generator. Codes go into live tracking URLs — retire a value by disabling it rather than deleting it, so historical links stay interpretable."
     >

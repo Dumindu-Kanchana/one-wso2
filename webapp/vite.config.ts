@@ -26,8 +26,8 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.wso2.com https://*.asgardeo.io https://*.googleusercontent.com",
-  "font-src 'self' data:",
+  "img-src 'self' data: blob: https://*.wso2.com https://wso2.cachefly.net https://*.asgardeo.io https://*.googleusercontent.com",
+  "font-src 'self' data: https://wso2.cachefly.net",
   "connect-src 'self' https://*.wso2.com https://*.asgardeo.io",
   "frame-src 'self' blob: data: https://*.asgardeo.io",
   "object-src 'none'",
@@ -82,8 +82,9 @@ const viteConfig = defineConfig({
   },
 });
 
-// Vitest lives inline here rather than in a separate vitest.config.ts, matching
-// csm-portal. `css: true` so Oxygen's emotion styles resolve under jsdom, and
+// Vitest lives inline here rather than in a separate vitest.config.ts, so the
+// aliases and plugins above are shared rather than duplicated. `css: true` so
+// Oxygen's emotion styles resolve under jsdom, and
 // the Oxygen/Asgardeo packages ship ESM that has to be inlined to be
 // transformable.
 const vitestConfig = defineVitestConfig({

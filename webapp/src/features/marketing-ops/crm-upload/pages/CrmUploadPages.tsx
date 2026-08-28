@@ -18,6 +18,7 @@ import { useState } from "react";
 import { Alert, Box, Button, Snackbar } from "@wso2/oxygen-ui";
 import { Play } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import { useLatestRun, useTriggerRun } from "../../api/useCrmUpload";
 import type { PipelineRun, SchedulerType } from "../crmUploadTypes";
@@ -48,7 +49,7 @@ import { CRM_LOADING, OUTCOME } from "../components/crmStyles";
 // history of runs. One WSO2's registry already described them that way round, and the
 // registry's descriptions are the ones that match what the screens do.
 
-const EYEBROW = "🔄 CRM Upload";
+const EYEBROW = MARKETING_OPS_EYEBROW.crmUpload;
 
 // ---- Pipelines: what the two schedulers did last -----------------------------
 

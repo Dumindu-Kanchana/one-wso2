@@ -53,8 +53,8 @@ interface IdleTimeoutProviderProps {
  *
  * The timer and the dialog always run: WARNING_MINUTES before the deadline the
  * dialog appears and waits. `ONE_WSO2_IDLE_AUTO_SIGN_OUT` decides only what
- * happens when it is ignored — nothing (default, matching csm-portal, whose
- * `onIdle` is deliberately unwired) or sign-out at the deadline.
+ * happens when it is ignored — nothing, the default, or sign-out at the
+ * deadline. See idleConfig.ts for why that default is off.
  */
 export default function IdleTimeoutProvider({
   children,
@@ -100,8 +100,7 @@ export default function IdleTimeoutProvider({
     },
     // Deliberately NO onActive handler. It would fire on the first mousemove —
     // including one over the dialog's own backdrop — and dismiss the prompt
-    // before it could be read. Continue and Logout are the only ways out, which
-    // is how csm-portal behaves too.
+    // before it could be read. Continue and Logout are the only ways out.
   });
 
   // No effect needed to hide the prompt on sign-out: the dialog's own `open`

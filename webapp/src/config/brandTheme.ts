@@ -16,16 +16,15 @@
 
 // The One WSO2 brand layer over Oxygen's AcrylicOrangeTheme: palette, type
 // discipline, selected-state tint, and surface treatment. Split out of
-// themeConfig.ts (which is now just a preset picker, mirroring csm-portal) so
-// there is exactly one place to look for "what do we change about the shipped
-// theme, and why".
+// themeConfig.ts (which is now just a preset picker) so there is exactly one
+// place to look for "what do we change about the shipped theme, and why".
 //
 // PALETTE — kept deliberately, not inherited. Measured against white:
 //   primary.main       #F14E23  3.59:1   (AcrylicOrange's #fa7b3f is 2.63:1)
 //   primary.dark       #B93816  5.77:1   (AcrylicOrange derives ~#af562c, 5.01:1)
-//   text.secondary     #5B5B61  6.74:1   a genuinely distinct tone; csm-portal
-//                                        sets text.secondary === text.primary in
-//                                        light mode, so it reads as no hierarchy
+//   text.secondary     #5B5B61  6.74:1   a genuinely distinct tone — a
+//                                        secondary that equals text.primary
+//                                        reads as no hierarchy at all
 //   divider            #E7E7EA           visible card outlines vs AcrylicOrange's
 //                                        #00000012 (~7%), which is near-invisible
 // Neither orange clears 4.5:1, so primary is never a fill behind small text —
@@ -38,8 +37,8 @@ import { extendTheme } from "@mui/material/styles";
  * Surface treatment — two independent axes, because the interesting combination
  * is one of each rather than an all-or-nothing "acrylic" switch.
  *
- * - `solidCards`: opaque `Paper`/`Card`/inputs (One WSO2), or Oxygen's
- *   translucent acrylic paper with a backdrop blur (csm-portal).
+ * - `solidCards`: opaque `Paper`/`Card`/inputs, or Oxygen's translucent
+ *   acrylic paper with a backdrop blur.
  * - `canvas`: what the `<body>` behind them looks like.
  *     `"flat"`   a single colour, the original One WSO2 look
  *     `"brand"`  two soft One WSO2 orange pools
@@ -47,8 +46,8 @@ import { extendTheme } from "@mui/material/styles";
  *
  * Current pick: solid cards on a brand wash. Solid cards keep text on a crisp
  * opaque surface (the reason the flat look was chosen originally), while the
- * wash gives the canvas some depth. `"oxygen"` is left reachable because it is
- * exactly what csm-portal renders, which makes A/B-ing the two apps easy.
+ * wash gives the canvas some depth. `"oxygen"` is left reachable so the
+ * shipped treatment can be compared against ours without a code change.
  *
  * NOTE: a canvas wash is only visible if nothing paints over the body. The
  * content scroller in AppLayout.tsx deliberately sets no background for this

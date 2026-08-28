@@ -15,6 +15,9 @@
 // under the License.
 
 import { Navigate, Route, Routes } from "react-router";
+import { landingPath } from "@config/landingConfig";
+import SettingsPage from "@features/settings/pages/SettingsPage";
+import MenuHomePage from "@features/menu/pages/MenuHomePage";
 import AuthGuard from "@layouts/AuthGuard";
 import AppLayout from "@layouts/AppLayout";
 import PeopleOpsPage from "@features/people-ops/pages/PeopleOpsPage";
@@ -23,7 +26,8 @@ import ResignationsReportPage from "@features/people-ops/pages/ResignationsRepor
 import OrgStructurePage from "@features/people-ops/pages/OrgStructurePage";
 import EmployeeDetailPage from "@features/people-ops/pages/EmployeeDetailPage";
 import MyProfilePage from "@features/my/pages/MyProfilePage";
-import MyTeamComingSoonPage from "@features/my/pages/MyTeamComingSoonPage";
+import MyTeamPage from "@features/my/my-team/pages/MyTeamPage";
+import TeamMemberPage from "@features/my/my-team/pages/TeamMemberPage";
 import FinancePage from "@features/finance/pages/FinancePage";
 import WorkspacePage from "@features/workspace/pages/WorkspacePage";
 import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
@@ -74,13 +78,16 @@ export default function App() {
     <Routes>
       <Route element={<AuthGuard />}>
         <Route element={<AppLayout />}>
-          {/* Default landing = the Me home (own profile + connected apps). */}
-          <Route index element={<Navigate to="/me" replace />} />
+          {/* Where the app opens, from ONE_WSO2_DEFAULT_PERSPECTIVE. */}
+          <Route index element={<Navigate to={landingPath()} replace />} />
           {/* Me home — the full profile page including Connected apps. */}
           <Route path="me" element={<MyProfilePage />} />
           {/* My Team — placeholder for now; the real subordinates view is on
               hold this iteration (mirrors people-app's lead-only nav item). */}
-          <Route path="me/my-team" element={<MyTeamComingSoonPage />} />
+          {/* My Team — a lead's reporting chain, ported from people-app. The
+              spec and the deviation list are in docs/ported-apps/my-team.md. */}
+          <Route path="me/my-team" element={<MyTeamPage />} />
+          <Route path="me/my-team/:employeeId" element={<TeamMemberPage />} />
           {/* Me → Leave: native screens ported from leave-app. Lives here
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}
@@ -194,10 +201,13 @@ export default function App() {
           <Route path="marketing-ops/crm-upload/runs" element={<CrmUploadRunLogPage />} />
           <Route path="marketing-ops/crm-upload/records" element={<CrmUploadRecordsPage />} />
           <Route path="marketing-ops/crm-upload/review" element={<CrmUploadReviewPage />} />
-          {/* Legacy /my bookmarks → the Me home. */}
-          <Route path="my" element={<Navigate to="/me" replace />} />
+          <Route path="settings" element={<SettingsPage />} />
+          {/* Workspace → Menu: the cafeteria screen ported from the standalone
+              menu app. One page, as the original was. The functional spec and
+              the deviation list live in docs/ported-apps/menu-app.md. */}
+          <Route path="workspace/menu" element={<MenuHomePage />} />
           {/* Catch-all → landing */}
-          <Route path="*" element={<Navigate to="/me" replace />} />
+          <Route path="*" element={<Navigate to={landingPath()} replace />} />
         </Route>
       </Route>
     </Routes>

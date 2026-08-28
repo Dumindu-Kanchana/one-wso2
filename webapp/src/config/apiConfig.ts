@@ -45,33 +45,58 @@ export const peopleServiceUrls = {
   employeeQrCode: (employeeId: string) =>
     `${peopleBackendUrl}/employees/${encodeURIComponent(employeeId)}/qr-code`,
 
+  // POST, but a READ — filters/sort/pagination are too large for a query
+  // string. Consumed with useQuery and the payload in the query key, per the
+  // rule documented further down this file. `leadOnly: true` in the body is
+  // what scopes the result to the caller's own reporting chain; the caller is
+  // resolved server-side from the token, never sent.
+  employeesSearch: `${peopleBackendUrl}/employees/search`,
+
+  // Filter option lists. Five take an optional parent id — narrowing has to be
+  // a round trip because the records carry no parent reference, so it cannot be
+  // derived from lists already held. Omitting the id returns the full list.
+  managers: `${peopleBackendUrl}/employees/managers`,
+  employmentTypes: `${peopleBackendUrl}/employment-types`,
+  businessUnits: `${peopleBackendUrl}/business-units`,
+  careerFunctions: `${peopleBackendUrl}/career-functions`,
+  companies: `${peopleBackendUrl}/companies`,
+  teams: (businessUnitId?: number) =>
+    businessUnitId === undefined
+      ? `${peopleBackendUrl}/teams`
+      : `${peopleBackendUrl}/teams?buId=${businessUnitId}`,
+  subTeams: (teamId?: number) =>
+    teamId === undefined
+      ? `${peopleBackendUrl}/sub-teams`
+      : `${peopleBackendUrl}/sub-teams?teamId=${teamId}`,
+  units: (subTeamId?: number) =>
+    subTeamId === undefined
+      ? `${peopleBackendUrl}/units`
+      : `${peopleBackendUrl}/units?subTeamId=${subTeamId}`,
+  designations: (careerFunctionId?: number) =>
+    careerFunctionId === undefined
+      ? `${peopleBackendUrl}/designations`
+      : `${peopleBackendUrl}/designations?careerFunctionId=${careerFunctionId}`,
+  offices: (companyId?: number) =>
+    companyId === undefined
+      ? `${peopleBackendUrl}/offices`
+      : `${peopleBackendUrl}/offices?companyId=${companyId}`,
+
   // ---- People Ops reports -------------------------------------------------
   //
-  // POST. The paged employee search behind the report preview tables. Backend
-  // requires ADMIN for the non-`leadOnly` form these reports use, so callers
-  // must gate on usePeopleOpsGate before firing — see the People Ops shell.
-  searchEmployees: `${peopleBackendUrl}/employees/search`,
   // POST. Streams the FULL filtered dataset back as CSV text (not JSON), so
-  // it is read with authedPostText rather than authedPost. Also ADMIN-only.
+  // it is read with authedPostText rather than authedPost. ADMIN-only.
   reportsEmployees: `${peopleBackendUrl}/reports/employees/generate`,
-  // GET. Manager work-emails, for the report filter drawer's "Manager Email".
-  managers: `${peopleBackendUrl}/employees/managers`,
   // GET. Every ACTIVE employee's id/name/email — the backend filters on
   // employee_status itself, so this never carries leavers. Backs the
   // head-email pickers in Master Data. Admin-only.
   employeesBasicInfo: `${peopleBackendUrl}/employees/basic-info`,
 
-  // ---- Org master data ----------------------------------------------------
+  // ---- Master Data: org chart entities ------------------------------------
   //
-  // The dropdown sources for the report filter drawer. All GET, all returning
-  // flat `{id, name}`-shaped lists (see peopleOpsTypes for the exact shapes —
-  // careerFunctions and designations name their label field differently).
-  businessUnits: `${peopleBackendUrl}/business-units`,
-  teams: `${peopleBackendUrl}/teams`,
-  subTeams: `${peopleBackendUrl}/sub-teams`,
-  units: `${peopleBackendUrl}/units`,
-  // Per-entity PATCH targets for Master Data → Org Structure. The four
-  // collection URLs above double as the POST targets for creating one.
+  // Per-entity PATCH targets. The collection URLs above double as the POST
+  // targets for creating one — note they are FUNCTIONS taking an optional
+  // parent id (My Team's filters cascade); call them with no argument for the
+  // full list, which is what these screens want.
   businessUnit: (id: number) => `${peopleBackendUrl}/business-units/${id}`,
   team: (id: number) => `${peopleBackendUrl}/teams/${id}`,
   subTeam: (id: number) => `${peopleBackendUrl}/sub-teams/${id}`,
@@ -100,11 +125,6 @@ export const peopleServiceUrls = {
   businessUnitTeamSubTeamUnits: `${peopleBackendUrl}/business-unit-team-sub-team-units`,
   businessUnitTeamSubTeamUnit: (mappingId: number) =>
     `${peopleBackendUrl}/business-unit-team-sub-team-units/${mappingId}`,
-  careerFunctions: `${peopleBackendUrl}/career-functions`,
-  designations: `${peopleBackendUrl}/designations`,
-  companies: `${peopleBackendUrl}/companies`,
-  offices: `${peopleBackendUrl}/offices`,
-  employmentTypes: `${peopleBackendUrl}/employment-types`,
 };
 
 // Promotion app backend (digiops-hr/apps/promotion). Separate service from
@@ -546,4 +566,31 @@ export const promotionServiceUrls = {
   // allows self-lookup for non-admins.
   promotionHistory: (workEmail: string) =>
     `${promotionBackendUrl}/promotion/requests?statusArray=APPROVED&employeeEmail=${encodeURIComponent(workEmail)}`,
+};
+
+// ---------------------------------------------------------------------------
+// Menu (cafeteria) backend. Daily menu, lunch feedback, and dinner-on-demand
+// orders. The service is reused unchanged from the standalone app; see
+// docs/ported-apps/menu-app.md for the contract and the behaviour it defines.
+//
+// Every path is fixed — no builder takes an argument, because the caller is
+// always identified by the token rather than by a path segment.
+export const menuBackendUrl: string = window.config?.ONE_WSO2_MENU_BACKEND_URL ?? "";
+
+export function isMenuBackendConfigured(): boolean {
+  return Boolean(menuBackendUrl);
+}
+
+export const menuServiceUrls = {
+  // Employee profile + privileges. Also the source of the department / team /
+  // manager email an order carries.
+  userInfo: `${menuBackendUrl}/user-info`,
+  // The configured lunch-feedback window. Optional in practice: the standalone
+  // app never called it, so it may not be published through the gateway. A 404
+  // is tolerated and the hard-coded fallback window applies.
+  metaInfo: `${menuBackendUrl}/meta-info`,
+  menu: `${menuBackendUrl}/menu`,
+  feedback: `${menuBackendUrl}/feedback`,
+  // GET the current order, POST to place or change it, DELETE to cancel.
+  dinner: `${menuBackendUrl}/dinner`,
 };

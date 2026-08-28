@@ -25,9 +25,12 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { LayoutGridIcon, SearchIcon } from "@wso2/oxygen-ui-icons-react";
+import { Link as RouterLink } from "react-router";
+import { landingPath } from "@config/landingConfig";
 import PinnedTabs from "@features/pinned/components/PinnedTabs";
 import PinThisPageButton from "@features/pinned/components/PinThisPageButton";
 import { usePinnedEntries } from "@features/pinned/usePinned";
+import ThemeSelect from "./ThemeSelect";
 import UserProfileMenu from "./UserProfileMenu";
 
 // The shortcut hint has to name a key the reader actually has: the handler
@@ -52,8 +55,9 @@ const SHORTCUT_HINT = IS_APPLE_PLATFORM ? "⌘K" : "Ctrl K";
 // stricter than it looks — check there before changing any of this:
 //
 //  - "Icon should not be isolated." The pulse mark may not be used apart from
-//    the wordmark, so the full logo asset is the only option here. (csm-portal
-//    does use an isolated mark; that isn't a precedent to copy.)
+//    the wordmark, so the full logo asset is the only option here — regardless
+//    of what any other app does. (The favicon is the one exception, because a
+//    ~16px square slot cannot hold a 2.5:1 lockup at all.)
 //  - The logo "is strictly monochrome": black on light, white on dark. Orange
 //    (#F14E23) is approved for the icon on DARK backgrounds only, so it can't be
 //    used on this header, whose background is `background.paper`.
@@ -81,12 +85,15 @@ const BRAND_LOGO_PX = 32;
 interface TopBarProps {
   collapsed: boolean;
   onToggleSidebar: () => void;
-  onOpenWaffle: () => void;
+  /** Receives the button element, so the launcher can hang off it. */
+  onToggleWaffle: (anchor: HTMLElement) => void;
+  /** Whether the launcher is currently showing, for aria-expanded. */
+  waffleOpen: boolean;
   onOpenAsk: () => void;
 }
 
-// The persistent top bar, on Oxygen's compound `Header`. Child order follows
-// csm-portal: Toggle → Brand → (switcher/search) → Spacer → Actions.
+// The persistent top bar, on Oxygen's compound `Header`, in the order the
+// component expects: Toggle → Brand → (switcher/search) → Spacer → Actions.
 //
 // Oxygen supplies the bar's height, background, border, and brand-title
 // typography, so nothing here sets those. The rail-width-matching `width: 260`
@@ -95,7 +102,8 @@ interface TopBarProps {
 export default function TopBar({
   collapsed,
   onToggleSidebar,
-  onOpenWaffle,
+  onToggleWaffle,
+  waffleOpen,
   onOpenAsk,
 }: TopBarProps): JSX.Element {
   // Only the count matters here — the strip itself renders the entries.
@@ -117,35 +125,67 @@ export default function TopBar({
       <Header.Toggle collapsed={collapsed} onToggle={onToggleSidebar} />
 
       <Header.Brand sx={{ flexShrink: 0 }}>
-        {/* Overrides Oxygen's 16→18px token, paired with BRAND_LOGO_PX above:
-            "One" is one word of the name, so its size is set by the lockup
-            rather than by the app-name token. */}
-        <Header.BrandTitle sx={{ whiteSpace: "nowrap", fontSize: BRAND_TITLE_PX }}>
-          One
-        </Header.BrandTitle>
-        {/* Negative margin so "One" and the WSO2 logo read as one lockup rather
-            than two adjacent elements. */}
-        <Header.BrandLogo sx={{ ml: "-4px" }}>
-          {/* The full logo, monochrome per brand rules — black on light, white
-              on dark. ColorSchemeImage picks the variant from the resolved
-              colour scheme. alt="" because "One" beside it plus the wordmark
-              already read as the product name. */}
-          <ColorSchemeImage
-            src={{ light: "/wso2-logo-black.svg", dark: "/wso2-logo-white.svg" }}
-            alt=""
-            height={BRAND_LOGO_PX}
-            width="auto"
-          />
-        </Header.BrandLogo>
+        {/* The lockup is the way home, as it is in every other product.
+            Deliberately a real link rather than an onClick, so cmd-click and
+            middle-click open a new tab the way a logo is expected to.
+            `Header.Brand` is not polymorphic, so the link nests inside it and
+            reproduces the flex row its children were relying on.
+
+            It goes to the LANDING path, not a hardcoded /me: that honours the
+            per-user setting on /settings, and still lands on Me for anyone who
+            has not changed it. Sending someone to Me when they have chosen a
+            different home would contradict their own preference.
+
+            aria-label because the only text inside is "One" and the wordmark
+            carries alt="" — on its own that is a thin name for a link. */}
+        <Box
+          component={RouterLink}
+          to={landingPath()}
+          aria-label="One WSO2 home"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            textDecoration: "none",
+            color: "inherit",
+            borderRadius: 1,
+            "&:focus-visible": {
+              outline: 2,
+              outlineStyle: "solid",
+              outlineColor: "primary.main",
+              outlineOffset: 2,
+            },
+          }}
+        >
+          {/* Overrides Oxygen's 16→18px token, paired with BRAND_LOGO_PX above:
+              "One" is one word of the name, so its size is set by the lockup
+              rather than by the app-name token. */}
+          <Header.BrandTitle sx={{ whiteSpace: "nowrap", fontSize: BRAND_TITLE_PX }}>
+            One
+          </Header.BrandTitle>
+          {/* Negative margin so "One" and the WSO2 logo read as one lockup rather
+              than two adjacent elements. */}
+          <Header.BrandLogo sx={{ ml: "-4px" }}>
+            {/* The full logo, monochrome per brand rules — black on light, white
+                on dark. ColorSchemeImage picks the variant from the resolved
+                colour scheme. alt="" because "One" beside it plus the wordmark
+                already read as the product name. */}
+            <ColorSchemeImage
+              src={{ light: "/wso2-logo-black.svg", dark: "/wso2-logo-white.svg" }}
+              alt=""
+              height={BRAND_LOGO_PX}
+              width="auto"
+            />
+          </Header.BrandLogo>
+        </Box>
       </Header.Brand>
 
       {/* Palette trigger. A click target rather than a real input: the palette
           owns the query field.
 
-          Fixed responsive widths rather than `flex: 1` so the flexible slot
-          belongs to PinnedTabs, matching csm-portal's header. It also narrows
-          once anything is pinned, since the two share that row — at `xs` it
-          collapses to an icon. */}
+          Fixed responsive widths rather than `flex: 1`, so the flexible slot
+          belongs to PinnedTabs instead — the pinned strip is the part that
+          benefits from spare room. It also narrows once anything is pinned,
+          since the two share that row; at `xs` it collapses to an icon. */}
       <Box
         role="button"
         tabIndex={0}
@@ -208,11 +248,20 @@ export default function TopBar({
 
       <Header.Actions>
         <Tooltip title="Switch app">
-          <IconButton onClick={onOpenWaffle} size="small" aria-label="Switch app">
+          <IconButton
+            onClick={(e) => onToggleWaffle(e.currentTarget)}
+            size="small"
+            aria-label="Switch app"
+            aria-haspopup="dialog"
+            aria-expanded={waffleOpen}
+          >
             <LayoutGridIcon size={20} />
           </IconButton>
         </Tooltip>
         <PinThisPageButton />
+        {/* Palette, then light/dark within it — two separate choices, both
+            persisted, deliberately adjacent. */}
+        <ThemeSelect />
         {/* Oxygen's own 3-state cycle: light → dark → system. */}
         <ColorSchemeToggle size="small" />
         <UserProfileMenu />

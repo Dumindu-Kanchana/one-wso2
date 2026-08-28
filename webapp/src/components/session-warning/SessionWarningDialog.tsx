@@ -73,7 +73,7 @@ export default function SessionWarningDialog({
         <Typography color="text.secondary" aria-live="polite">
           It looks like you&apos;ve been inactive for a while.{" "}
           {remainingMinutes === undefined ? (
-            // csm-portal's exact wording, for when nothing follows.
+            // No deadline to state, so the question stands on its own.
             <>Would you like to continue?</>
           ) : (
             <>

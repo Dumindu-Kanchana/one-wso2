@@ -54,6 +54,9 @@ interface SideRailProps {
 const crossId = (key: string) => `cross-${key}`;
 /** Id for the perspective's own landing route. */
 const OVERVIEW_ID = "perspective-overview";
+/** Footer row, outside any perspective — it is a global page, not a section. */
+const SETTINGS_ID = "settings";
+const SETTINGS_PATH = "/settings";
 
 // Left padding for a sub-item, so its label lines up with its parent's label
 // rather than with the parent's icon.
@@ -170,6 +173,8 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // correctly. Leaves win over the perspective overview, which is why the
   // sections are checked first.
   const activeItem = useMemo(() => {
+    // Settings sits outside the registry, so it is matched before the sections.
+    if (matchPath(SETTINGS_PATH, location.pathname)) return SETTINGS_ID;
     for (const s of sections) {
       if (s.path && matchPath(s.path, location.pathname)) return s.id;
       for (const c of s.children ?? []) {
@@ -177,6 +182,17 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
       }
     }
     if (active.path && matchPath(active.path, location.pathname)) return OVERVIEW_ID;
+
+    // Nothing matched exactly, so try again allowing descendants: a detail
+    // route like /me/my-team/E123 should keep its own section lit rather than
+    // clearing the rail. Deliberately a SECOND pass — an exact match must
+    // always win, or a section whose path prefixes another's would steal it.
+    for (const s of sections) {
+      for (const c of s.children ?? []) {
+        if (c.path && matchPath({ path: c.path, end: false }, location.pathname)) return c.id;
+      }
+      if (s.path && matchPath({ path: s.path, end: false }, location.pathname)) return s.id;
+    }
     return "";
   }, [sections, active.path, location.pathname]);
 
@@ -223,10 +239,15 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   }, [sections]);
 
   // Top-level route rows navigate through their own wrapping anchor; nested
-  // rows and scroll-anchors arrive here. Unknown ids — e.g. the inert Settings
-  // row — are ignored.
+  // rows and scroll-anchors arrive here.
   const onSelect = (id: string) => {
-    if (id === OVERVIEW_ID || id.startsWith("cross-") || id === "settings") return;
+    // Not in pathById: Settings belongs to no perspective, so it is routed here
+    // rather than through the registry.
+    if (id === SETTINGS_ID) {
+      navigate(SETTINGS_PATH);
+      return;
+    }
+    if (id === OVERVIEW_ID || id.startsWith("cross-")) return;
     const path = pathById.get(id);
     if (path) {
       navigate(path);
@@ -303,9 +324,8 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
         )}
       </Sidebar.Nav>
 
-      {/* Currently inert; wire to /settings when the page exists. */}
       <Sidebar.Footer showDivider>
-        <Sidebar.Item id="settings">
+        <Sidebar.Item id={SETTINGS_ID}>
           <Sidebar.ItemIcon>
             <SettingsIcon />
           </Sidebar.ItemIcon>

@@ -33,7 +33,23 @@ export interface UserInfo {
   privileges: number[];
 }
 
-export type EmployeeStatus = string; // people-app has an enum; keep loose here
+// Deliberately open, and deliberately NOT tightened to a union: this is a
+// free-text column on the backend, so a closed type would start lying the
+// moment HR adds a value. What we SEND is closed instead — see
+// EmployeeStatusFilter below.
+export type EmployeeStatus = string;
+
+/**
+ * The statuses the team search may filter on. Closed, because these are values
+ * we choose to send rather than values we have to accept.
+ */
+export type EmployeeStatusFilter = "Active" | "Marked leaver" | "Left";
+
+export const EMPLOYEE_STATUS_FILTERS: readonly EmployeeStatusFilter[] = [
+  "Active",
+  "Marked leaver",
+  "Left",
+];
 
 export interface Employee {
   employeeId: string;
@@ -287,4 +303,65 @@ export interface VehiclesResponse {
 export interface NewVehiclePayload {
   vehicleRegistrationNumber: string;
   vehicleType: VehicleType;
+}
+
+// --- team search (POST /employees/search) ----------------------------------
+//
+// Mirrored from people-app's `modules/database/types.bal` (EmployeeFilters /
+// Pagination / Sort). Deliberately a SUBSET: only the fields My Team actually
+// sends. The backend record carries about thirty, and importing the unused ones
+// invites someone to send a filter from a screen that has no business setting
+// it.
+
+/** What the team search may filter on. */
+export interface EmployeeFilters {
+  businessUnitId?: number;
+  teamId?: number;
+  subTeamId?: number;
+  unitId?: number;
+  careerFunctionId?: number;
+  designationId?: number;
+  companyId?: number;
+  officeId?: number;
+  employmentTypeId?: number;
+  managerEmail?: string;
+  gender?: string;
+  employeeStatuses?: EmployeeStatusFilter[];
+  /** false = the whole reporting chain; true = direct reports only. */
+  directReports?: boolean;
+  /** Hides anyone whose start date is after today, on the server's clock. */
+  excludeFutureStartDate?: boolean;
+}
+
+export type SortOrder = "ASC" | "DESC";
+
+export interface EmployeeSort {
+  sortField: string;
+  sortOrder: SortOrder;
+}
+
+export interface EmployeePagination {
+  /** Server constrains this to 1..100. */
+  limit: number;
+  offset: number;
+}
+
+export interface EmployeeSearchPayload {
+  filters: EmployeeFilters;
+  pagination: EmployeePagination;
+  sort: EmployeeSort;
+  /**
+   * Always true from this screen. It makes the server resolve the caller from
+   * the token and restrict the result to their subtree — so the scope cannot be
+   * widened by editing the request, and an admin sending this still sees only
+   * their own reports.
+   */
+  leadOnly: true;
+  /** Omitted entirely when empty. */
+  searchString?: string;
+}
+
+export interface FilteredEmployeesResponse {
+  employees: Employee[];
+  totalCount: number;
 }

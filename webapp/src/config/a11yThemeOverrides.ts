@@ -20,9 +20,8 @@ import { pickAccessibleText } from "@utils/contrastText";
 /**
  * Accessibility overlay applied on top of whichever Oxygen theme is active.
  *
- * Ported from csm-portal (apps/csm-portal/webapp/src/config/a11yThemeOverrides.ts).
- * One WSO2 had no equivalent, so every text/outlined `color="primary"` control
- * was failing WCAG AA in light mode.
+ * Without it, every text/outlined `color="primary"` control fails WCAG AA in
+ * light mode.
  *
  * The brand accent passes as orange-on-dark, but as *text or border on a light
  * surface* it fails AA: measured, `#F14E23` is 3.59:1 on white — enough for

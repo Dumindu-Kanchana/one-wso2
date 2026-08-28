@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { Box, IconButton, Tooltip, Typography } from "@wso2/oxygen-ui";
 import { RefreshCw } from "@wso2/oxygen-ui-icons-react";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import {
   roiSupported as isRoiSupported,
@@ -78,7 +79,7 @@ export default function AdCampaignsAnalyticsPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="📊 Ad Campaigns"
+      eyebrow={MARKETING_OPS_EYEBROW.adCampaigns}
       title="Analytics"
       subtitle="Paid-ad performance across Google Ads and LinkedIn, with the Salesforce funnel and ROI for Google. Every figure is computed on demand — nothing here is stored."
     >

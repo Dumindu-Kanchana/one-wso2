@@ -74,6 +74,7 @@ Runtime config is read from `window.config` set by `public/config.js`. Build-tim
 | `ONE_WSO2_AUTH_SIGN_IN_REDIRECT_URL` | Sign-in callback URL (must match Asgardeo app registration) | `http://localhost:3000` |
 | `ONE_WSO2_AUTH_SIGN_OUT_REDIRECT_URL` | Sign-out callback URL | `http://localhost:3000` |
 | `ONE_WSO2_PEOPLE_BACKEND_URL` | people-ops-suite people-app backend base URL (Choreo gateway) — powers the live My profile page | `<people-app-backend-url>` |
+| `ONE_WSO2_MENU_BACKEND_URL` | Cafeteria menu backend — daily menu, lunch feedback, dinner orders (Workspace → Menu) | `<menu-app-backend-url>` |
 | `ONE_WSO2_LEAVE_WEB_APP_URL` | leave-app frontend base URL (not its backend) — deep-links into flows this webapp doesn't replicate (e.g. sabbatical requests). Optional — when absent, that link is hidden | `<your-leave-app-frontend-url>` |
 | `ONE_WSO2_THEME` | Theme name (`oneWso2` / `acrylicOrange`, `classic`, `highContrast`) — default `oneWso2` (the one-wso2 palette overlay on top of AcrylicOrange; `acrylicOrange` is an alias for the same theme) | `oneWso2` |
 | `ONE_WSO2_DEV_BYPASS_AUTH` | Dev-only escape hatch — when `true`, AuthGuard renders without ever calling Asgardeo. **Never** set in prod. | `false` |
@@ -159,6 +160,14 @@ In dev, a floating **🔐 auth** pill appears at the bottom-right of every authe
 
 ## Live Data
 
+- **Cafeteria menu** — `Workspace → Menu` fires `/user-info`, `/menu`, `/dinner` and, when the gateway
+  publishes it, `/meta-info` against `ONE_WSO2_MENU_BACKEND_URL`. Ported from the standalone menu app;
+  the functional specification, the API contract, a hand-executable test checklist and every
+  deliberate difference from the original are in `docs/ported-apps/menu-app.md`. Two behaviours worth
+  knowing: both time windows are evaluated on the cafeteria's clock (IST) to match the server rather
+  than the browser, and privileges are fetched but nothing branches on them — the standalone app
+  rendered identical UI for its admin and employee roles, so this feature has no capability gate by
+  design. When the key isn't set the screen shows a "not connected" notice and makes no requests.
 - **My profile** — fires `/user-info` → `/employees/{id}` + `/employees/{id}/personal-info` against `ONE_WSO2_PEOPLE_BACKEND_URL`. Contract types are mirrored from people-app in `src/features/my/api/types.ts`. When `ONE_WSO2_PEOPLE_BACKEND_URL` isn't set, the profile page shows a "not configured" banner instead of failing silently.
 - **Everything else** — every card in `features/*/constants/` still holds mocked data ported from the prototype. Swap each constants module for a React Query hook (`useOpenRequisitions`, `useRecentJoiners`, …) once the backends exist. The TanStack React Query provider is already wired in `AppWithConfig.tsx`.
 

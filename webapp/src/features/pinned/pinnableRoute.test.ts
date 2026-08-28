@@ -38,6 +38,22 @@ describe("pinnableRoute", () => {
     );
   });
 
+  // A route added without a registry `path` gets a guessed label instead of a
+  // qualified one, so this doubles as the check that a newly ported app was
+  // wired into the registry and not just into the router.
+  it("qualifies a ported app's screen from the registry", () => {
+    expect(pinnableRoute("/workspace/menu").label).toBe("Menu · Home");
+    expect(isKnownRoute("/workspace/menu")).toBe(true);
+  });
+
+  // Detail routes aren't in the registry — one entry cannot enumerate every
+  // employee — so they take their parent's label plus the leaf. Without this a
+  // pin reads as a bare id with nothing to say where it came from.
+  it("qualifies a detail route by the route it sits under", () => {
+    expect(pinnableRoute("/me/my-team/E123").label).toBe("My Team · E123");
+    expect(pinnableRoute("/me/opd/history/CLM-9").label).toBe("OPD Claims · Claim History · CLM-9");
+  });
+
   it("labels a leaf section that is a route", () => {
     expect(pinnableRoute("/me/my-team").label).toBe("My Team");
   });
@@ -91,3 +107,25 @@ describe("isKnownRoute", () => {
     expect(isKnownRoute("/me/leave/apply/")).toBe(true);
   });
 });
+
+// pinnableRoute runs during render (PinThisPageButton calls it while
+// rendering), so a throw here takes the button down rather than just labelling
+// itself oddly.
+describe("malformed percent encoding in a detail route", () => {
+  it("keeps the raw segment instead of throwing", () => {
+    // decodeURIComponent("%") throws URIError.
+    expect(() => pinnableRoute("/me/my-team/%")).not.toThrow();
+    expect(pinnableRoute("/me/my-team/%").label).toBe("My Team · %");
+  });
+
+  it("survives other invalid escapes", () => {
+    for (const leaf of ["%zz", "%E0%A4%A", "100%"]) {
+      expect(() => pinnableRoute(`/me/my-team/${leaf}`), leaf).not.toThrow();
+    }
+  });
+
+  it("still decodes a valid escape", () => {
+    expect(pinnableRoute("/me/my-team/E%20123").label).toBe("My Team · E 123");
+  });
+});
+

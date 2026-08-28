@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import { Alert, Box, MenuItem, OutlinedInput, Select, Typography } from "@wso2/oxygen-ui";
 import { TriangleAlert } from "@wso2/oxygen-ui-icons-react";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import CopyField from "../components/CopyField";
 import { useUtmSchema } from "../../api/useMarketingOpsSettings";
@@ -104,7 +105,7 @@ export default function UtmGeneratorPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="🧰 Utilities"
+      eyebrow={MARKETING_OPS_EYEBROW.utilities}
       title="UTM Link Generator"
       subtitle="Build consistent campaign tracking URLs. Codes and casing are standardized automatically."
     >

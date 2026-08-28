@@ -74,7 +74,7 @@ export const ORG_ENTITY_CONFIG: Record<OrgEntityKind, OrgEntityConfig> = {
     headColumnLabel: "Business unit head",
   },
   team: {
-    collectionUrl: peopleServiceUrls.teams,
+    collectionUrl: peopleServiceUrls.teams(),
     itemUrl: peopleServiceUrls.team,
     label: "team",
     pluralLabel: "Teams",
@@ -82,7 +82,7 @@ export const ORG_ENTITY_CONFIG: Record<OrgEntityKind, OrgEntityConfig> = {
     headColumnLabel: "Team head",
   },
   subTeam: {
-    collectionUrl: peopleServiceUrls.subTeams,
+    collectionUrl: peopleServiceUrls.subTeams(),
     itemUrl: peopleServiceUrls.subTeam,
     label: "sub team",
     pluralLabel: "Sub teams",
@@ -90,7 +90,7 @@ export const ORG_ENTITY_CONFIG: Record<OrgEntityKind, OrgEntityConfig> = {
     headColumnLabel: "Sub team head",
   },
   unit: {
-    collectionUrl: peopleServiceUrls.units,
+    collectionUrl: peopleServiceUrls.units(),
     itemUrl: peopleServiceUrls.unit,
     label: "unit",
     pluralLabel: "Units",

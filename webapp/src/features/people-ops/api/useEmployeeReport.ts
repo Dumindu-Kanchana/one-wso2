@@ -62,7 +62,7 @@ export function useEmployeeSearch(payload: EmployeeSearchPayload, enabled = true
     queryFn: async () => {
       const accessToken = await getAccessToken();
       const res = await authedPost<FilteredEmployeesResponse>(
-        peopleServiceUrls.searchEmployees,
+        peopleServiceUrls.employeesSearch,
         accessToken,
         payload,
       );

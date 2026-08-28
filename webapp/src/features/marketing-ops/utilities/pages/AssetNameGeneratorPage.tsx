@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from "react";
 import { Box, ButtonBase, MenuItem, OutlinedInput, Select, Typography } from "@wso2/oxygen-ui";
+import { MARKETING_OPS_EYEBROW } from "@constants/marketingOpsApps";
 import MarketingOpsShell from "../../components/MarketingOpsShell";
 import CopyField from "../components/CopyField";
 import { useAssetGenerators } from "../../api/useMarketingOpsSettings";
@@ -87,7 +88,7 @@ export default function AssetNameGeneratorPage() {
 
   return (
     <MarketingOpsShell
-      eyebrow="🧰 Utilities"
+      eyebrow={MARKETING_OPS_EYEBROW.utilities}
       title="Asset Name Generator"
       subtitle="Generates standardized asset and campaign names. Pick the name type, fill the fields, and the result assembles live below. The selected year is added as two digits (2026 → 26)."
     >

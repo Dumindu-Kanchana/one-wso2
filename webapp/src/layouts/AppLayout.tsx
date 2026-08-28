@@ -50,10 +50,12 @@ function writeCollapsed(collapsed: boolean): void {
 // NOTE: the content scroller deliberately sets no background. It used to paint
 // `background.default`, which covered the <body> entirely and made any
 // canvas-level treatment (Oxygen's radial wash, or ours) invisible in the
-// content area. csm-portal sets no background on its layout boxes either —
-// that's precisely why its wash reaches the content.
+// content area. Layout boxes have to stay transparent for the wash to reach
+// the content at all.
 export default function AppLayout(): JSX.Element {
-  const [waffleOpen, setWaffleOpen] = useState(false);
+  // The launcher's anchor doubles as its open state — it hangs off the button
+  // rather than covering the page, so there is no "open with no anchor".
+  const [waffleAnchor, setWaffleAnchor] = useState<HTMLElement | null>(null);
   const [askOpen, setAskOpen] = useState(false);
   const location = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
@@ -90,7 +92,8 @@ export default function AppLayout(): JSX.Element {
             <TopBar
               collapsed={shellState.sidebarCollapsed}
               onToggleSidebar={shellActions.toggleSidebar}
-              onOpenWaffle={() => setWaffleOpen(true)}
+              onToggleWaffle={(el) => setWaffleAnchor((prev) => (prev ? null : el))}
+              waffleOpen={waffleAnchor !== null}
               onOpenAsk={() => setAskOpen(true)}
             />
           }
@@ -116,7 +119,9 @@ export default function AppLayout(): JSX.Element {
           <AppFooter />
         </AppShellLayout>
 
-        {waffleOpen && <WaffleOverlay onClose={() => setWaffleOpen(false)} />}
+        {waffleAnchor && (
+          <WaffleOverlay anchorEl={waffleAnchor} onClose={() => setWaffleAnchor(null)} />
+        )}
         {askOpen && <AskNoveraPalette onClose={() => setAskOpen(false)} />}
         <AuthDebugPanel />
       </Box>
