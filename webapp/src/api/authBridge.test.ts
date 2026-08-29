@@ -19,6 +19,7 @@ import {
   FAILURES_BEFORE_PROMPT,
   cooldownFor,
   getSessionExpiredSnapshot,
+  refreshAccessToken,
   refreshIdToken,
   registerAuthAccessors,
   resetAuthBridgeFailureState,
@@ -101,84 +102,103 @@ describe("a renewal that resolves falsy is a failure", () => {
   });
 });
 
-describe("backoff", () => {
-  it("refuses to call the SDK again inside the cooldown window", async () => {
+// The backoff is unreachable while FAILURES_BEFORE_PROMPT is 1 — the first
+// failure trips the breaker, and `sessionExpired` is checked before the
+// cooldown. Its arithmetic is still tested above, because it is what bounds the
+// damage if the threshold is ever raised again.
+describe("after the first failure", () => {
+  it("does not call the SDK a second time, whoever asks", async () => {
     vi.useFakeTimers();
     signInSilently.mockResolvedValue(false);
 
     await expect(refreshIdToken()).rejects.toThrow(/did not renew/i);
     expect(signInSilently).toHaveBeenCalledTimes(1);
 
-    // Still inside the 5s window: rejected without touching the network.
-    vi.advanceTimersByTime(1_000);
-    await expect(refreshIdToken()).rejects.toThrow(/backing off/i);
+    // Not "backing off" — given up. However long we wait.
+    vi.advanceTimersByTime(10 * 60_000);
+    await expect(refreshIdToken()).rejects.toThrow(/full sign-in/i);
+    await expect(refreshAccessToken()).rejects.toThrow(/full sign-in/i);
     expect(signInSilently).toHaveBeenCalledTimes(1);
-
-    vi.advanceTimersByTime(5_000);
-    await expect(refreshIdToken()).rejects.toThrow(/did not renew/i);
-    expect(signInSilently).toHaveBeenCalledTimes(2);
   });
 
-  it("clears once a renewal succeeds", async () => {
-    vi.useFakeTimers();
-    signInSilently.mockResolvedValueOnce(false);
-    await expect(refreshIdToken()).rejects.toThrow();
-
-    vi.advanceTimersByTime(5_001);
+  it("leaves a session alone that never failed", async () => {
     signInSilently.mockResolvedValue(RENEWED);
     await expect(refreshIdToken()).resolves.toBe("id-token");
-
-    // Backoff reset: the very next call goes straight through.
-    signInSilently.mockResolvedValueOnce(false);
-    await expect(refreshIdToken()).rejects.toThrow(/did not renew/i);
-    expect(signInSilently).toHaveBeenCalledTimes(3);
+    await expect(refreshIdToken()).resolves.toBe("id-token");
+    expect(getSessionExpiredSnapshot()).toBe(false);
   });
 });
 
 describe("giving up", () => {
-  it("stops calling the SDK entirely after three consecutive failures", async () => {
-    vi.useFakeTimers();
+  it("trips on the very first failed renewal", async () => {
     signInSilently.mockResolvedValue(false);
-
-    for (let i = 0; i < FAILURES_BEFORE_PROMPT; i++) {
-      await expect(refreshIdToken()).rejects.toThrow();
-      vi.advanceTimersByTime(cooldownFor(i + 1) + 1);
-    }
-    expect(signInSilently).toHaveBeenCalledTimes(FAILURES_BEFORE_PROMPT);
-
-    // However long we wait, and however many callers ask.
-    vi.advanceTimersByTime(10 * 60_000);
-    await expect(refreshIdToken()).rejects.toThrow(/full sign-in/i);
-    await expect(refreshIdToken()).rejects.toThrow(/full sign-in/i);
+    await expect(refreshIdToken()).rejects.toThrow(/did not renew/i);
+    expect(getSessionExpiredSnapshot()).toBe(true);
     expect(signInSilently).toHaveBeenCalledTimes(FAILURES_BEFORE_PROMPT);
   });
 
   it("notifies subscribers once, not per failed request", async () => {
-    vi.useFakeTimers();
     const listener = vi.fn();
     const unsubscribe = subscribeSessionExpiry(listener);
     signInSilently.mockResolvedValue(false);
 
-    for (let i = 0; i < FAILURES_BEFORE_PROMPT; i++) {
-      await expect(refreshIdToken()).rejects.toThrow();
-      vi.advanceTimersByTime(cooldownFor(i + 1) + 1);
-    }
+    await expect(refreshIdToken()).rejects.toThrow();
+    await expect(refreshIdToken()).rejects.toThrow();
     await expect(refreshIdToken()).rejects.toThrow();
 
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
   });
 
-  it("does not trip on failures separated by a success", async () => {
-    // Two failures, a success, two more failures. Consecutive means consecutive.
+  it("is one-way — a later success cannot un-expire the page", async () => {
+    signInSilently.mockResolvedValue(false);
+    await expect(refreshIdToken()).rejects.toThrow();
+    signInSilently.mockResolvedValue(RENEWED);
+    await expect(refreshIdToken()).rejects.toThrow(/full sign-in/i);
+    expect(getSessionExpiredSnapshot()).toBe(true);
+  });
+});
+
+// The whole point of the line: this subsystem's failures cannot be reproduced
+// locally, so the record has to survive into stage.
+describe("what it leaves behind for whoever has to diagnose it", () => {
+  it("says it gave up, once, when the breaker trips", async () => {
     vi.useFakeTimers();
-    const sequence = [false, false, RENEWED, false, false];
-    for (const [i, value] of sequence.entries()) {
-      signInSilently.mockResolvedValueOnce(value);
-      await refreshIdToken().catch(() => undefined);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    signInSilently.mockResolvedValue(false);
+
+    for (let i = 0; i < FAILURES_BEFORE_PROMPT; i++) {
+      await expect(refreshIdToken()).rejects.toThrow();
       vi.advanceTimersByTime(cooldownFor(i + 1) + 1);
     }
+    const lines = warn.mock.calls.map((c) => c.join(" "));
+    expect(lines.filter((l) => l.includes("Gave up on silent re-auth"))).toHaveLength(1);
+    expect(lines.join(" ")).toContain(String(FAILURES_BEFORE_PROMPT));
+
+    // Further failures must not repeat it — one line per session, not per request.
+    await expect(refreshIdToken()).rejects.toThrow();
+    expect(warn.mock.calls.map((c) => c.join(" ")).filter((l) => l.includes("Gave up"))).toHaveLength(1);
+    warn.mockRestore();
+  });
+
+  it("stays quiet while renewal is still working", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    signInSilently.mockResolvedValue(RENEWED);
+    await refreshIdToken();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
+// (b): once the dialog is up it owns the message. A page going to its error
+// state as well would put an ErrorNotice — with a Retry that cannot help —
+// behind the modal, one per feature, for a single dead session.
+describe("what the pages see once the session is declared dead", () => {
+  it("reports the session as expired to anything that asks", async () => {
+    signInSilently.mockResolvedValue(false);
     expect(getSessionExpiredSnapshot()).toBe(false);
+    await expect(refreshIdToken()).rejects.toThrow();
+    expect(getSessionExpiredSnapshot()).toBe(true);
   });
 });
 
@@ -189,10 +209,9 @@ describe("concurrent callers", () => {
     expect(signInSilently).toHaveBeenCalledTimes(1);
   });
 
-  it("count one failure between them, not three", async () => {
+  it("share one failure between them rather than each minting an authorize", async () => {
     signInSilently.mockResolvedValue(false);
     await Promise.allSettled([refreshIdToken(), refreshIdToken(), refreshIdToken()]);
     expect(signInSilently).toHaveBeenCalledTimes(1);
-    expect(getSessionExpiredSnapshot()).toBe(false);
   });
 });

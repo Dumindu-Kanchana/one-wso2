@@ -123,7 +123,15 @@ export async function fetchWithReauth(url: string, init: RequestInit, accessToke
   let freshToken: string;
   try {
     freshToken = await refreshAccessToken();
-  } catch {
+  } catch (error: unknown) {
+    // Returning the original 401 is right — the caller's normal error handling
+    // takes over. But silently is not: from outside, a request that 401s
+    // because the session died looks exactly like one that 401s because the
+    // caller lacks the privilege, and only this line tells them apart.
+    console.warn(
+      `[auth] 401 on ${url} and silent re-auth failed, so the 401 stands.`,
+      error instanceof Error ? error.message : "unknown error",
+    );
     return first;
   }
   if (!isReplaySafe) return first;

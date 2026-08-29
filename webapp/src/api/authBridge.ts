@@ -61,10 +61,20 @@ const MAX_COOLDOWN_MS = 60_000;
 
 /**
  * Consecutive failures after which the session is declared unrenewable and the
- * user is asked to sign in. Three rather than one so a single transient blip
- * — a dropped connection, a slow gateway — costs a retry rather than a modal.
+ * user is asked to sign in.
+ *
+ * One. A failed silent renewal already means the SDK spent ten seconds on an
+ * iframe and came back with nothing, so asking twice more mostly costs the user
+ * half a minute of broken screens before telling them anything. The cost of
+ * being wrong is a sign-in they did not strictly need; the cost of waiting is
+ * an app that silently fails every request in the meantime.
+ *
+ * Note this makes the backoff below unreachable in practice: the very first
+ * failure trips the breaker, and `sessionExpired` is checked before the
+ * cooldown. It is kept because it is what bounds the damage if this value is
+ * ever raised again.
  */
-export const FAILURES_BEFORE_PROMPT = 3;
+export const FAILURES_BEFORE_PROMPT = 1;
 
 /**
  * Whether an Asgardeo `signInSilently()` result means the session was renewed.
@@ -132,6 +142,15 @@ export function getSessionExpiredSnapshot(): boolean {
 function giveUpOnSilentRenewal(): void {
   if (sessionExpired) return; // notify once, not per failed request
   sessionExpired = true;
+  // Not DEV-gated. This is the one subsystem whose failures cannot be
+  // reproduced locally — the renewal iframe only breaks on an http origin —
+  // so the line has to survive into stage and production to be worth anything.
+  // It says the dialog was raised by us and why, which is otherwise
+  // indistinguishable from Asgardeo failing on its own.
+  console.warn(
+    `[auth] Gave up on silent re-auth after ${FAILURES_BEFORE_PROMPT} consecutive ` +
+      `failures. Asking the user to sign in again.`,
+  );
   for (const listener of sessionExpiryListeners) listener();
 }
 
