@@ -77,7 +77,7 @@ export default function App() {
     <Routes>
       <Route element={<AuthGuard />}>
         <Route element={<AppLayout />}>
-          {/* Where the app opens, from ONE_WSO2_DEFAULT_PERSPECTIVE. */}
+          {/* Where the app opens: the user's own choice, or Me. */}
           <Route index element={<Navigate to={landingPath()} replace />} />
           {/* Me home — the full profile page including Connected apps. */}
           <Route path="me" element={<MyProfilePage />} />

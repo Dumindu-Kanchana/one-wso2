@@ -29,7 +29,6 @@ declare global {
     // Perspective key the app opens on ("me", "people", "finance", ...).
     // Optional — defaults to "me". Deployment-wide, so it must name a
     // perspective every user in the tenant can actually use; see landingConfig.
-    ONE_WSO2_DEFAULT_PERSPECTIVE?: string;
       // Whether an idle session is signed out automatically. Optional —
       // defaults to false, which is dialog-only: the "still there?" dialog
       // still appears after 25 minutes of inactivity, but ignoring it leaves
