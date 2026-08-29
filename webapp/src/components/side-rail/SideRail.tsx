@@ -244,7 +244,12 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
     // Not in pathById: Settings belongs to no perspective, so it is routed here
     // rather than through the registry.
     if (id === SETTINGS_ID) {
-      navigate(SETTINGS_PATH);
+      // Carry the perspective along. Settings belongs to none of them — it is
+      // reached from all of them, and it is where the default perspective is
+      // chosen — so the rail has nothing in the URL to keep it where it was.
+      // Passing it in the navigation itself is the one place this can live
+      // without a ref or an effect, both of which the hooks lint rules refuse.
+      navigate(SETTINGS_PATH, { state: { fromPerspective: active.key } });
       return;
     }
     if (id === OVERVIEW_ID || id.startsWith("cross-")) return;
