@@ -20,6 +20,7 @@ import {
   readFavourites,
   toggleFavourite,
 } from "@features/favourites/favouritesStore";
+import { reachablePerspectives } from "@constants/perspectives";
 
 const USER = "user-a";
 const key = (sub: string) => `one-wso2.favourites.v1.${sub}`;
@@ -39,8 +40,8 @@ describe("favourites", () => {
 
   it("appends, so the row order stays stable as it grows", () => {
     toggleFavourite(USER, "me");
-    toggleFavourite(USER, "workspace");
-    expect(readFavourites(USER)).toEqual(["me", "workspace"]);
+    toggleFavourite(USER, "finance");
+    expect(readFavourites(USER)).toEqual(["me", "finance"]);
   });
 
   it("persists across reads", () => {
@@ -85,10 +86,12 @@ describe("favourites", () => {
   it("does not share the pinned store's budget", () => {
     // The whole reason this is a separate store: favouriting apps must not eat
     // the eight-slot allowance for pinning pages.
-    for (const k of ["me", "people", "finance", "workspace", "marketing"]) {
-      toggleFavourite(USER, k);
-    }
-    expect(readFavourites(USER)).toHaveLength(5);
+    // Derived from the registry rather than hardcoded: this broke when the
+    // Workspace perspective was folded into Me, and the count is not what the
+    // test is about.
+    const keys = reachablePerspectives().map((p) => p.key);
+    for (const k of keys) toggleFavourite(USER, k);
+    expect(readFavourites(USER)).toHaveLength(keys.length);
     expect(localStorage.getItem("one-wso2.pinned.v1.user-a")).toBeNull();
   });
 });

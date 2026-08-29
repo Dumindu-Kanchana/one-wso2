@@ -29,7 +29,7 @@ export interface PerspectiveHeaderProps {
 }
 
 // The title + subtitle every perspective/placeholder page opens with (People
-// Ops, Finance, Workspace, My Team, ...).
+// Ops, Finance, My Team, ...).
 //
 // Two deliberate changes from the version that consolidated these blocks:
 //

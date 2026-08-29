@@ -29,7 +29,6 @@ import MyProfilePage from "@features/my/pages/MyProfilePage";
 import MyTeamPage from "@features/my/my-team/pages/MyTeamPage";
 import TeamMemberPage from "@features/my/my-team/pages/TeamMemberPage";
 import FinancePage from "@features/finance/pages/FinancePage";
-import WorkspacePage from "@features/workspace/pages/WorkspacePage";
 import MarketingOpsPage from "@features/marketing-ops/pages/MarketingOpsPage";
 import AdCampaignsAnalyticsPage from "@features/marketing-ops/ad-campaigns/pages/AdCampaignsAnalyticsPage";
 import UtmGeneratorPage from "@features/marketing-ops/utilities/pages/UtmGeneratorPage";
@@ -144,9 +143,6 @@ export default function App() {
           {/* Finance perspective — skeleton "coming soon" tile; the actual
               claim apps are the me/opd, me/cc, me/expense routes above. */}
           <Route path="finance" element={<FinancePage />} />
-          {/* Workspace perspective — office-amenity apps split out of People
-              Ops (starting with the cafeteria Menu app). */}
-          <Route path="workspace" element={<WorkspacePage />} />
           {/* Marketing Ops perspective — overview + the Phase 1 Utilities
               screens, ported from the Marketing Ops frontend. The remaining
               operations (Ad Campaigns, Email Workbench, Events, CRM Upload)
@@ -202,10 +198,10 @@ export default function App() {
           <Route path="marketing-ops/crm-upload/records" element={<CrmUploadRecordsPage />} />
           <Route path="marketing-ops/crm-upload/review" element={<CrmUploadReviewPage />} />
           <Route path="settings" element={<SettingsPage />} />
-          {/* Workspace → Menu: the cafeteria screen ported from the standalone
+          {/* Me → Menu: the cafeteria screen ported from the standalone
               menu app. One page, as the original was. The functional spec and
               the deviation list live in docs/ported-apps/menu-app.md. */}
-          <Route path="workspace/menu" element={<MenuHomePage />} />
+          <Route path="me/menu" element={<MenuHomePage />} />
           {/* Catch-all → landing */}
           <Route path="*" element={<Navigate to={landingPath()} replace />} />
         </Route>

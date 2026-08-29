@@ -93,11 +93,6 @@ export const PERSPECTIVE_HUES: Record<string, PerspectiveHue> = {
     light: { bg: "#E0F2ED", fg: "#1C7A5E" },
     dark: { bg: "#1B2726", fg: "#22A37D" },
   },
-  workspace: {
-    hue: "#8A6BE0",
-    light: { bg: "#EFEAFB", fg: "#6B4BB8" },
-    dark: { bg: "#252430", fg: "#8A6BE0" },
-  },
   marketing: {
     hue: "#E04A8F",
     light: { bg: "#FBE6EF", fg: "#B02E6B" },

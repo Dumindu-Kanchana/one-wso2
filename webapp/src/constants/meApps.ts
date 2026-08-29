@@ -16,10 +16,10 @@
 
 // Registry of apps surfaced under the "Me" perspective — things every
 // employee does for themselves, as opposed to People Ops' HR-team tools.
-// Same App → items shape as @constants/financeApps / workspaceApps; see
+// Same App → items shape as @constants/financeApps; see
 // that file's header for the general rationale.
 
-import { TreePalmIcon } from "@wso2/oxygen-ui-icons-react";
+import { TreePalmIcon, UtensilsIcon } from "@wso2/oxygen-ui-icons-react";
 import type { MenuApp } from "@constants/appMenu";
 
 export const ME_APPS: readonly MenuApp[] = [
@@ -35,6 +35,26 @@ export const ME_APPS: readonly MenuApp[] = [
       // Sabbatical use cases (apply/approve/report) are on hold this
       // iteration — placeholder links out to the Leave app instead.
       { id: "leave-sabbatical", label: "Sabbatical", desc: "Coming soon — apply via the Leave app for now.", path: "/me/leave/sabbatical" },
+    ],
+  },
+  // Moved out of its own Workspace perspective, which existed for this one
+  // screen: a waffle tile, a rail entry and a landing option, all to reach a
+  // single page. It sits with Leave and the finance apps because it is the same
+  // kind of thing — an everyday app any employee uses. If more office apps
+  // arrive (room booking, IT requests), Workspace can come back with something
+  // in it; reinstating it is the same size of change as removing it was.
+  {
+    key: "menu",
+    name: "Menu",
+    icon: UtensilsIcon,
+    purpose: "Cafeteria menu, feedback, and dinner orders.",
+    items: [
+      {
+        id: "menu-home",
+        label: "Home",
+        desc: "View the cafeteria menu, submit feedback, order dinner.",
+        path: "/me/menu",
+      },
     ],
   },
 ];

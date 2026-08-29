@@ -153,11 +153,11 @@ describe("per-user preference", () => {
   });
 
   it("clearing it returns the user to the deployment default", () => {
-    setConfig("workspace");
+    setConfig("people");
     setLandingPreference("finance");
     setLandingPreference(undefined);
     expect(landingPreference()).toBeUndefined();
-    expect(landingPath()).toBe("/workspace");
+    expect(landingPath()).toBe("/people-ops");
   });
 
   it("keeps following the deployment when the deployment default changes", () => {
@@ -188,11 +188,11 @@ describe("per-user preference", () => {
   });
 
   it("reports the deployment key separately from the resolved path", () => {
-    setConfig("workspace");
+    setConfig("people");
     setLandingPreference("finance");
     // The settings page shows the deployment default in its helper text, so it
     // has to stay readable even while a user override is in effect.
-    expect(deploymentLandingKey()).toBe("workspace");
+    expect(deploymentLandingKey()).toBe("people");
     expect(landingPath()).toBe("/finance");
   });
 });

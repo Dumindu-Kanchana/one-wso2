@@ -29,7 +29,7 @@ import { reachablePerspectives } from "@constants/perspectives";
  * built" — it is not a per-user permission check. Marketing Ops in particular
  * gates its own contents against a separate backend's groups, so landing every
  * user there would show most of them an unauthorized state on login. Me,
- * People Ops, Finance and Workspace all render usefully for any signed-in user.
+ * People Ops and Finance both render usefully for any signed-in user.
  */
 const FALLBACK_KEY = "me";
 

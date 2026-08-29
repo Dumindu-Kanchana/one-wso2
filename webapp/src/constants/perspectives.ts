@@ -33,12 +33,10 @@ import {
   UsersIcon,
   UsersRoundIcon,
   WalletIcon,
-  WrenchIcon,
   ZapIcon,
   type LucideIcon,
 } from "@wso2/oxygen-ui-icons-react";
 import type { Capability, MenuApp } from "@constants/appMenu";
-import { WORKSPACE_APPS } from "@constants/workspaceApps";
 import { FINANCE_APPS } from "@constants/financeApps";
 import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 import { ME_APPS } from "@constants/meApps";
@@ -48,13 +46,13 @@ export type PerspectiveGroup = "functional" | "cross";
 export interface PerspectiveSection {
   id: string; // anchor id on the perspective's page (leaf sections)
   label: string;
-  // App groups (Leave, Finance, Workspace) carry an icon + nested children.
+  // App groups (Leave, Menu, Finance) carry an icon + nested children.
   // A section with `children` renders as a collapsible group in the rail; a
   // leaf section scrolls to its `id`.
   icon?: LucideIcon;
   // Visible when the caller has ANY of these capabilities (OR semantics).
   // Omitted = visible to everyone. Only app-menu registries (Leave, Finance,
-  // Workspace) use this.
+  // Finance) use this.
   requires?: Capability[];
   children?: PerspectiveSection[];
   // When set, a leaf item is a route (rail navigates) rather than a
@@ -135,7 +133,6 @@ export const PEOPLE_OPS_SECTIONS: PerspectiveSection[] = [
   },
 ];
 
-const WORKSPACE_SECTIONS: PerspectiveSection[] = appsToSections(WORKSPACE_APPS);
 
 // Marketing Ops. Built from the registry now so the rail is ready, but the
 // perspective itself stays locked (`access: false` below) until Phase 1
@@ -222,18 +219,6 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     group: "functional",
     access: true,
     path: "/finance",
-  },
-  // Cafeteria menu, feedback, dinner orders — split out of People Ops since
-  // it's an office-amenity tool, not an HR-team one. More non-HR office
-  // apps land here over time.
-  {
-    key: "workspace",
-    label: "Workspace",
-    icon: WrenchIcon,
-    group: "functional",
-    access: true,
-    path: "/workspace",
-    sections: WORKSPACE_SECTIONS,
   },
   { key: "csm", label: "CSM", icon: LifeBuoyIcon, group: "functional", access: false },
   { key: "revops", label: "Rev Ops", icon: ChartNoAxesCombinedIcon, group: "functional", access: false },
