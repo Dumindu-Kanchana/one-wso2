@@ -24,7 +24,6 @@ import { LockIcon, StarIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import {
   FUNCTIONAL_PERSPECTIVES,
-  CROSS_PERSPECTIVES,
   PERSPECTIVES,
   type PerspectiveDef,
 } from "@constants/perspectives";
@@ -200,21 +199,6 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
               onToggleFavourite={toggle}
             />
 
-            <Typography
-              variant="overline"
-              color="text.secondary"
-              component="h2"
-              sx={{ display: "block", mt: 1.5 }}
-            >
-              For you
-            </Typography>
-            <WaffleGroup
-              items={CROSS_PERSPECTIVES}
-              activeKey={active.key}
-              onPick={pick}
-              isFavourite={isFavourite}
-              onToggleFavourite={toggle}
-            />
           </Paper>
         </Box>
       </Popper>

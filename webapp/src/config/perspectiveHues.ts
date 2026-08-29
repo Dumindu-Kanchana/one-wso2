@@ -28,7 +28,7 @@
  *
  * SIZING, and the constraint that will eventually break this: the registry holds
  * eleven perspectives, but five are locked placeholders (CSM, Rev Ops, Legal,
- * Business, Customer) that render grayscaled and need no hue. So six hues cover
+ * Service Requests) that render grayscaled and need no hue. So the hues cover
  * everything reachable today, which sits just inside the limit. As those unlock,
  * adding a hue each takes the set past the point where hues are tellable apart —
  * at which point the answer is a different encoding (hue per domain family, or back

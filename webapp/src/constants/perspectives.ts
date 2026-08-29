@@ -19,10 +19,8 @@
 
 import { isIsacConfigured, isacUrl } from "@config/apiConfig";
 import {
-  BriefcaseBusinessIcon,
   ChartNoAxesCombinedIcon,
   DatabaseIcon,
-  HandshakeIcon,
   HouseIcon,
   LifeBuoyIcon,
   MegaphoneIcon,
@@ -40,8 +38,6 @@ import type { Capability, MenuApp } from "@constants/appMenu";
 import { FINANCE_APPS } from "@constants/financeApps";
 import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 import { ME_APPS } from "@constants/meApps";
-
-export type PerspectiveGroup = "functional" | "cross";
 
 export interface PerspectiveSection {
   id: string; // anchor id on the perspective's page (leaf sections)
@@ -178,7 +174,6 @@ export interface PerspectiveDef {
   key: string;
   label: string;
   icon: LucideIcon;
-  group: PerspectiveGroup;
   access: boolean;
   path?: string; // route path (undefined for locked perspectives)
   /**
@@ -203,7 +198,6 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     key: "people",
     label: "People Ops",
     icon: UsersIcon,
-    group: "functional",
     access: true,
     path: "/people-ops",
     sections: PEOPLE_OPS_SECTIONS,
@@ -216,13 +210,12 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     key: "finance",
     label: "Finance",
     icon: WalletIcon,
-    group: "functional",
     access: true,
     path: "/finance",
   },
-  { key: "csm", label: "CSM", icon: LifeBuoyIcon, group: "functional", access: false },
-  { key: "revops", label: "Rev Ops", icon: ChartNoAxesCombinedIcon, group: "functional", access: false },
-  { key: "legal", label: "Legal", icon: ScaleIcon, group: "functional", access: false },
+  { key: "csm", label: "CSM", icon: LifeBuoyIcon, access: false },
+  { key: "revops", label: "Rev Ops", icon: ChartNoAxesCombinedIcon, access: false },
+  { key: "legal", label: "Legal", icon: ScaleIcon, access: false },
   // Marketing Ops — UNLOCKED. Ported so far: Utilities (UTM + Asset Name
   // generators and their Marketing Admin panels) and Ad Campaigns → Analytics.
   // Still in Marketing Ops itself: Email Workbench, Events, CRM Upload — those
@@ -244,39 +237,28 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     // people-app privileges — see useMarketingOpsGate.
     externallyGated: true,
     icon: MegaphoneIcon,
-    group: "functional",
     access: true,
     path: "/marketing-ops",
     sections: MARKETING_OPS_SECTIONS,
   },
-  { key: "business", label: "Business", icon: BriefcaseBusinessIcon, group: "functional", access: false },
-  { key: "customer", label: "Customer", icon: HandshakeIcon, group: "functional", access: false },
+  // Locked until the Service Requests surface has real content — the page was a
+  // static prototype and the persona showed as clickable in the waffle even
+  // though it led nowhere useful. Flip access back to true (and re-add the
+  // /service-requests route in App.tsx) when there is something to land on.
+  { key: "requests", label: "Service Requests", icon: ZapIcon, access: false },
 
-  // Cross-cutting (available to everyone).
+  // "Me" is the Home landing: the person's own profile plus everyday apps —
+  // Leave, Menu, and the finance claims.
   //
-  // "Me" is the Home landing: the person's own profile plus the cross-app
-  // aggregation (Connected apps).
+  // It is also a default favourite. It appears in the launcher either way —
+  // removing the favourite must not leave a user with no route back to it.
   {
     key: "me",
     label: "Me",
     icon: HouseIcon,
-    group: "cross",
     access: true,
     path: "/me",
     sections: ME_SECTIONS,
-  },
-  //
-  // Locked until the Service Requests surface has real content — the page
-  // was a static prototype and the persona was showing up as "clickable"
-  // in the waffle even though it led nowhere useful. Flip access back to
-  // true (and re-add the /service-requests route in App.tsx) when there's
-  // something real to land on.
-  {
-    key: "requests",
-    label: "Service Requests",
-    icon: ZapIcon,
-    group: "cross",
-    access: false,
   },
 ];
 
@@ -292,12 +274,17 @@ export function reachablePerspectives(): PerspectiveDef[] {
   return PERSPECTIVES.filter((p) => p.access && typeof p.path === "string" && p.path.length > 0);
 }
 
-export const FUNCTIONAL_PERSPECTIVES = PERSPECTIVES.filter(
-  (p) => p.group === "functional",
-);
-export const CROSS_PERSPECTIVES = PERSPECTIVES.filter(
-  (p) => p.group === "cross",
-);
+/**
+ * Every perspective, for the launcher's "Apps" group.
+ *
+ * There used to be a `group` field splitting these from a "cross" set — Me and
+ * Service Requests — rendered under "For you" in both the rail and the
+ * launcher. Both of those surfaces are gone (the rail does not duplicate the
+ * launcher, and Me is a default favourite), so the field ended up on every
+ * entry with nothing reading the distinction. An alias rather than a second
+ * exported array, so there is one list to keep in order.
+ */
+export const FUNCTIONAL_PERSPECTIVES = PERSPECTIVES;
 
 export function findPerspectiveByPath(pathname: string): PerspectiveDef | undefined {
   return PERSPECTIVES.find((p) => p.path && pathname.startsWith(p.path));

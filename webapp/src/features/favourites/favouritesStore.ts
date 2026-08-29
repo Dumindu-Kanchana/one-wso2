@@ -52,19 +52,34 @@ export function isFavouritable(key: string): boolean {
 }
 
 /**
+ * What a user gets before they have chosen anything.
+ *
+ * Me is where everyone's own things live, and since the waffle no longer
+ * carries a "For you" group there would otherwise be no tile for it at all on a
+ * first visit.
+ */
+const DEFAULT_FAVOURITES = ["me"];
+
+/**
  * A user's favourites, in the order they were added.
  *
  * Filtered against the registry on read: this is user-editable storage, and a
  * perspective can stop being reachable between releases. An unknown key is
  * dropped rather than rendered as a broken tile.
+ *
+ * Absent storage and stored-but-empty are deliberately different. Nothing
+ * stored means the user has never chosen, so they get the default; an empty
+ * array means they removed everything, and putting Me back would make the tile
+ * they just dismissed reappear.
  */
 export function readFavourites(sub: string | undefined): string[] {
   if (!sub) return [];
   try {
     const raw = localStorage.getItem(storageKey(sub));
-    if (!raw) return [];
+    if (raw === null) return DEFAULT_FAVOURITES.filter((k) => isFavouritable(k));
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    // Same reasoning as the catch below: unreadable is not the same as emptied.
+    if (!Array.isArray(parsed)) return DEFAULT_FAVOURITES.filter((k) => isFavouritable(k));
     const allowed = favouritableKeys();
     const seen = new Set<string>();
     return parsed.filter(
@@ -72,7 +87,7 @@ export function readFavourites(sub: string | undefined): string[] {
         typeof k === "string" && allowed.has(k) && !seen.has(k) && (seen.add(k), true),
     );
   } catch {
-    return [];
+    return DEFAULT_FAVOURITES.filter((k) => isFavouritable(k));
   }
 }
 

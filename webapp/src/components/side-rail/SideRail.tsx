@@ -19,7 +19,7 @@ import { Box, Link, Sidebar, Typography } from "@wso2/oxygen-ui";
 import { ExternalLinkIcon, SettingsIcon } from "@wso2/oxygen-ui-icons-react";
 import { Link as RouterLink, matchPath, useLocation, useNavigate } from "react-router";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
-import { CROSS_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
+import type { PerspectiveSection } from "@constants/perspectives";
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
 import { FINANCE_ITEM_IDS } from "@constants/financeApps";
 import { useUserInfo } from "@api/useUserInfo";
@@ -50,8 +50,6 @@ interface SideRailProps {
   collapsed: boolean;
 }
 
-/** Id for a cross-perspective row; namespaced so it can't collide with a section id. */
-const crossId = (key: string) => `cross-${key}`;
 /** Id for the perspective's own landing route. */
 const OVERVIEW_ID = "perspective-overview";
 /** Footer row, outside any perspective — it is a global page, not a section. */
@@ -252,7 +250,7 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
       navigate(SETTINGS_PATH, { state: { fromPerspective: active.key } });
       return;
     }
-    if (id === OVERVIEW_ID || id.startsWith("cross-")) return;
+    if (id === OVERVIEW_ID) return;
     const path = pathById.get(id);
     if (path) {
       navigate(path);
@@ -260,13 +258,6 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
     }
     scrollToSection(id);
   };
-
-  const crossPerspectives = CROSS_PERSPECTIVES.filter((p) => p.access && p.path);
-  // The Home perspective (cross group) is itself the "Me" landing, so a
-  // "For you → Me" link there is redundant. Inside an App (functional group)
-  // we keep it so the user can jump home. Switching between Apps is the
-  // waffle's job — the rail doesn't duplicate that launcher.
-  const onHome = active.group === "cross";
 
   return (
     <Sidebar
@@ -312,21 +303,6 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
           )}
         </Sidebar.Category>
 
-        {!onHome && crossPerspectives.length > 0 && (
-          <Sidebar.Category>
-            <Sidebar.CategoryLabel>For you</Sidebar.CategoryLabel>
-            {crossPerspectives.map((p) => (
-              <RouteItem key={p.key} id={crossId(p.key)} to={p.path!}>
-                <Sidebar.Item id={crossId(p.key)}>
-                  <Sidebar.ItemIcon>
-                    <p.icon />
-                  </Sidebar.ItemIcon>
-                  <Sidebar.ItemLabel sx={ELLIPSIS_SX}>{p.label}</Sidebar.ItemLabel>
-                </Sidebar.Item>
-              </RouteItem>
-            ))}
-          </Sidebar.Category>
-        )}
       </Sidebar.Nav>
 
       <Sidebar.Footer showDivider>
