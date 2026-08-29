@@ -20,38 +20,11 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { Box, CircularProgress } from "@wso2/oxygen-ui";
 import { devBypassAuth } from "@config/authConfig";
 
-const POST_LOGIN_KEY = "one_wso2_post_login_redirect";
-
-/**
- * The `state` value Asgardeo echoes back to the post-logout redirect URI to
- * signal a completed sign-out. The SDK owns the constant internally
- * (`OIDCRequestConstants.Params.SIGN_OUT_SUCCESS`) but doesn't export it.
- */
-const SIGN_OUT_SUCCESS = "sign_out_success";
-
-/** True when the URL is Asgardeo's post-logout landing rather than a real route. */
-function isSignOutLanding(search: string): boolean {
-  return new URLSearchParams(search).get("state") === SIGN_OUT_SUCCESS;
-}
-
-/**
- * Whether a location is worth restoring after sign-in.
- *
- * Rejects IdP round-trip URLs. Storing one used to strand the app: after an
- * idle sign-out we'd save `/?state=sign_out_success` (the old check was only
- * `target !== "/"`, which that passes), replay it after login, and then never
- * leave it. `<Navigate to="/me">` on the index route fires once from an effect,
- * loses the race to this guard's own effect — child effects run first — and
- * won't retry, because its dependency is derived from the *pathname*, which
- * `/?state=…` leaves unchanged at `/`.
- */
-function isRestorableTarget(pathname: string, search: string): boolean {
-  if (pathname === "/") return false; // the index route already resolves this
-  const params = new URLSearchParams(search);
-  // Sign-in callback and error params belong to the SDK, not to us.
-  if (params.has("code") || params.has("session_state") || params.has("error")) return false;
-  return params.get("state") !== SIGN_OUT_SUCCESS;
-}
+import {
+  POST_LOGIN_KEY,
+  isRestorableTarget,
+  isSignOutLanding,
+} from "@layouts/postLoginRedirect";
 
 // Wrap every authenticated route. If the user isn't signed in, stash the
 // intended path so we can restore it after the Asgardeo redirect completes,

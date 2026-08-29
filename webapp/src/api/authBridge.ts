@@ -38,6 +38,124 @@
 type GetToken = () => Promise<string>;
 type SignInSilently = () => Promise<unknown>;
 
+// ---------------------------------------------------------------------------
+// Failure memory
+// ---------------------------------------------------------------------------
+//
+// Deduping concurrent callers is not enough on its own. `inFlightRefresh`
+// clears the moment an attempt settles, so *sequential* 401s each start a
+// brand-new silent re-auth — and once every backend is 401ing off the same
+// dead token, they arrive continuously. A HAR taken while silent re-auth was
+// broken recorded 19 authorize attempts in 3m04s, all carrying the same
+// `state` (the flow never advanced), 17 authorization codes minted at
+// Asgardeo, and zero token exchanges. Every attempt got a code and abandoned
+// it.
+//
+// So the bridge remembers failures: back off between attempts, and after three
+// consecutive ones stop trying altogether and let the UI ask the user to sign
+// in. Silent renewal is the only thing that can fail here — a full-page sign-in
+// still works, which is why a manual browser refresh always cleared this.
+
+const BASE_COOLDOWN_MS = 5_000;
+const MAX_COOLDOWN_MS = 60_000;
+
+/**
+ * Consecutive failures after which the session is declared unrenewable and the
+ * user is asked to sign in. Three rather than one so a single transient blip
+ * — a dropped connection, a slow gateway — costs a retry rather than a modal.
+ */
+export const FAILURES_BEFORE_PROMPT = 3;
+
+/**
+ * Whether an Asgardeo `signInSilently()` result means the session was renewed.
+ *
+ * It does NOT reject when silent renewal fails. Its iframe implementation is
+ *
+ *     setTimeout(() => resolve(false), 1e4)
+ *
+ * so a renewal that never comes back — a blocked iframe, a dead SSO session —
+ * **resolves with `false` after ten seconds**. Treating any settled promise as
+ * success (which is the obvious reading, and was this module's first mistake)
+ * records those failures as successes: the failure counter resets every time,
+ * the backoff never engages, and the breaker can never trip.
+ *
+ * Anything falsy is a failure. A real renewal resolves with the session's
+ * basic-user-info object.
+ */
+function succeeded(result: unknown): boolean {
+  return Boolean(result);
+}
+
+/**
+ * How long to wait before the next attempt, given consecutive failures so far.
+ *
+ * Pure and exported for its own test: doubling arithmetic that silently caps
+ * wrong is exactly the sort of thing that only shows up in a HAR six weeks
+ * later.
+ */
+export function cooldownFor(consecutiveFailures: number): number {
+  if (consecutiveFailures <= 0) return 0;
+  return Math.min(BASE_COOLDOWN_MS * 2 ** (consecutiveFailures - 1), MAX_COOLDOWN_MS);
+}
+
+let consecutiveFailures = 0;
+let cooldownUntil = 0;
+let sessionExpired = false;
+const sessionExpiryListeners = new Set<() => void>();
+
+/**
+ * Whether silent renewal has given up and the user has to sign in again.
+ *
+ * One-way for the lifetime of the page. Once it is set, `refreshSession`
+ * refuses to start another attempt, so nothing can ever report the success
+ * that would clear it — and that is deliberate rather than an oversight. The
+ * recovery is a full-page sign-in, which reloads the app and resets this
+ * module along with everything else. Letting it clear itself would also mean a
+ * modal that vanishes mid-sentence while someone is reading it.
+ *
+ * Exposed as a subscribe/snapshot pair so React can read it through
+ * `useSyncExternalStore` — a plain module boolean would never re-render, and
+ * an effect mirroring it into state trips the react-hooks lint rule and can
+ * miss an update that lands between render and effect.
+ */
+export function subscribeSessionExpiry(listener: () => void): () => void {
+  sessionExpiryListeners.add(listener);
+  return () => {
+    sessionExpiryListeners.delete(listener);
+  };
+}
+
+export function getSessionExpiredSnapshot(): boolean {
+  return sessionExpired;
+}
+
+function giveUpOnSilentRenewal(): void {
+  if (sessionExpired) return; // notify once, not per failed request
+  sessionExpired = true;
+  for (const listener of sessionExpiryListeners) listener();
+}
+
+function recordRefreshSuccess(): void {
+  // Only the backoff state resets here. `sessionExpired` deliberately does not:
+  // see the note on subscribeSessionExpiry for why it is one-way.
+  consecutiveFailures = 0;
+  cooldownUntil = 0;
+}
+
+function recordRefreshFailure(): void {
+  consecutiveFailures += 1;
+  cooldownUntil = Date.now() + cooldownFor(consecutiveFailures);
+  if (consecutiveFailures >= FAILURES_BEFORE_PROMPT) giveUpOnSilentRenewal();
+}
+
+/** Test seam. Module state outlives a test file otherwise. */
+export function resetAuthBridgeFailureState(): void {
+  consecutiveFailures = 0;
+  cooldownUntil = 0;
+  sessionExpired = false;
+}
+
+
 let getIdTokenAccessor: GetToken | null = null;
 let getAccessTokenAccessor: GetToken | null = null;
 let signInSilentlyAccessor: SignInSilently | null = null;
@@ -84,12 +202,41 @@ let inFlightRefresh: Promise<void> | null = null;
 
 function refreshSession(): Promise<void> {
   if (inFlightRefresh) return inFlightRefresh;
+
+  // Given up on: every further attempt would mint another authorization code
+  // at Asgardeo and abandon it. The dialog is now the only way out, and it is a
+  // full-page sign-in rather than an iframe.
+  if (sessionExpired) {
+    return Promise.reject(new Error("Session expired — a full sign-in is required."));
+  }
+
+  // Backing off. Callers already treat a failed refresh as "surface the
+  // original 401", so this rejection changes nothing downstream except that it
+  // costs no network.
+  if (Date.now() < cooldownUntil) {
+    return Promise.reject(
+      new Error(`Silent re-auth is backing off after ${consecutiveFailures} failed attempts.`),
+    );
+  }
+
   inFlightRefresh = ready
     .then(() => {
       if (!signInSilentlyAccessor) throw new Error("Auth accessors not registered yet");
       return signInSilentlyAccessor();
     })
-    .then(() => undefined)
+    .then((result) => {
+      if (!succeeded(result)) {
+        // Turned into a rejection so every caller's existing "refresh failed →
+        // surface the original 401" path applies unchanged. Silently returning
+        // would have callers attach the same dead token again.
+        throw new Error("Silent re-auth did not renew the session.");
+      }
+      recordRefreshSuccess();
+    })
+    .catch((error: unknown) => {
+      recordRefreshFailure();
+      throw error;
+    })
     .finally(() => {
       inFlightRefresh = null;
     });
