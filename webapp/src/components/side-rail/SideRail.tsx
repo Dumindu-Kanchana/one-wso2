@@ -124,16 +124,21 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // dependency lists below on every render, defeating both useMemos.
   const sections = useMemo(() => active.sections ?? [], [active.sections]);
 
-  // Manual open/close choices for groups the user has explicitly clicked,
-  // for when they're NOT the group containing the current route (see
-  // activeGroupIds below, which always wins over this while it applies).
+  // Manual open/close choices for groups the user has explicitly clicked.
+  // These win: navigating into a group opens it, and closing it again is
+  // allowed even while you are inside it.
   const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map());
 
-  // Whichever group contains the current route is ALWAYS shown expanded —
-  // no override, manual or otherwise, can suppress this. Otherwise landing
+  // Whichever group contains the current route opens itself. Otherwise landing
   // on e.g. Reports via a direct link, browser back/forward, or the waffle
-  // renders that group collapsed while you're actively on one of its own
-  // pages, hiding both where you are and its sibling links.
+  // renders that group collapsed while you're actively on one of its own pages,
+  // hiding both where you are and its sibling links.
+  //
+  // It used to be forced open, with the header made non-interactive so a click
+  // that could do nothing did not read as the rail being broken. Opening on its
+  // own is the useful half; refusing to close again was not. Collapsing it does
+  // hide the row marking where you are — but that is now a state the user chose,
+  // which is how every other accordion behaves.
   const activeGroupIds = useMemo(() => {
     const ids = new Set<string>();
     for (const s of sections) {
@@ -150,19 +155,11 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   const expandedMenus = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const id of activeGroupIds) map[id] = true;
-    for (const [id, isOpen] of overrides) {
-      if (activeGroupIds.has(id)) continue; // active route always wins
-      map[id] = isOpen;
-    }
+    for (const [id, isOpen] of overrides) map[id] = isOpen;
     return map;
   }, [activeGroupIds, overrides]);
 
-  // No-op while the group contains the current route — you can't collapse
-  // the group you're actively browsing (activeGroupIds always wins over any
-  // override anyway), so recording one here would silently arm a collapse
-  // for later with no visible effect now.
   const onToggleExpand = (id: string) => {
-    if (activeGroupIds.has(id)) return;
     setOverrides((prev) => new Map(prev).set(id, !expandedMenus[id]));
   };
 
@@ -358,15 +355,13 @@ function SectionNode({
   section: PerspectiveSection;
   resolveVisible: (section: PerspectiveSection) => boolean;
   /**
-   * True while this group holds the current route. Drives two things that used
-   * to be tracked separately but are the same fact:
+   * True while this group holds the current route, which tints its icon so an
+   * expanded group signals that you are inside it. Oxygen computes an equivalent
+   * internally but only spends it when the rail is collapsed, and the child row
+   * carrying the highlight has no icon.
    *
-   *  - The header is forced open (see activeGroupIds), so toggling is a no-op.
-   *    Render it non-interactive rather than leaving a click target that
-   *    silently does nothing, which reads as "the rail is broken".
-   *  - Its icon is tinted, so an expanded group signals that you are inside it.
-   *    Oxygen computes an equivalent internally but only spends it when the rail
-   *    is collapsed, and the child row carrying the highlight has no icon.
+   * It no longer makes the header non-interactive: the group opens itself on
+   * navigation, and closing it again is the user's business.
    */
   containsActiveRoute: boolean;
 }): JSX.Element | null {
@@ -387,19 +382,7 @@ function SectionNode({
 
 
     return (
-      <Sidebar.Item
-        id={section.id}
-        // `aria-disabled` alongside the visual treatment: the row stays a
-        // focusable button whose activation is a no-op (onToggleExpand refuses
-        // to collapse the group you're browsing), and without this a keyboard
-        // or screen-reader user gets no signal that pressing it does nothing.
-        aria-disabled={containsActiveRoute || undefined}
-        sx={
-          containsActiveRoute
-            ? { cursor: "default", "&:hover": { bgcolor: "transparent" } }
-            : undefined
-        }
-      >
+      <Sidebar.Item id={section.id}>
         <Sidebar.ItemIcon
           sx={containsActiveRoute ? { color: "primary.main" } : undefined}
         >
