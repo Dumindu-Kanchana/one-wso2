@@ -20,7 +20,7 @@ import { Box, IconButton, Paper, Tooltip, Typography } from "@wso2/oxygen-ui";
 // @mui/material is already a direct dependency that the theme files import from.
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Popper from "@mui/material/Popper";
-import { LockIcon, StarIcon } from "@wso2/oxygen-ui-icons-react";
+import { StarIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import {
   FUNCTIONAL_PERSPECTIVES,
@@ -330,13 +330,6 @@ function WaffleGroup({
             >
               {p.label}
             </Typography>
-            {!p.access && (
-              <LockIcon
-                size={11}
-                aria-hidden
-                style={{ position: "absolute", top: 6, right: 6 }}
-              />
-            )}
           </Box>
         );
 
