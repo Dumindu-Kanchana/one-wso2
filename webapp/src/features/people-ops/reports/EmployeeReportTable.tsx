@@ -66,6 +66,7 @@ import { getAllKeys, getColumnsForStatus } from "./reportColumns";
 import { employeeDetailPath } from "./reportRoutes";
 import { pageView } from "./reportPaging";
 import { baselineFiltersFor } from "./reportBaseline";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
@@ -398,17 +399,13 @@ export default function EmployeeReportTable({
           table would otherwise read as "no employees match", which is a very
           different thing from "we couldn't ask". */}
       {search.isError && (
-        <Alert
-          severity="error"
+        <ErrorNotice
+          error={search.error}
+          onRetry={() => void search.refetch()}
           sx={{ mb: 1.5 }}
-          action={
-            <Button color="inherit" size="small" onClick={() => void search.refetch()}>
-              Retry
-            </Button>
-          }
         >
-          Couldn't load the report preview. {describeError(search.error)}
-        </Alert>
+          Couldn't load the report preview.
+        </ErrorNotice>
       )}
 
       <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 1 }}>

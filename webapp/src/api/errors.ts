@@ -38,6 +38,16 @@ export function describeError(err: unknown): string {
     return `Something went wrong (HTTP ${err.status}).`;
   }
   if (err instanceof Error && err.message) return err.message;
+  // Asgardeo's exception type is a plain class — no `extends Error`, no
+  // toString — so `instanceof Error` misses it and String() on it yields
+  // "[object Object]". The readable text is on `name`, an identifier on `code`.
+  // `message` is deliberately not read: it holds the underlying error, which
+  // for a decode failure can carry the token that failed to parse.
+  if (typeof err === "object" && err !== null) {
+    const { name, code } = err as { name?: unknown; code?: unknown };
+    if (typeof name === "string" && name.trim()) return name;
+    if (typeof code === "string" && code.trim()) return `Something went wrong (${code}).`;
+  }
   return "Something went wrong.";
 }
 

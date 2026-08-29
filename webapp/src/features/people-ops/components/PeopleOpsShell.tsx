@@ -15,10 +15,11 @@
 // under the License.
 
 import type { ReactNode } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Chip, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
 import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { isPeopleBackendConfigured } from "../api/useEmployeeReport";
 import { usePeopleOpsGate } from "../api/usePeopleOpsGate";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // Shared page frame for the People Ops report screens. Same role and same
 // state ladder as MarketingOpsShell — deliberately, so the two perspectives
@@ -131,17 +132,9 @@ function PeopleOpsBody({
   // reported as a missing permission.
   if (requireAdmin && gate.isError) {
     return (
-      <Alert
-        severity="error"
-        sx={{ mt: 1.5 }}
-        action={
-          <Button color="inherit" size="small" onClick={gate.retry}>
-            Retry
-          </Button>
-        }
-      >
+      <ErrorNotice onRetry={gate.retry} sx={{ mt: 1.5 }}>
         Couldn't check your People Ops access. {gate.errorMessage}
-      </Alert>
+      </ErrorNotice>
     );
   }
 

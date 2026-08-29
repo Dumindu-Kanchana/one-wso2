@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Alert, Box, Button, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Typography } from "@wso2/oxygen-ui";
 import ProfileHero from "../components/ProfileHero";
 import GeneralInfo from "../components/GeneralInfo";
 import PersonalInfo from "../components/PersonalInfo";
@@ -22,6 +22,7 @@ import EmergencyContacts from "../components/EmergencyContacts";
 import ConnectedServices from "../components/ConnectedServices";
 import SectionHeader from "../../people-ops/components/SectionHeader";
 import { isPeopleBackendConfigured, useMeProfile } from "../api/useMeProfile";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // The Me home landing: own profile + the cross-app "More about you"
 // aggregation.
@@ -49,18 +50,14 @@ export default function MyProfilePage() {
       )}
 
       {backendConfigured && isError && (
-        <Alert
-          severity="error"
+        <ErrorNotice
+          error={error}
+          onRetry={() => refetch()}
+          retrying={isFetching}
           sx={{ mb: 2 }}
-          action={
-            <Button color="inherit" size="small" onClick={() => refetch()} disabled={isFetching}>
-              Retry
-            </Button>
-          }
         >
           Couldn't load your profile from the people-app backend.
-          {error instanceof Error ? ` ${error.message}` : ""}
-        </Alert>
+        </ErrorNotice>
       )}
 
       <ProfileHero userInfo={userInfo} employee={employee} isLoading={isLoading} />

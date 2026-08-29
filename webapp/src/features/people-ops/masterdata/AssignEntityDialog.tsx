@@ -33,6 +33,7 @@ import { XIcon } from "@wso2/oxygen-ui-icons-react";
 import { describeError } from "@api/errors";
 import EmployeeEmailPicker from "../components/EmployeeEmailPicker";
 import type { OrgChartEntity } from "../api/peopleOpsTypes";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // Place an existing entity under a parent in the hierarchy.
 //
@@ -131,18 +132,9 @@ function AssignEntityDialogBody({
               // Checked BEFORE the empty case. A failed fetch also leaves the
               // list empty, and reporting it as "everything is already
               // assigned" would send someone off to create a duplicate.
-              <Alert
-                severity="error"
-                action={
-                  onRetryOptions ? (
-                    <Button color="inherit" size="small" onClick={onRetryOptions}>
-                      Retry
-                    </Button>
-                  ) : undefined
-                }
-              >
+              <ErrorNotice onRetry={onRetryOptions}>
                 Couldn't load {entityLabel}s. {optionsError}
-              </Alert>
+              </ErrorNotice>
             ) : options.length === 0 ? (
               <Alert severity="info">
                 Every active {entityLabel} is already under {parentLabel}. Create a
