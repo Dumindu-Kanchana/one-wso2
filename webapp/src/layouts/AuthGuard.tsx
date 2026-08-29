@@ -21,9 +21,11 @@ import { Box, CircularProgress } from "@wso2/oxygen-ui";
 import { devBypassAuth } from "@config/authConfig";
 
 import {
-  POST_LOGIN_KEY,
+  forgetPostLoginTarget,
   isRestorableTarget,
   isSignOutLanding,
+  readPostLoginTarget,
+  rememberPostLoginTarget,
 } from "@layouts/postLoginRedirect";
 
 // Wrap every authenticated route. If the user isn't signed in, stash the
@@ -42,7 +44,7 @@ export default function AuthGuard() {
 
   // Read (don't consume) any stashed redirect so render can gate on it below.
   const pendingRedirect =
-    isSignedIn && !isLoading ? sessionStorage.getItem(POST_LOGIN_KEY) : null;
+    isSignedIn && !isLoading ? readPostLoginTarget() : null;
   const hasPendingRedirect = pendingRedirect !== null && pendingRedirect !== currentHref;
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function AuthGuard() {
       if (startedSignInRef.current) return;
       startedSignInRef.current = true;
       if (isRestorableTarget(location.pathname, location.search)) {
-        sessionStorage.setItem(POST_LOGIN_KEY, currentHref);
+        rememberPostLoginTarget(currentHref);
       }
       signIn();
       return;
@@ -72,9 +74,9 @@ export default function AuthGuard() {
     // Signed in: consume any stashed redirect and let React Router own the
     // history stack so useNavigate()/Back behave predictably.
     startedSignInRef.current = false;
-    const restored = sessionStorage.getItem(POST_LOGIN_KEY);
+    const restored = readPostLoginTarget();
     if (!restored) return;
-    sessionStorage.removeItem(POST_LOGIN_KEY);
+    forgetPostLoginTarget();
     if (restored !== currentHref) {
       navigate(restored, { replace: true });
     }

@@ -28,6 +28,43 @@
 /** sessionStorage key holding the href to return to after signing in. */
 export const POST_LOGIN_KEY = "one_wso2_post_login_redirect";
 
+// sessionStorage is not always there to be used. It throws on access under a
+// storage-blocking policy or a sandboxed iframe, and setItem throws again on
+// quota. Returning to the page you were on is a convenience; signing in is not,
+// and neither is rendering the app. So every access is guarded, and a failure
+// costs the return trip rather than the session.
+//
+// Guarded here rather than at each call site because there are three of them
+// across two files, and the read in AuthGuard runs during render — a throw
+// there takes down the whole app before it mounts.
+
+/** Remember where to come back to. Silently does nothing if it cannot. */
+export function rememberPostLoginTarget(href: string): void {
+  try {
+    sessionStorage.setItem(POST_LOGIN_KEY, href);
+  } catch {
+    // No return trip. The sign-in itself still has to happen.
+  }
+}
+
+/** The remembered target, or null — including when storage cannot be read. */
+export function readPostLoginTarget(): string | null {
+  try {
+    return sessionStorage.getItem(POST_LOGIN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Forget it, so a later sign-in does not replay a stale target. */
+export function forgetPostLoginTarget(): void {
+  try {
+    sessionStorage.removeItem(POST_LOGIN_KEY);
+  } catch {
+    // Nothing was stored if the write failed too.
+  }
+}
+
 /**
  * The `state` value Asgardeo echoes back to the post-logout redirect URI to
  * signal a completed sign-out. The SDK owns the constant internally

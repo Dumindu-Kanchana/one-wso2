@@ -98,6 +98,34 @@ describe("SessionExpiryWatcher", () => {
     expect(sessionStorage.getItem(POST_LOGIN_KEY)).toBeNull();
   });
 
+  // The dialog has no dismiss, so if signIn() never fires the user is stuck
+  // looking at it. sessionStorage throws under a storage-blocking policy and on
+  // quota, and remembering where to return is a convenience — signing in is not.
+  it("still signs in when the browser refuses to store the return path", async () => {
+    // Replacing the object, not spying on it: this environment's sessionStorage
+    // is not the prototype-backed one, so vi.spyOn(Storage.prototype) silently
+    // has no effect and the test passes whether the guard is there or not.
+    const real = globalThis.sessionStorage;
+    Object.defineProperty(globalThis, "sessionStorage", {
+      configurable: true,
+      value: {
+        setItem() {
+          throw new DOMException("denied", "SecurityError");
+        },
+        getItem: () => null,
+        removeItem() {},
+      },
+    });
+    try {
+      expired.value = true;
+      show("/me/par/team");
+      await userEvent.setup().click(screen.getByRole("button", { name: "Sign in again" }));
+      expect(signIn).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: real });
+    }
+  });
+
   it("offers signing out as the other way forward", async () => {
     expired.value = true;
     show();

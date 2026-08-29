@@ -19,7 +19,7 @@ import { useAsgardeo } from "@asgardeo/react";
 import { useLocation } from "react-router";
 import { getSessionExpiredSnapshot, subscribeSessionExpiry } from "@api/authBridge";
 import { useSecureSignOut } from "@hooks/useSecureSignOut";
-import { POST_LOGIN_KEY, isRestorableTarget } from "@layouts/postLoginRedirect";
+import { isRestorableTarget, rememberPostLoginTarget } from "@layouts/postLoginRedirect";
 import SessionExpiredDialog from "./SessionExpiredDialog";
 
 /**
@@ -49,7 +49,7 @@ export default function SessionExpiryWatcher(): JSX.Element {
     // page. Its own effect consumes this once the SDK reports signed in.
     const href = location.pathname + location.search + location.hash;
     if (isRestorableTarget(location.pathname, location.search)) {
-      sessionStorage.setItem(POST_LOGIN_KEY, href);
+      rememberPostLoginTarget(href);
     }
     signIn();
   };
