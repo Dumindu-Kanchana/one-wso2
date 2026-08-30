@@ -63,6 +63,15 @@ export const VALIDATION_MESSAGE = {
   leaveTypeRequired: "Please select a leave type",
 } as const;
 
+/**
+ * Checked when Fetch Report is pressed — `Toolbar.tsx:95-107`. The port had
+ * only a `min` attribute on the To field, which a typed date bypasses.
+ */
+export const REPORT_VALIDATION_MESSAGE = {
+  datesRequired: "Please select both start and end dates",
+  endBeforeStart: "End date must be after start date",
+} as const;
+
 /** The confirmation before a leave is posted — `GeneralLeave.tsx:222-229`. */
 export const SUBMIT_CONFIRMATION = {
   title: "Do you want to submit this leave?",

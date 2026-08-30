@@ -15,7 +15,7 @@
 // under the License.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -26,12 +26,13 @@ import type { ReactNode } from "react";
 const filters: unknown[] = [];
 const userInfo = { data: undefined as unknown };
 
+const leaveRows: unknown[] = [];
 vi.mock("../api/useLeaveData", () => ({
   useLeaveUserInfo: () => userInfo,
   useLeaveEmployees: () => ({ data: [], isPending: false, isError: false }),
   useLeaves: (filter: unknown) => {
     filters.push(filter);
-    return { data: { leaves: [] }, isPending: false, isFetching: false, isError: false };
+    return { data: { leaves: leaveRows }, isPending: false, isFetching: false, isError: false };
   },
 }));
 vi.mock("../components/LeaveShell", () => ({
@@ -39,12 +40,15 @@ vi.mock("../components/LeaveShell", () => ({
 }));
 
 const { default: LeaveReportsPage } = await import("./LeaveReportsPage");
+const { NotificationsProvider } = await import("@context/notifications/NotificationsContext");
 const { LEAVE_PRIVILEGE } = await import("../api/leaveTypes");
 
 function show() {
   return render(
     <QueryClientProvider client={new QueryClient()}>
-      <LeaveReportsPage />
+      <NotificationsProvider>
+        <LeaveReportsPage />
+      </NotificationsProvider>
     </QueryClientProvider>,
   );
 }
@@ -56,7 +60,21 @@ function lastFilter() {
 
 beforeEach(() => {
   filters.length = 0;
+  leaveRows.length = 0;
 });
+
+function row(over: Record<string, unknown> = {}) {
+  return {
+    id: Math.random(),
+    email: "a@wso2.com",
+    leaveType: "casual",
+    startDate: "2026-03-02T00:00:00.000Z",
+    endDate: "2026-03-02T00:00:00.000Z",
+    numberOfDays: 1,
+    periodType: "one",
+    ...over,
+  };
+}
 
 describe("a plain lead's report", () => {
   beforeEach(() => {
@@ -100,5 +118,65 @@ describe("a People Ops report", () => {
   it("is org-wide by default, not scoped to the viewer", () => {
     show();
     expect(lastFilter().approverEmail).toBeUndefined();
+  });
+});
+
+// The source's report is a DataGrid: sorted on click, paged at 10
+// (LeadReportTable.tsx:150-178). The port rendered every row at once and capped
+// the fetch at 1000 to survive it.
+describe("the table", () => {
+  beforeEach(() => {
+    userInfo.data = {
+      workEmail: "lead@wso2.com",
+      privileges: [LEAVE_PRIVILEGE.EMPLOYEE, LEAVE_PRIVILEGE.LEAD],
+    };
+  });
+
+  it("sends neither a limit nor an orderBy, as the running app does not", () => {
+    show();
+    const f = lastFilter() as Record<string, unknown>;
+    expect(f.limit).toBeUndefined();
+    expect(f.orderBy).toBeUndefined();
+  });
+
+  it("pages at ten rather than rendering everything", async () => {
+    for (let i = 0; i < 25; i++) leaveRows.push(row({ email: `p${i}@wso2.com` }));
+    show();
+    expect(screen.getAllByRole("row")).toHaveLength(11); // header + 10
+    expect(await screen.findByText(/Showing 1–10 of 25/)).toBeInTheDocument();
+  });
+
+  it("sorts on a column header", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    leaveRows.push(row({ email: "zoe@wso2.com" }), row({ email: "amy@wso2.com" }));
+    show();
+
+    await user.click(screen.getByRole("button", { name: "Employee" }));
+    const firstCell = () => screen.getAllByRole("row")[1].querySelectorAll("td")[0];
+    expect(firstCell().textContent).toBe("amy@wso2.com");
+
+    await user.click(screen.getByRole("button", { name: "Employee" }));
+    expect(firstCell().textContent).toBe("zoe@wso2.com");
+  });
+});
+
+// LeadReportTable.tsx:57-59,141 — summing days across a mixed list answers no
+// question anyone asked.
+describe("the totals", () => {
+  beforeEach(() => {
+    userInfo.data = { workEmail: "lead@wso2.com", privileges: [LEAVE_PRIVILEGE.LEAD] };
+  });
+
+  it("shows a day total for one employee", () => {
+    leaveRows.push(row({ numberOfDays: 2 }), row({ numberOfDays: 3 }));
+    show();
+    expect(screen.getByText("Total: 5 days")).toBeInTheDocument();
+  });
+
+  it("withholds it once more than one employee is in the result", () => {
+    leaveRows.push(row({ email: "a@wso2.com" }), row({ email: "b@wso2.com" }));
+    show();
+    expect(screen.queryByText(/^Total: /)).toBeNull();
+    expect(screen.getByText("2 records")).toBeInTheDocument();
   });
 });

@@ -235,6 +235,28 @@ export const LEAVE_TYPE_ICON: Record<LeaveType, LucideIcon> = {
 /** Icon for a leave type that isn't in the known set. */
 export const LEAVE_TYPE_ICON_FALLBACK: LucideIcon = CalendarDaysIcon;
 
+// One colour per leave type, from LeadReportTable.tsx:27-37. The report table
+// tints its chip per type so a column of them can be read at a glance; the port
+// had made every chip the same primary outline, which throws that away.
+//
+// These are the source's literal hex values, kept as such rather than mapped to
+// palette roles: there is no palette role that means "sabbatical", and picking
+// near equivalents would drift the moment the theme changes.
+export const LEAVE_TYPE_COLOR: Record<LeaveType, string> = {
+  casual: "#ff9800",
+  annual: "#3f51b5",
+  sick: "#2196f3",
+  sabbatical: "#9c27b0",
+  maternity: "#4caf50",
+  paternity: "#009688",
+  lieu: "#00bcd4",
+  conges_payes: "#607d8b",
+  rtt: "#795548",
+};
+
+/** LeadReportTable.tsx:76 — the tint for a type the registry does not know. */
+export const LEAVE_TYPE_COLOR_FALLBACK = "#607d8b";
+
 // Default leave type per location (matches leave-app's LOCATION defaults).
 export function defaultLeaveTypeForLocation(location: string | null | undefined): LeaveType {
   switch (location) {

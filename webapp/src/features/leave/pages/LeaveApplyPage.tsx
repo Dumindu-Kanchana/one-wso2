@@ -174,7 +174,10 @@ function ApplyForm() {
         });
     }, 400);
     return () => window.clearTimeout(timer);
-    // leaveType doesn't change working days, but include for parity.
+    // leaveType is sent for parity with the running app but does not change the
+    // working-day count, and validateAsync is a mutation callback that is not
+    // referentially stable — including either would re-fire the debounce on
+    // every render without changing what it computes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, periodType, isMorningLeave, rangeValid]);
 
