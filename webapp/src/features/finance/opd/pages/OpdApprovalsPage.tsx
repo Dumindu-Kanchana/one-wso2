@@ -40,7 +40,11 @@ import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 type TabKey = "pending" | "approved" | "rejected";
 const TAB_STATUS: Record<TabKey, OpdClaimStatus[]> = {
-  pending: ["PENDING"],
+  // PENDING_OLD rides along with PENDING — filteredClaimsSlice.ts:82-89 adds it
+  // whenever PENDING is the only status asked for. Claims filed before the
+  // status was split carry PENDING_OLD, so asking for PENDING alone hides them
+  // from the finance queue entirely and nobody can action them.
+  pending: ["PENDING", "PENDING_OLD"],
   approved: ["APPROVED"],
   rejected: ["REJECTED"],
 };
