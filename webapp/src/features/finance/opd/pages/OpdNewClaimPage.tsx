@@ -27,6 +27,8 @@ import {
   IconButton,
   Skeleton,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
@@ -36,7 +38,7 @@ import { isOpdBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { DraftStatusChip } from "../../components/DraftStatusChip";
 import { describeError } from "../../util/financeError";
-import { money, todayIso, startOfYearIso, formatNice } from "../../util/financeFormat";
+import { money, todayIso, startOfYearIso, endOfYearIso, formatNice } from "../../util/financeFormat";
 import { RECEIPT_ACCEPT, OPD_RECEIPT_MAX_BYTES, maxSizeLabel } from "../../util/financeReceipts";
 import { useDraftAutosave } from "../../util/useDraftAutosave";
 import { useOpdAppData, useOpdUserInfo } from "../useOpd";
@@ -45,6 +47,12 @@ import { OPD_ROLE, opdHasRole, type OpdTransaction } from "../opdTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 const COMMENT_MAX = 100;
+
+// ExpenseForm.tsx:138 — verbatim.
+const SAME_YEAR_MESSAGE = "All transactions in a claim must belong to the same year.";
+
+/** Which year's balance this claim is being filed against. */
+type ClaimYear = "current" | "last";
 
 export default function OpdNewClaimPage() {
   return (
@@ -70,9 +78,30 @@ function NewClaimBody() {
 
   const [items, setItems] = useState<OpdTransaction[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // NewClaim.tsx:51-53 — a claim is filed against one year, and the backend
+  // still carries last year's remaining balance while it is claimable.
+  const [pickedYear, setPickedYear] = useState<ClaimYear>("current");
+  const [pendingYear, setPendingYear] = useState<ClaimYear | null>(null);
 
   const email = userInfo.data?.workEmail ?? "";
-  const summary = appData.data?.claimSummary;
+  const lastYearSummary = appData.data?.lastYearClaimSummary ?? null;
+  const currentYear = new Date().getFullYear();
+
+  // :57-63 — the tab follows the bills already in the list, so a seeded or
+  // restored last-year draft opens on the right year rather than on "current"
+  // with dates the picker would then refuse. Derived rather than pushed into
+  // state by an effect: the two cannot disagree, even for a render.
+  const claimYear: ClaimYear =
+    items.length > 0
+      ? items[0].date.substring(0, 4) === String(currentYear)
+        ? "current"
+        : "last"
+      : pickedYear;
+  const yearOfClaim = claimYear === "current" ? currentYear : currentYear - 1;
+
+  // :271-272 — the figures on screen follow the tab, so the limit you are
+  // spending against is the one for the year you are claiming for.
+  const summary = claimYear === "current" ? appData.data?.claimSummary : lastYearSummary;
   const claimedInList = useMemo(() => items.reduce((s, it) => s + it.amount, 0), [items]);
   const remainingAfter =
     summary != null ? Math.max(summary.totalRemaining - claimedInList, 0) : undefined;
@@ -141,6 +170,27 @@ function NewClaimBody() {
 
   return (
     <Stack spacing={1.75} sx={{ maxWidth: 880 }}>
+      {/* NewClaim.tsx:129-172,382 — only offered when the backend still reports
+          a last-year balance; otherwise there is nothing to claim against. */}
+      {lastYearSummary && (
+        <Tabs
+          value={claimYear}
+          onChange={(_e, v: ClaimYear) => {
+            // :65-72 — switching with bills in the list needs consent, because
+            // confirming clears them.
+            if (items.length > 0) {
+              setPendingYear(v);
+              return;
+            }
+            setPickedYear(v);
+          }}
+          sx={{ minHeight: 36, "& .MuiTab-root": { minHeight: 36, textTransform: "none", fontSize: 13, fontWeight: 600 } }}
+        >
+          <Tab value="current" label="This Year" />
+          <Tab value="last" label="Last Year" />
+        </Tabs>
+      )}
+
       {/* Balance summary */}
       <Card variant="outlined" sx={{ p: 2 }}>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)" }, gap: 1.5 }}>
@@ -224,13 +274,52 @@ function NewClaimBody() {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         maxAmount={remainingAfter}
+        year={yearOfClaim}
+        isCurrentYear={claimYear === "current"}
         uploading={upload.isPending}
         onUpload={(file) => upload.mutateAsync({ email, file })}
         onAdd={(item) => {
+          // ExpenseForm.tsx:129-144 — a claim cannot mix years. The picker's
+          // bounds already steer this, but the field is typeable, so the rule
+          // is enforced rather than implied.
+          const existing = items[0];
+          if (existing && existing.date.substring(0, 4) !== item.date.substring(0, 4)) {
+            showError(SAME_YEAR_MESSAGE);
+            return false;
+          }
           setItems((prev) => [...prev, item]);
           setDialogOpen(false);
+          return true;
         }}
       />
+
+      {/* :442-465 — confirming discards every bill entered so far, and the
+          draft with them, so the wording says so before it happens. */}
+      <Dialog open={pendingYear !== null} onClose={() => setPendingYear(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Change Year Warning</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontSize: 13.5 }}>
+            Changing the year will delete current claim items. Do you want to proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setPendingYear(null)}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => {
+              setItems([]);
+              draft.remove.mutate();
+              if (pendingYear) setPickedYear(pendingYear);
+              setPendingYear(null);
+            }}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
@@ -239,6 +328,8 @@ function AddBillDialog({
   open,
   onClose,
   maxAmount,
+  year,
+  isCurrentYear,
   uploading,
   onUpload,
   onAdd,
@@ -246,12 +337,17 @@ function AddBillDialog({
   open: boolean;
   onClose: () => void;
   maxAmount: number | undefined;
+  /** Calendar year the bill must fall in. */
+  year: number;
+  /** Current year stops at today; a past year runs to 31 Dec. */
+  isCurrentYear: boolean;
   uploading: boolean;
   onUpload: (file: File) => Promise<string>;
-  onAdd: (item: OpdTransaction) => void;
+  /** Returns false when the bill was refused, so the form keeps its values. */
+  onAdd: (item: OpdTransaction) => boolean;
 }) {
   const { showError } = useNotifications();
-  const [date, setDate] = useState(todayIso());
+  const [date, setDate] = useState(isCurrentYear ? todayIso() : endOfYearIso(year));
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
@@ -259,7 +355,7 @@ function AddBillDialog({
   const fileInput = useRef<HTMLInputElement>(null);
 
   const reset = () => {
-    setDate(todayIso());
+    setDate(isCurrentYear ? todayIso() : endOfYearIso(year));
     setAmount("");
     setComment("");
     setReceiptUrl(null);
@@ -312,7 +408,13 @@ function AddBillDialog({
                 fullWidth
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                inputProps={{ min: startOfYearIso(new Date().getFullYear()), max: todayIso() }}
+                // aria-label on the input: the visible caption above is a plain
+                // Typography, so without it the field has no accessible name.
+                inputProps={{
+                  min: startOfYearIso(year),
+                  max: isCurrentYear ? todayIso() : endOfYearIso(year),
+                  "aria-label": "Bill date",
+                }}
               />
             </Box>
             <Box>
@@ -395,8 +497,9 @@ function AddBillDialog({
           variant="contained"
           disabled={!valid}
           onClick={() => {
-            onAdd({ date, amount: amountNum, comment: comment.trim(), receiptUrl });
-            reset();
+            // Only clear when the bill was taken — ExpenseForm.tsx:141 leaves
+            // the form populated so a refused entry can be corrected.
+            if (onAdd({ date, amount: amountNum, comment: comment.trim(), receiptUrl })) reset();
           }}
         >
           Add bill
