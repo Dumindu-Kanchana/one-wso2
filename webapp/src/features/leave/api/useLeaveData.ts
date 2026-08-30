@@ -146,7 +146,18 @@ export function useLeaveEmployees(enabled = true) {
     enabled: enabled && isSignedIn && configured,
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      return authedGet<MinimalEmployeeInfo[]>(leaveServiceUrls.employees, accessToken);
+      // The status filter is not optional. The backend passes `status: ()`
+      // straight to the HR GraphQL filter (service.bal:779-793), so omitting it
+      // returns whatever that defaults to rather than the three the source
+      // asks for by name (leaveService.ts:58-66).
+      const params = new URLSearchParams();
+      for (const status of ["Active", "Marked leaver", "Left"]) {
+        params.append("employeeStatuses", status);
+      }
+      return authedGet<MinimalEmployeeInfo[]>(
+        `${leaveServiceUrls.employees}?${params.toString()}`,
+        accessToken,
+      );
     },
     staleTime: 10 * 60 * 1000,
     retry: leaveRetry,

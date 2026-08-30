@@ -118,9 +118,20 @@ function ReportsBody() {
       orderBy: "DESC",
       limit: REPORT_LIMIT,
     };
+    // Sent for everyone, not only People Ops. This is not a display filter —
+    // it changes which rows come back. With employeeStatuses present the
+    // backend resolves the employee set from the HR system by leadEmail and
+    // then CLEARS approverEmail (service.bal:264-284); without it, it filters
+    // leave rows on the stored approverEmail. So the source's lead report means
+    // "leave of the people who report to me now", and gating this on isPeopleOps
+    // silently turned it into "leave rows I happen to be recorded against" —
+    // a different set after any reporting-line change. The source spreads it
+    // unconditionally (LeadReportTab.tsx:46,61) even though only People Ops can
+    // edit it.
+    if (applied.employeeStatuses.length > 0) base.employeeStatuses = applied.employeeStatuses;
+
     if (isPeopleOps) {
       if (applied.email) base.email = applied.email;
-      if (applied.employeeStatuses.length > 0) base.employeeStatuses = applied.employeeStatuses;
       // Matches leave-app's "Subordinates only" toggle — People Ops default
       // to org-wide, but can narrow to their own reports like a plain lead.
       if (!applied.showAllEmployees && workEmail) base.approverEmail = workEmail;

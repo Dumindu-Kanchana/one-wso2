@@ -187,14 +187,46 @@ function ApplyForm() {
     // let a submit go out without them if appConfig hasn't resolved yet.
     Boolean(appConfig.data);
 
+  // Anyone still on the books, minus the leavers. The backend is asked for
+  // Active + Marked leaver + Left (it needs Left to resolve historical rows),
+  // and the source drops Left again on the client before offering them as
+  // recipients — NotifyPeople.tsx:107. Without that filter the picker offers
+  // to email people who have gone.
   const employeeOptions = useMemo(
-    () => (employees.data ?? []).map((e) => e.workEmail).filter(Boolean),
+    () =>
+      (employees.data ?? [])
+        .filter((e) => e.employeeStatus !== "Left")
+        .map((e) => e.workEmail)
+        .filter(Boolean),
     [employees.data],
   );
   const mandatory = useMemo(
     () => (appConfig.data?.cachedEmails.mandatoryMails ?? []).map((m) => m.email),
     [appConfig.data],
   );
+
+  // Who the backend says was copied on this person's last request. The source
+  // pre-selects these (NotifyPeople.tsx:86-99) so a repeat request notifies the
+  // same people without the user rebuilding the list. Starting empty — which
+  // this page did — quietly notifies fewer people than the standalone app for
+  // every default submission.
+  const suggested = useMemo(
+    () =>
+      (appConfig.data?.cachedEmails.optionalMails ?? [])
+        .map((m) => m.email)
+        .filter((email) => !mandatory.includes(email)),
+    [appConfig.data, mandatory],
+  );
+
+  // Seeded once, when appConfig first resolves. Not on every change: the user
+  // may have removed one of these deliberately, and re-adding it each render
+  // would make the field impossible to edit.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (seeded.current || suggested.length === 0) return;
+    seeded.current = true;
+    setRecipients((current) => (current.length > 0 ? current : suggested));
+  }, [suggested]);
 
   const handleSubmit = () => {
     if (!canSubmit) return;

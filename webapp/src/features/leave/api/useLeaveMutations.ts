@@ -40,8 +40,13 @@ export function useValidateLeave() {
   });
 }
 
-// POST /leaves — creates the leave. Invalidates the leaves cache so
-// history / reports refetch.
+// POST /leaves — creates the leave.
+//
+// Both caches have to go. Submitting spends entitlement, and
+// ["leave-entitlement"] carries a five-minute staleTime — invalidating only
+// ["leaves"] left the balance panel showing the pre-submit figures for that
+// long. The source has the same problem and solves it by remounting the panel
+// (GeneralLeave.tsx:148,264); invalidating is the same fix without the remount.
 export function useSubmitLeave() {
   const getAccessToken = useAccessToken();
   const qc = useQueryClient();
@@ -55,7 +60,10 @@ export function useSubmitLeave() {
       );
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["leaves"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["leaves"] }),
+        qc.invalidateQueries({ queryKey: ["leave-entitlement"] }),
+      ]);
     },
   });
 }
@@ -70,8 +78,12 @@ export function useCancelLeave() {
       const accessToken = await getAccessToken();
       await authedDelete(leaveServiceUrls.leave(id), accessToken);
     },
+    // Cancelling returns the days too, so the balance moves here as well.
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["leaves"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["leaves"] }),
+        qc.invalidateQueries({ queryKey: ["leave-entitlement"] }),
+      ]);
     },
   });
 }
