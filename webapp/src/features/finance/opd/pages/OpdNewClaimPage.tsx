@@ -33,7 +33,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
-import { CheckIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
+import { CheckIcon, PencilIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { isOpdBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
@@ -79,6 +79,10 @@ function NewClaimBody() {
 
   const [items, setItems] = useState<OpdTransaction[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // ExpenseForm.tsx:59 — the dialog doubles as the edit form for one row.
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
+  const [confirmingDraftLoss, setConfirmingDraftLoss] = useState(false);
   // NewClaim.tsx:51-53 — a claim is filed against one year, and the backend
   // still carries last year's remaining balance while it is claimable.
   const [pickedYear, setPickedYear] = useState<ClaimYear>("current");
@@ -106,6 +110,11 @@ function NewClaimBody() {
   const claimedInList = useMemo(() => items.reduce((s, it) => s + it.amount, 0), [items]);
   const remainingAfter =
     summary != null ? Math.max(summary.totalRemaining - claimedInList, 0) : undefined;
+  // ExpenseForm.tsx:79-87 — while editing, the row's own amount is not spent
+  // yet, so it must not count against the limit it is being checked against.
+  const editingItem = editingIndex != null ? items[editingIndex] : undefined;
+  const maxForDialog =
+    remainingAfter != null && editingItem ? remainingAfter + editingItem.amount : remainingAfter;
 
   // Bills carried over from a rejected claim via "Resubmit as New Claim"
   // (OpdHistoryPage). ClaimDetails.tsx:187-192 adds them to the working list
@@ -114,21 +123,22 @@ function NewClaimBody() {
   const carriedOver = (location.state as { resubmitTransactions?: OpdTransaction[] } | null)
     ?.resubmitTransactions;
 
-  // Seed the working list once — from a resubmitted claim if we arrived with
-  // one, otherwise from any server-side draft.
+  // Bills carried over from a resubmit go straight in; a saved draft does not.
+  // NewClaim.tsx:249-266 offers it as an explicit "Restore Draft" choice beside
+  // "Add OPD Claim" — restoring silently would make a stale draft look like
+  // work in progress, and there would be no way to start fresh without first
+  // deleting bills you never entered this session.
   const seeded = useRef(false);
   useEffect(() => {
     if (seeded.current) return;
     if (carriedOver && carriedOver.length > 0) {
       seeded.current = true;
       setItems(carriedOver);
-      return;
     }
-    if (!appData.isSuccess) return;
-    seeded.current = true;
-    const drafted = appData.data?.draft?.transactions ?? [];
-    if (drafted.length > 0) setItems(drafted);
-  }, [appData.isSuccess, appData.data, carriedOver]);
+  }, [carriedOver]);
+
+  const savedDraft = appData.data?.draft?.transactions ?? [];
+  const draftOffered = items.length === 0 && savedDraft.length > 0;
 
   // Debounced autosave: POST the draft while there are items, DELETE it once
   // the list is emptied (e.g. after submit).
@@ -161,8 +171,26 @@ function NewClaimBody() {
     );
   }
 
+  // NewClaim.tsx:74-116. Two things stop a restore, both because a claim is
+  // filed against a single year: a draft spanning years, and a draft from a
+  // different year than the bills already entered.
+  const handleRestoreDraft = () => {
+    const draftYear = savedDraft[0]?.date.substring(0, 4);
+    if (!savedDraft.every((it) => it.date.substring(0, 4) === draftYear)) {
+      showError("Draft contains transactions from multiple years. Restore aborted.");
+      return;
+    }
+    if (items.length > 0 && items[0].date.substring(0, 4) !== draftYear) {
+      showError("Cannot restore draft: existing claim contains a different transaction year.");
+      return;
+    }
+    setItems(savedDraft);
+    showSuccess("Draft restored successfully");
+  };
+
   const handleSubmit = () => {
     if (items.length === 0) return;
+    setConfirmingSubmit(false);
     submit.mutate(
       { transactions: items },
       {
@@ -220,15 +248,40 @@ function NewClaimBody() {
           <FieldLabel>Bills in this claim</FieldLabel>
           <DraftStatusChip state={draftState} />
           <Box sx={{ flex: 1 }} />
-          <Button size="small" variant="outlined" onClick={() => setDialogOpen(true)} sx={{ fontWeight: 600, textTransform: "none" }}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              // :236-241 — starting a new bill discards the saved draft, so say
+              // so while it can still be restored instead.
+              if (draftOffered) {
+                setConfirmingDraftLoss(true);
+                return;
+              }
+              setDialogOpen(true);
+            }}
+            sx={{ fontWeight: 600, textTransform: "none" }}
+          >
             + Add bill
           </Button>
         </Stack>
 
         {items.length === 0 ? (
-          <Typography sx={{ fontSize: 13, color: "text.secondary", py: 2, textAlign: "center" }}>
-            No bills yet. Add your first outpatient bill to start the claim.
-          </Typography>
+          <Stack alignItems="center" spacing={1.25} sx={{ py: 2 }}>
+            <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+              No bills yet. Add your first outpatient bill to start the claim.
+            </Typography>
+            {draftOffered && (
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>
+                  You have a saved draft.
+                </Typography>
+                <Button size="small" color="success" variant="outlined" onClick={handleRestoreDraft} sx={{ textTransform: "none", fontWeight: 600 }}>
+                  Restore Draft
+                </Button>
+              </Stack>
+            )}
+          </Stack>
         ) : (
           <Stack spacing={1}>
             {items.map((it, i) => (
@@ -256,6 +309,19 @@ function NewClaimBody() {
                 <Typography sx={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
                   {money(it.amount)}
                 </Typography>
+                {/* AccessMode.EDIT_DELETE (NewClaim.tsx:185) — a bill can be
+                    corrected in place, not just removed and retyped. */}
+                <IconButton
+                  size="small"
+                  aria-label="Edit bill"
+                  onClick={() => {
+                    setEditingIndex(i);
+                    setDialogOpen(true);
+                  }}
+                  sx={{ color: "text.secondary", "&:hover": { color: "primary.main" } }}
+                >
+                  <PencilIcon size={14} />
+                </IconButton>
                 <IconButton
                   size="small"
                   aria-label="Remove bill"
@@ -275,7 +341,7 @@ function NewClaimBody() {
       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
         <Button
           variant="contained"
-          onClick={handleSubmit}
+          onClick={() => setConfirmingSubmit(true)}
           disabled={items.length === 0 || submit.isPending}
           sx={{ fontWeight: 600 }}
         >
@@ -285,8 +351,12 @@ function NewClaimBody() {
 
       <AddBillDialog
         open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        maxAmount={remainingAfter}
+        editing={editingItem}
+        onClose={() => {
+          setDialogOpen(false);
+          setEditingIndex(null);
+        }}
+        maxAmount={maxForDialog}
         year={yearOfClaim}
         isCurrentYear={claimYear === "current"}
         uploading={upload.isPending}
@@ -294,17 +364,69 @@ function NewClaimBody() {
         onAdd={(item) => {
           // ExpenseForm.tsx:129-144 — a claim cannot mix years. The picker's
           // bounds already steer this, but the field is typeable, so the rule
-          // is enforced rather than implied.
-          const existing = items[0];
+          // is enforced rather than implied. The row being edited is not its
+          // own reference point (:131-133).
+          const others = items.filter((_, j) => j !== editingIndex);
+          const existing = others[0];
           if (existing && existing.date.substring(0, 4) !== item.date.substring(0, 4)) {
             showError(SAME_YEAR_MESSAGE);
             return false;
           }
-          setItems((prev) => [...prev, item]);
+          setItems((prev) =>
+            editingIndex != null
+              ? prev.map((it, j) => (j === editingIndex ? item : it))
+              : [...prev, item],
+          );
           setDialogOpen(false);
+          setEditingIndex(null);
           return true;
         }}
       />
+
+      {/* NewClaim.tsx:411-427 — a claim goes to finance for review, so it is
+          confirmed rather than sent on a single click. */}
+      <Dialog open={confirmingSubmit} onClose={() => setConfirmingSubmit(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Claim Submission Confirmation</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontSize: 13.5 }}>
+            Are you sure you want to submit this claim? Once submitted, it will be sent to the
+            finance team for review.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setConfirmingSubmit(false)}>
+            Cancel
+          </Button>
+          <Button size="small" variant="contained" onClick={handleSubmit} disabled={submit.isPending}>
+            {submit.isPending ? "Submitting…" : "Submit"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* :429-440 — the saved draft is dropped the moment a new bill is added. */}
+      <Dialog open={confirmingDraftLoss} onClose={() => setConfirmingDraftLoss(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Draft Deletion Warning</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontSize: 13.5 }}>
+            Adding a new claim will delete your draft. Are you sure you want to proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setConfirmingDraftLoss(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => {
+              setConfirmingDraftLoss(false);
+              setDialogOpen(true);
+            }}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* :442-465 — confirming discards every bill entered so far, and the
           draft with them, so the wording says so before it happens. */}
@@ -339,6 +461,7 @@ function NewClaimBody() {
 
 function AddBillDialog({
   open,
+  editing,
   onClose,
   maxAmount,
   year,
@@ -349,6 +472,8 @@ function AddBillDialog({
 }: {
   open: boolean;
   onClose: () => void;
+  /** The row being corrected, if any — otherwise a new bill is being added. */
+  editing: OpdTransaction | undefined;
   maxAmount: number | undefined;
   /** Calendar year the bill must fall in. */
   year: number;
@@ -374,6 +499,24 @@ function AddBillDialog({
     setReceiptUrl(null);
     setFileName("");
   };
+
+  // Load the row's values when the dialog opens on one, and clear them when it
+  // opens fresh. FileUploadArea.tsx:87-102 does the same for the receipt: an
+  // existing one already counts as attached, so no re-upload is forced.
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setDate(editing.date.substring(0, 10));
+      setAmount(String(editing.amount));
+      setComment(editing.comment ?? "");
+      setReceiptUrl(editing.receiptUrl ?? null);
+      setFileName(editing.receiptUrl ?? "");
+    } else {
+      reset();
+    }
+    // Runs on open, and when the row being edited changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editing]);
 
   const amountNum = Number(amount);
   const amountValid = Number.isFinite(amountNum) && amountNum > 0 && (maxAmount == null || amountNum <= maxAmount);
@@ -409,7 +552,7 @@ function AddBillDialog({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Add a bill</DialogTitle>
+      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>{editing ? "Edit bill" : "Add a bill"}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 0.5 }}>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
@@ -515,7 +658,7 @@ function AddBillDialog({
             if (onAdd({ date, amount: amountNum, comment: comment.trim(), receiptUrl })) reset();
           }}
         >
-          Add bill
+          {editing ? "Save bill" : "Add bill"}
         </Button>
       </DialogActions>
     </Dialog>

@@ -158,6 +158,7 @@ describe("a seeded draft decides the year", () => {
       transactions: [{ date: `${LAST_YEAR}-06-01`, amount: 500, comment: "GP", receiptUrl: "r.pdf" }],
     };
     show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
     const lastYearTab = await screen.findByRole("tab", { name: "Last Year" });
     await waitFor(() => expect(lastYearTab).toHaveAttribute("aria-selected", "true"));
   });
@@ -214,7 +215,9 @@ describe("switching year with bills already added", () => {
       transactions: [{ date: `${CURRENT_YEAR}-03-01`, amount: 500, comment: "GP", receiptUrl: "r.pdf" }],
     };
     show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Last Year" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    await screen.findByText("GP");
+    fireEvent.click(screen.getByRole("tab", { name: "Last Year" }));
     expect(await screen.findByText("Change Year Warning")).toBeInTheDocument();
     expect(screen.getByText("GP")).toBeInTheDocument();
 
@@ -229,11 +232,125 @@ describe("switching year with bills already added", () => {
       transactions: [{ date: `${CURRENT_YEAR}-03-01`, amount: 500, comment: "GP", receiptUrl: "r.pdf" }],
     };
     show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Last Year" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    await screen.findByText("GP");
+    fireEvent.click(screen.getByRole("tab", { name: "Last Year" }));
     fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
 
     await waitFor(() => expect(screen.queryByText("GP")).not.toBeInTheDocument());
     // The server draft goes too — otherwise it would be re-seeded on return.
     expect(draftRemove).toHaveBeenCalled();
+  });
+});
+
+const draftOf = (...dates: string[]) => ({
+  transactions: dates.map((d, i) => ({
+    date: d,
+    amount: 100 * (i + 1),
+    comment: `Bill ${i + 1}`,
+    receiptUrl: `r${i}.pdf`,
+  })),
+});
+
+// NewClaim.tsx:74-116,236-241,249-266. The port restored a saved draft
+// silently, which makes a stale draft look like work in progress and leaves no
+// way to start fresh without deleting bills you never entered this session.
+describe("a saved draft is offered, not assumed", () => {
+  it("is not loaded on arrival", async () => {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    expect(await screen.findByRole("button", { name: "Restore Draft" })).toBeInTheDocument();
+    expect(screen.queryByText("Bill 1")).not.toBeInTheDocument();
+  });
+
+  it("loads when restored", async () => {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    expect(await screen.findByText("Bill 1")).toBeInTheDocument();
+    expect(await screen.findByText("Draft restored successfully")).toBeInTheDocument();
+  });
+
+  it("refuses a draft that spans two years", async () => {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`, `${LAST_YEAR}-11-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    expect(
+      await screen.findByText("Draft contains transactions from multiple years. Restore aborted."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Bill 1")).not.toBeInTheDocument();
+  });
+
+  it("offers nothing to restore when there is no draft", async () => {
+    show();
+    await screen.findByText(/No bills yet/);
+    expect(screen.queryByRole("button", { name: "Restore Draft" })).not.toBeInTheDocument();
+  });
+
+  it("warns before a new bill discards the draft", async () => {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add bill" }));
+    expect(await screen.findByText("Draft Deletion Warning")).toBeInTheDocument();
+    // The add form is not open yet, so the draft can still be restored instead.
+    expect(screen.queryByText("Add a bill")).not.toBeInTheDocument();
+  });
+
+  it("does not warn once there is no draft to lose", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add bill" }));
+    expect(await screen.findByText("Add a bill")).toBeInTheDocument();
+  });
+});
+
+// NewClaim.tsx:411-427 — a claim goes to finance for review, so it is confirmed
+// rather than sent on one click.
+describe("submitting is confirmed", () => {
+  it("asks before sending", async () => {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Submit claim/ }));
+    expect(await screen.findByText("Claim Submission Confirmation")).toBeInTheDocument();
+    expect(submitMutate).not.toHaveBeenCalled();
+  });
+
+  it("sends once confirmed", async () => {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Submit claim/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(submitMutate).toHaveBeenCalled());
+  });
+});
+
+// NewClaim.tsx:185 passes AccessMode.EDIT_DELETE — a bill can be corrected in
+// place. The port could only remove and retype it.
+describe("correcting a bill", () => {
+  it("opens the row's values for editing", async () => {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit bill" }));
+
+    expect(await screen.findByText("Edit bill")).toBeInTheDocument();
+    expect(screen.getByLabelText("Bill date")).toHaveValue(`${CURRENT_YEAR}-02-01`);
+    expect(screen.getByPlaceholderText("0.00")).toHaveValue(100);
+  });
+
+  it("replaces the row rather than adding another", async () => {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit bill" }));
+    fireEvent.change(await screen.findByPlaceholderText("0.00"), { target: { value: "250" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save bill" }));
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "Remove bill" })).toHaveLength(1),
+    );
+    // The claim total follows the edit rather than double-counting it.
+    expect(screen.getByRole("button", { name: "Submit claim (Rs. 250.00)" })).toBeInTheDocument();
   });
 });
