@@ -42,6 +42,7 @@ import { employeeDisplayName } from "../util/employeeName";
 import EmployeeAvatar from "@features/my/my-team/components/EmployeeAvatar";
 import LeaveShell from "../components/LeaveShell";
 import LeaveBalanceSummary from "../components/LeaveBalanceSummary";
+import LeaveDateField from "../components/LeaveDateField";
 import {
   LEAVE_TYPE_ICON,
   LEAVE_TYPE_POLICY_KEY,
@@ -365,8 +366,8 @@ function ApplyForm() {
       <Card variant="outlined" sx={{ p: 2 }}>
         <FieldLabel>Dates</FieldLabel>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr auto auto" }, gap: 1.5, alignItems: "end" }}>
-          <DateField label="Start" value={startDate} min={yearStart} onChange={setStartDate} />
-          <DateField label="End" value={endDate} min={startDate} onChange={setEndDate} />
+          <LeaveDateField label="Start" value={startDate} min={yearStart} onChange={setStartDate} />
+          <LeaveDateField label="End" value={endDate} min={startDate} onChange={setEndDate} />
           {/* A half-day is 0.5 days selected, not 1 — LeaveDateSelection.tsx:207-210
               substitutes the working-day figure whenever a half is chosen. */}
           <Stat
@@ -621,35 +622,6 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
     >
       {children}
     </Typography>
-  );
-}
-
-function DateField({
-  label,
-  value,
-  min,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  min?: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <Box>
-      <Typography sx={{ fontSize: 11, color: "text.secondary", mb: 0.375 }}>{label}</Typography>
-      <TextField
-        type="date"
-        size="small"
-        fullWidth
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        // On the input, not the wrapper. The visible text above is a plain
-        // Typography, so without this the field has no accessible name at all —
-        // the source's DatePicker carries one via its `label` prop.
-        inputProps={{ min, "aria-label": label }}
-      />
-    </Box>
   );
 }
 
