@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -44,14 +44,29 @@ vi.mock("../api/useLeaveData", () => ({
   useLeaveEmployees: () => ({ data: employeeList, isPending: false, isError: false }),
   useLeaveEntitlement: () => ({ data: undefined, isPending: false, isError: false }),
 }));
+const submitMutate = vi.fn();
+const validation = { workingDays: 1 as number };
 vi.mock("../api/useLeaveMutations", () => ({
-  useValidateLeave: () => ({ mutate: vi.fn(), data: undefined, isPending: false, reset: vi.fn() }),
-  useSubmitLeave: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useValidateLeave: () => ({
+    mutateAsync: () => Promise.resolve(validation),
+    mutate: vi.fn(),
+    data: undefined,
+    isPending: false,
+    reset: vi.fn(),
+  }),
+  useSubmitLeave: () => ({
+    mutate: submitMutate,
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
 }));
 vi.mock("../components/LeaveShell", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 vi.mock("../components/LeaveBalanceSummary", () => ({ default: () => null }));
+
+beforeEach(() => submitMutate.mockClear());
 
 const { default: LeaveApplyPage } = await import("./LeaveApplyPage");
 const { NotificationsProvider } = await import("@context/notifications/NotificationsContext");
@@ -113,5 +128,62 @@ describe("who can be picked", () => {
     await waitFor(() => expect(screen.getByText("here@wso2.com")).toBeInTheDocument());
     expect(screen.getByText("going@wso2.com")).toBeInTheDocument();
     expect(screen.queryByText("gone@wso2.com")).toBeNull();
+  });
+});
+
+// GeneralLeave.tsx:165-189. The port disabled the button instead, which tells
+// the reader nothing about what to change.
+describe("what happens when the form is not ready", () => {
+  it("says why, rather than leaving a dead button", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+
+    // An end date before the start gives zero days.
+    const end = screen.getByLabelText("End");
+    await user.clear(end);
+    await user.type(end, "2020-01-01");
+
+    await user.click(screen.getByRole("button", { name: /Submit leave/ }));
+    expect(await screen.findByText("Please select start and end dates")).toBeInTheDocument();
+    expect(submitMutate).not.toHaveBeenCalled();
+  });
+});
+
+// GeneralLeave.tsx:222-229 — nothing is posted until this is answered.
+describe("the confirmation before posting", () => {
+  it("names the type, the days, the range and the portion", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Submit leave/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Submit leave/ }));
+
+    expect(await screen.findByText("Do you want to submit this leave?")).toBeInTheDocument();
+    // "Casual/Annual" because this fixture sits in Sri Lanka.
+    expect(screen.getByText(/Casual\/Annual request for 1 working day \(/)).toBeInTheDocument();
+    expect(screen.getByText(/Full day\)/)).toBeInTheDocument();
+    expect(submitMutate).not.toHaveBeenCalled();
+  });
+
+  it("posts only after Yes", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Submit leave/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Submit leave/ }));
+    await user.click(await screen.findByRole("button", { name: "Yes" }));
+    expect(submitMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("posts nothing after No", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Submit leave/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Submit leave/ }));
+    await user.click(await screen.findByRole("button", { name: "No" }));
+    expect(submitMutate).not.toHaveBeenCalled();
+    // MUI keeps the dialog mounted through its close transition.
+    await waitFor(() =>
+      expect(screen.queryByText("Do you want to submit this leave?")).toBeNull(),
+    );
   });
 });

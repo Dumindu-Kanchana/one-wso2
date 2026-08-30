@@ -22,6 +22,10 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Skeleton,
   Stack,
   Switch,
@@ -54,7 +58,13 @@ import {
   useLeaveUserInfo,
 } from "../api/useLeaveData";
 import { useSubmitLeave, useValidateLeave } from "../api/useLeaveMutations";
-import { calendarDaysInclusive, startOfYearIso, todayIso } from "../util/leaveDates";
+import { calendarDaysInclusive, formatNice, startOfYearIso, todayIso } from "../util/leaveDates";
+import {
+  CONFIRMATION_PORTION_LABEL,
+  SUBMIT_CONFIRMATION,
+  VALIDATION_MESSAGE,
+  leaveTypeLabel,
+} from "../util/leaveCopy";
 
 type Portion = "full" | "first" | "second";
 
@@ -134,17 +144,16 @@ function ApplyForm() {
   const [validating, setValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [workingDays, setWorkingDays] = useState<number | undefined>(undefined);
-  // The validation response also carries an overlap check + human message;
-  // both gate submission (an overlapping range must not be submittable).
-  const [hasOverlap, setHasOverlap] = useState(false);
-  const [overlapMessage, setOverlapMessage] = useState<string | null>(null);
+  // No client-side overlap gate. The running app has none: it posts, and shows
+  // whatever the server says if the range is refused (GeneralLeave.tsx:157-159).
+  // The port had blocked submission on a `hasOverlap` flag of its own invention,
+  // which at best duplicated the server and at worst refused a request the live
+  // app would have accepted.
   useEffect(() => {
     if (!rangeValid) {
       setValidating(false);
       setValidationError(null);
       setWorkingDays(undefined);
-      setHasOverlap(false);
-      setOverlapMessage(null);
       return;
     }
     const seq = ++seqRef.current;
@@ -154,16 +163,12 @@ function ApplyForm() {
         .then((res) => {
           if (seq !== seqRef.current) return; // superseded by a newer request
           setWorkingDays(res.workingDays);
-          setHasOverlap(Boolean(res.hasOverlap));
-          setOverlapMessage(res.message ?? null);
           setValidationError(null);
           setValidating(false);
         })
         .catch((err) => {
           if (seq !== seqRef.current) return;
           setWorkingDays(undefined);
-          setHasOverlap(false);
-          setOverlapMessage(null);
           setValidationError(describeError(err));
           setValidating(false);
         });
@@ -177,7 +182,6 @@ function ApplyForm() {
     rangeValid &&
     !validating &&
     !validationError &&
-    !hasOverlap &&
     typeof workingDays === "number" &&
     // Half-day requests are worth 0.5, so gate on > 0, not >= 1.
     workingDays > 0 &&
@@ -228,8 +232,29 @@ function ApplyForm() {
     setRecipients((current) => (current.length > 0 ? current : suggested));
   }, [suggested]);
 
+  const [confirming, setConfirming] = useState(false);
+
+  // The two blocks the user can act on, each with its own message.
+  const explainableBlock = !rangeValid || (typeof workingDays === "number" && workingDays <= 0);
+
+  // Say why, rather than leaving a dead button. The running app blocks with a
+  // message for each case (GeneralLeave.tsx:165-189); the port disabled the
+  // button silently, which tells the reader nothing about what to change.
   const handleSubmit = () => {
+    if (!rangeValid) {
+      showError(VALIDATION_MESSAGE.datesRequired);
+      return;
+    }
+    if (typeof workingDays === "number" && workingDays <= 0) {
+      showError(VALIDATION_MESSAGE.workingDaysRequired);
+      return;
+    }
     if (!canSubmit) return;
+    setConfirming(true);
+  };
+
+  const executeSubmit = () => {
+    setConfirming(false);
     // Mandatory recipients (lead + People Ops) are notified by the backend
     // independently of this list — exclude them here rather than merging
     // them in, matching leave-app's GeneralLeave.tsx (filteredEmailRecipients)
@@ -276,6 +301,16 @@ function ApplyForm() {
     });
   };
 
+  const confirmationBody = SUBMIT_CONFIRMATION.body({
+    leaveLabel: leaveTypeLabel(userInfo.data?.location, leaveType),
+    workingDays: workingDays ?? 0,
+    dateRange:
+      startDate === endDate
+        ? formatNice(startDate)
+        : `${formatNice(startDate)} – ${formatNice(endDate)}`,
+    portionLabel: CONFIRMATION_PORTION_LABEL[portion],
+  });
+
   if (userInfo.isLoading) {
     return (
       <Stack spacing={1.75}>
@@ -305,7 +340,12 @@ function ApplyForm() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr auto auto" }, gap: 1.5, alignItems: "end" }}>
           <DateField label="Start" value={startDate} min={yearStart} onChange={setStartDate} />
           <DateField label="End" value={endDate} min={startDate} onChange={setEndDate} />
-          <Stat label="Days selected" value={rangeValid ? String(days) : "—"} />
+          {/* A half-day is 0.5 days selected, not 1 — LeaveDateSelection.tsx:207-210
+              substitutes the working-day figure whenever a half is chosen. */}
+          <Stat
+            label="Days selected"
+            value={rangeValid ? String(portion === "full" ? days : (workingDays ?? days)) : "—"}
+          />
           <Stat label="Working days" value={validating ? "…" : workingDays != null ? String(workingDays) : "—"} />
         </Box>
         <Box sx={{ mt: 1.25 }}>
@@ -315,8 +355,6 @@ function ApplyForm() {
             <Chip label="Validating…" size="small" color="default" variant="outlined" sx={CHIP_SX} />
           ) : validationError ? (
             <Chip label={validationError} size="small" color="error" variant="outlined" sx={CHIP_SX} />
-          ) : hasOverlap ? (
-            <Chip label={overlapMessage ?? "Overlaps existing leave"} size="small" color="error" variant="outlined" sx={CHIP_SX} />
           ) : workingDays != null && workingDays <= 0 ? (
             <Chip label="No working days in this range" size="small" color="warning" variant="outlined" sx={CHIP_SX} />
           ) : (
@@ -462,11 +500,36 @@ function ApplyForm() {
       {submit.isError && <Alert severity="error">{describeError(submit.error)}</Alert>}
 
       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-        <Button variant="contained" onClick={handleSubmit} disabled={!canSubmit} sx={{ fontWeight: 600 }}>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          // Enabled while a range is merely invalid or has no working days, so
+          // pressing it produces the message rather than nothing at all.
+            disabled={!canSubmit && !explainableBlock}
+          sx={{ fontWeight: 600 }}
+        >
           {submit.isPending ? "Submitting…" : "Submit leave"}
         </Button>
       </Box>
-    </Stack>
+    
+      {/* GeneralLeave.tsx:222-229. Naming the type, the days, the range and the
+          portion lets the reader check what they are about to send, instead of
+          confirming an unlabelled action. */}
+      <Dialog open={confirming} onClose={() => setConfirming(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{SUBMIT_CONFIRMATION.title}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            {confirmationBody}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirming(false)}>{SUBMIT_CONFIRMATION.cancelText}</Button>
+          <Button variant="contained" onClick={executeSubmit} disabled={submit.isPending}>
+            {SUBMIT_CONFIRMATION.okText}
+          </Button>
+        </DialogActions>
+      </Dialog>
+</Stack>
   );
 }
 
@@ -502,7 +565,10 @@ function DateField({
         fullWidth
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        inputProps={{ min }}
+        // On the input, not the wrapper. The visible text above is a plain
+        // Typography, so without this the field has no accessible name at all —
+        // the source's DatePicker carries one via its `label` prop.
+        inputProps={{ min, "aria-label": label }}
       />
     </Box>
   );

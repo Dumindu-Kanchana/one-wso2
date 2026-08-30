@@ -48,6 +48,52 @@ export const SnackMessage = {
   },
 } as const;
 
+/**
+ * Blocking messages on the Apply form — `GeneralLeave.tsx:165-189`.
+ *
+ * The port had dropped all four and disabled the button instead, which tells
+ * someone nothing about why. Two of them are unreachable here because the
+ * port's state cannot hold a null portion or a null leave type; they are
+ * transcribed anyway so the set stays complete if that ever changes.
+ */
+export const VALIDATION_MESSAGE = {
+  datesRequired: "Please select start and end dates",
+  workingDaysRequired: "Working days must be at least 1 to submit a leave request",
+  portionRequired: "Please select a portion of the day",
+  leaveTypeRequired: "Please select a leave type",
+} as const;
+
+/** The confirmation before a leave is posted — `GeneralLeave.tsx:222-229`. */
+export const SUBMIT_CONFIRMATION = {
+  title: "Do you want to submit this leave?",
+  okText: "Yes",
+  cancelText: "No",
+  /**
+   * `GeneralLeave.tsx:224`. Names the type, the working days, the range and the
+   * portion, so the reader can check what they are about to send rather than
+   * being asked to confirm an unlabelled action.
+   *
+   * The portion words here are the source's own — "Full day" / "Morning" /
+   * "Afternoon" — which are NOT the DAY_PORTION_LABEL values used on the
+   * buttons ("Full Day" / "First Half" / "Second Half").
+   */
+  body: (args: {
+    leaveLabel: string;
+    workingDays: number;
+    dateRange: string;
+    portionLabel: string;
+  }): string =>
+    `This will submit a ${args.leaveLabel} request for ${args.workingDays} working day` +
+    `${args.workingDays !== 1 ? "s" : ""} (${args.dateRange}, ${args.portionLabel}).`,
+} as const;
+
+/** `GeneralLeave.tsx:212-217` — the confirmation's wording, not the buttons'. */
+export const CONFIRMATION_PORTION_LABEL = {
+  full: "Full day",
+  first: "Morning",
+  second: "Afternoon",
+} as const;
+
 /** `types/types.ts:50-54`. */
 export const DAY_PORTION_LABEL = {
   full: "Full Day",
