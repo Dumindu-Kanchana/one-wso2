@@ -54,11 +54,15 @@ vi.mock("@config/apiConfig", () => ({
     leaveAction: (id: number, a: string) => `https://leave.test/leaves/${id}/${a}`,
     userInfo: "https://leave.test/user-info",
     appConfigs: "https://leave.test/app-configs",
-    leaveEntitlement: (e: string) => `https://leave.test/employees/${e}/leave-entitlement`,
+    leaveEntitlement: (e: string, years?: number[]) => {
+      const base = `https://leave.test/employees/${e}/leave-entitlement`;
+      if (!years || years.length === 0) return base;
+      return `${base}?${years.map((y) => `years=${y}`).join("&")}`;
+    },
   },
 }));
 
-const { useLeaveEmployees, useLeaves } = await import("./useLeaveData");
+const { useLeaveEmployees, useLeaveEntitlement, useLeaves } = await import("./useLeaveData");
 const { useSubmitLeave, useCancelLeave } = await import("./useLeaveMutations");
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -131,7 +135,7 @@ describe("submitting a leave", () => {
       periodType: "one",
       isMorningLeave: null,
       leaveType: "casual",
-      comment: null,
+      comment: "",
       emailRecipients: ["colleague@wso2.com"],
       isPublicComment: false,
     });
@@ -171,7 +175,7 @@ describe("what a submit invalidates", () => {
       periodType: "one",
       isMorningLeave: null,
       leaveType: "casual",
-      comment: null,
+      comment: "",
       emailRecipients: [],
       isPublicComment: false,
     });
@@ -189,5 +193,38 @@ describe("cancelling", () => {
     result.current.mutate(42);
     await waitFor(() => expect(requests).toHaveLength(1));
     expect(requests[0]).toMatchObject({ method: "DELETE", url: "https://leave.test/leaves/42" });
+  });
+});
+
+// The congés-payés leave year is not the calendar year, so the default
+// entitlement record covers a different window than RTT is reported over.
+// LeaveBalanceSummary.tsx:94-100 issues a second, calendar-year request for
+// exactly that reason and reads the RTT row from it (:145). The port had
+// dropped the second call and read RTT from the congés-payés record.
+describe("the leave entitlement request", () => {
+  it("asks for no particular year by default, letting the backend pick the period", async () => {
+    renderHook(() => useLeaveEntitlement("someone@wso2.com"), { wrapper });
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].url).not.toContain("years=");
+  });
+
+  it("asks for the calendar year when one is named", async () => {
+    renderHook(() => useLeaveEntitlement("someone@wso2.com", true, [2026]), { wrapper });
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].url).toContain("years=2026");
+  });
+
+  it("caches the two separately, so one cannot serve the other", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const shared = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    renderHook(() => useLeaveEntitlement("someone@wso2.com"), { wrapper: shared });
+    renderHook(() => useLeaveEntitlement("someone@wso2.com", true, [2026]), { wrapper: shared });
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests.filter((r) => r.url.includes("years=2026"))).toHaveLength(1);
+    expect(requests.filter((r) => !r.url.includes("years="))).toHaveLength(1);
   });
 });

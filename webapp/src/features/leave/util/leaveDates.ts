@@ -97,3 +97,36 @@ export function daysAgo(iso: string | null | undefined): number {
   t0.setHours(0, 0, 0, 0);
   return Math.round((t0.getTime() - d.getTime()) / MS_PER_DAY);
 }
+
+/**
+ * "MMM YYYY" for an entitlement period boundary — `LeaveBalanceSummary.tsx:63-66`.
+ * Returns null for anything unparseable so the caller can drop the label rather
+ * than render "Invalid Date".
+ */
+export function monthYear(input: string | null | undefined): string | null {
+  const d = parseIso(input);
+  if (!d) return null;
+  return `${d.toLocaleString("en-US", { month: "short" })} ${d.getFullYear()}`;
+}
+
+/**
+ * The period a balance row covers — `LeaveBalanceSummary.tsx:148-152`.
+ *
+ * RTT and sick are always reported over the calendar year; everything else uses
+ * the entitlement's own window, which for congés payés is not the calendar year.
+ * Null when the entitlement carries no period, matching the source's
+ * `formatPeriod` returning undefined and the chip then not rendering.
+ */
+export function entitlementPeriodLabel(
+  usesCalendarYear: boolean,
+  periodStart: string | null | undefined,
+  periodEnd: string | null | undefined,
+): string | null {
+  if (usesCalendarYear) {
+    const year = new Date().getFullYear();
+    return `${monthYear(startOfYearIso(year))} – ${monthYear(endOfYearIso(year))}`;
+  }
+  const from = monthYear(periodStart);
+  const to = monthYear(periodEnd);
+  return from && to ? `${from} – ${to}` : null;
+}

@@ -17,12 +17,13 @@
 import { Box, LinearProgress, Skeleton, Stack, Tooltip, Typography } from "@wso2/oxygen-ui";
 import {
   LEAVE_TYPE_ICON,
-  LEAVE_TYPE_LABEL,
   LEAVE_TYPE_POLICY_KEY,
   LEAVE_TYPE_TOOLTIP,
   type LeaveEntitlement,
   type LeaveType,
 } from "../api/leaveTypes";
+import { entitlementPeriodLabel } from "../util/leaveDates";
+import { leaveTypeLabel } from "../util/leaveCopy";
 
 // Entitled/consumed/remaining per quota-tracked leave type — ported from
 // leave-app's LeaveBalanceSummary.tsx. The caller is responsible for only
@@ -32,10 +33,19 @@ import {
 export default function LeaveBalanceSummary({
   types,
   entitlement,
+  rttEntitlement,
+  location,
   isLoading,
 }: {
   types: LeaveType[];
   entitlement: LeaveEntitlement | undefined;
+  /**
+   * France's separate calendar-year record. The RTT row reads from this one —
+   * `LeaveBalanceSummary.tsx:145`. Undefined elsewhere, and then RTT falls back
+   * to the default record rather than rendering nothing.
+   */
+  rttEntitlement?: LeaveEntitlement | undefined;
+  location: string | null | undefined;
   isLoading: boolean;
 }) {
   if (types.length === 0) return null;
@@ -56,8 +66,18 @@ export default function LeaveBalanceSummary({
       {types.map((t) => {
         const policyKey = LEAVE_TYPE_POLICY_KEY[t];
         if (!policyKey) return null;
-        const entitled = entitlement.leavePolicy[policyKey] ?? null;
-        const consumed = entitlement.policyAdjustedLeave[policyKey] ?? 0;
+        // RTT comes from the calendar-year record where we have one; everything
+        // else from the default. `LeaveBalanceSummary.tsx:143-147`.
+        const record = t === "rtt" && rttEntitlement ? rttEntitlement : entitlement;
+        const entitled = record.leavePolicy[policyKey] ?? null;
+        const consumed = record.policyAdjustedLeave[policyKey] ?? 0;
+        // RTT and sick are reported over the calendar year regardless of the
+        // entitlement's own window. `LeaveBalanceSummary.tsx:148-152`.
+        const periodLabel = entitlementPeriodLabel(
+          t === "rtt" || t === "sick",
+          entitlement.periodStart,
+          entitlement.periodEnd,
+        );
         const isUnlimited = entitled === null;
         const remaining = isUnlimited ? null : Math.max(entitled - consumed, 0);
         const progress = !isUnlimited && entitled > 0 ? Math.min((consumed / entitled) * 100, 100) : 0;
@@ -70,7 +90,7 @@ export default function LeaveBalanceSummary({
             <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.75 }}>
               <TypeIcon size={13} style={{ flexShrink: 0 }} />
               <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
-                {LEAVE_TYPE_LABEL[t]}
+                {leaveTypeLabel(location, t)}
               </Typography>
               {tooltip && (
                 <Tooltip title={tooltip}>
@@ -78,6 +98,13 @@ export default function LeaveBalanceSummary({
                     ⓘ
                   </Box>
                 </Tooltip>
+              )}
+              {periodLabel && (
+                <Typography
+                  sx={{ ml: "auto", fontSize: 10.5, color: "text.disabled", whiteSpace: "nowrap" }}
+                >
+                  {periodLabel}
+                </Typography>
               )}
             </Stack>
             {!isUnlimited && (
