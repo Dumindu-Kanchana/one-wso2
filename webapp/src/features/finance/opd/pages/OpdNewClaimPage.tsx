@@ -92,21 +92,34 @@ function NewClaimBody() {
   const lastYearSummary = appData.data?.lastYearClaimSummary ?? null;
   const currentYear = new Date().getFullYear();
 
-  // :57-63 — the tab follows the bills already in the list, so a seeded or
-  // restored last-year draft opens on the right year rather than on "current"
-  // with dates the picker would then refuse. Derived rather than pushed into
-  // state by an effect: the two cannot disagree, even for a render.
-  const claimYear: ClaimYear =
+  // :57-63 — the year follows the bills already in the list, so a seeded or
+  // restored draft opens on the right year rather than on "current" with dates
+  // the picker would then refuse. Derived rather than pushed into state by an
+  // effect: the two cannot disagree, even for a render.
+  //
+  // Taken from the bill itself, not from the two-value tab. Resubmitting a
+  // rejected claim can seed bills from further back than last year, and mapping
+  // those onto `currentYear - 1` would bound the picker to a year the row is
+  // not in — leaving the row uneditable and every new bill refused.
+  const yearOfClaim =
     items.length > 0
-      ? items[0].date.substring(0, 4) === String(currentYear)
-        ? "current"
-        : "last"
-      : pickedYear;
-  const yearOfClaim = claimYear === "current" ? currentYear : currentYear - 1;
+      ? Number(items[0].date.substring(0, 4))
+      : pickedYear === "current"
+        ? currentYear
+        : currentYear - 1;
+  const claimYear: ClaimYear = yearOfClaim === currentYear ? "current" : "last";
+  /** True when the bills predate last year, so neither tab describes them. */
+  const isOlderYear = yearOfClaim < currentYear - 1;
 
   // :271-272 — the figures on screen follow the tab, so the limit you are
-  // spending against is the one for the year you are claiming for.
-  const summary = claimYear === "current" ? appData.data?.claimSummary : lastYearSummary;
+  // spending against is the one for the year you are claiming for. /app-data
+  // carries this year and last only, so an older claim has no balance to show
+  // and no cap to check against — better blank than another year's numbers.
+  const summary = isOlderYear
+    ? undefined
+    : claimYear === "current"
+      ? appData.data?.claimSummary
+      : lastYearSummary;
   const claimedInList = useMemo(() => items.reduce((s, it) => s + it.amount, 0), [items]);
   const remainingAfter =
     summary != null ? Math.max(summary.totalRemaining - claimedInList, 0) : undefined;
@@ -215,7 +228,9 @@ function NewClaimBody() {
           a last-year balance; otherwise there is nothing to claim against. */}
       {lastYearSummary && (
         <Tabs
-          value={claimYear}
+          // MUI's documented "nothing selected" — neither tab describes a claim
+          // from further back, and forcing one would mislabel it.
+          value={isOlderYear ? false : claimYear}
           onChange={(_e, v: ClaimYear) => {
             // :65-72 — switching with bills in the list needs consent, because
             // confirming clears them.
@@ -230,6 +245,14 @@ function NewClaimBody() {
           <Tab value="current" label="This Year" />
           <Tab value="last" label="Last Year" />
         </Tabs>
+      )}
+
+      {isOlderYear && (
+        <Alert severity="info">
+          These bills are from {yearOfClaim}. Your remaining balance for that year isn&apos;t
+          available here, so no limit is shown — switch year above to start a claim for this year
+          or last instead.
+        </Alert>
       )}
 
       {/* Balance summary */}

@@ -218,3 +218,47 @@ describe("what the history screen filters on", () => {
     expect(payloads.at(-1)!.ids).toBeUndefined();
   });
 });
+
+// Raised on PR #29. Both year lists offered the same five years, so a start
+// after the end could reach the payload — returning nothing, with an empty-state
+// message that read the range backwards. The source has the same hole
+// (FilterHolder.tsx:207 disables Apply only on a null year).
+describe("the custom period cannot be inverted", () => {
+  it("offers no start year later than the end", async () => {
+    show();
+    fireEvent.mouseDown(screen.getByLabelText("Period"));
+    fireEvent.click(await screen.findByRole("option", { name: "Custom" }));
+    // Widen the start first, so the end has somewhere earlier to move to.
+    fireEvent.mouseDown(await screen.findByLabelText("Start Year"));
+    fireEvent.click(await screen.findByRole("option", { name: String(CURRENT_YEAR - 3) }));
+    fireEvent.mouseDown(await screen.findByLabelText("End Year"));
+    fireEvent.click(await screen.findByRole("option", { name: String(CURRENT_YEAR - 2) }));
+
+    fireEvent.mouseDown(screen.getByLabelText("Start Year"));
+    const options = (await screen.findAllByRole("option")).map((o) => o.textContent);
+    expect(options).not.toContain(String(CURRENT_YEAR));
+    expect(options).toContain(String(CURRENT_YEAR - 2));
+  });
+
+  it("offers no end year earlier than the start", async () => {
+    show();
+    fireEvent.mouseDown(screen.getByLabelText("Period"));
+    fireEvent.click(await screen.findByRole("option", { name: "Custom" }));
+    fireEvent.mouseDown(await screen.findByLabelText("Start Year"));
+    fireEvent.click(await screen.findByRole("option", { name: String(CURRENT_YEAR - 1) }));
+
+    fireEvent.mouseDown(screen.getByLabelText("End Year"));
+    const options = (await screen.findAllByRole("option")).map((o) => o.textContent);
+    expect(options).not.toContain(String(CURRENT_YEAR - 2));
+    expect(options).toContain(String(CURRENT_YEAR));
+  });
+
+  it("never sends a start year after the end year", async () => {
+    show();
+    fireEvent.mouseDown(screen.getByLabelText("Period"));
+    fireEvent.click(await screen.findByRole("option", { name: "Custom" }));
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    const { startYear, endYear } = payloads.at(-1) as { startYear: number; endYear: number };
+    expect(startYear).toBeLessThanOrEqual(endYear);
+  });
+});

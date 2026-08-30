@@ -85,8 +85,18 @@ function HistoryBody() {
 
   // :51-65 — This Year and Last Year are single years; Custom spans the two
   // pickers.
-  const startYear = range === "This Year" ? currentYear : range === "Last Year" ? currentYear - 1 : customStart;
-  const endYear = range === "This Year" ? currentYear : range === "Last Year" ? currentYear - 1 : customEnd;
+  const startYear =
+    range === "This Year"
+      ? currentYear
+      : range === "Last Year"
+        ? currentYear - 1
+        : customStart;
+  const endYear =
+    range === "This Year"
+      ? currentYear
+      : range === "Last Year"
+        ? currentYear - 1
+        : customEnd;
 
   const email = userInfo.data?.workEmail ?? undefined;
   const claims = useOpdClaims(
@@ -109,7 +119,12 @@ function HistoryBody() {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2, flexWrap: "wrap", rowGap: 1.5 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.5}
+        sx={{ mb: 2, flexWrap: "wrap", rowGap: 1.5 }}
+      >
         <FormControl size="small">
           <InputLabel id="opd-range">Period</InputLabel>
           <Select
@@ -119,11 +134,13 @@ function HistoryBody() {
             onChange={(e) => setRange(e.target.value as OpdClaimRange)}
             sx={{ minWidth: 140 }}
           >
-            {(["This Year", "Last Year", "Custom"] as OpdClaimRange[]).map((r) => (
-              <MenuItem key={r} value={r}>
-                {r}
-              </MenuItem>
-            ))}
+            {(["This Year", "Last Year", "Custom"] as OpdClaimRange[]).map(
+              (r) => (
+                <MenuItem key={r} value={r}>
+                  {r}
+                </MenuItem>
+              ),
+            )}
           </Select>
         </FormControl>
 
@@ -138,11 +155,17 @@ function HistoryBody() {
                 onChange={(e) => setCustomStart(Number(e.target.value))}
                 sx={{ minWidth: 110 }}
               >
-                {years.map((y) => (
-                  <MenuItem key={y} value={y}>
-                    {y}
-                  </MenuItem>
-                ))}
+                {/* Each end of the range only offers the valid side of the
+                    other. The source leaves this open (FilterHolder.tsx:207
+                    disables Apply only on a null year), which lets a start
+                    after the end reach the payload and return nothing. */}
+                {years
+                  .filter((y) => y <= customEnd)
+                  .map((y) => (
+                    <MenuItem key={y} value={y}>
+                      {y}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
             <FormControl size="small">
@@ -154,11 +177,13 @@ function HistoryBody() {
                 onChange={(e) => setCustomEnd(Number(e.target.value))}
                 sx={{ minWidth: 110 }}
               >
-                {years.map((y) => (
-                  <MenuItem key={y} value={y}>
-                    {y}
-                  </MenuItem>
-                ))}
+                {years
+                  .filter((y) => y >= customStart)
+                  .map((y) => (
+                    <MenuItem key={y} value={y}>
+                      {y}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
           </>
@@ -170,7 +195,9 @@ function HistoryBody() {
             labelId="opd-status"
             label="Status"
             value={status}
-            onChange={(e) => setStatus(e.target.value as OpdClaimStatus | "All")}
+            onChange={(e) =>
+              setStatus(e.target.value as OpdClaimStatus | "All")
+            }
             sx={{ minWidth: 160 }}
           >
             <MenuItem value="All">All</MenuItem>
@@ -196,11 +223,18 @@ function HistoryBody() {
       {userInfo.isLoading || claims.isLoading ? (
         <Stack spacing={1}>
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} variant="rectangular" height={48} sx={{ borderRadius: 1 }} />
+            <Skeleton
+              key={i}
+              variant="rectangular"
+              height={48}
+              sx={{ borderRadius: 1 }}
+            />
           ))}
         </Stack>
       ) : claims.isError ? (
-        <Alert severity="error">Couldn't load your claims. {describeError(claims.error)}</Alert>
+        <Alert severity="error">
+          Couldn't load your claims. {describeError(claims.error)}
+        </Alert>
       ) : (claims.data?.length ?? 0) === 0 ? (
         <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>
           {startYear === endYear
@@ -208,10 +242,27 @@ function HistoryBody() {
             : `No OPD claims on record for ${startYear}–${endYear}.`}
         </Typography>
       ) : (
-        <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>
+        <Box
+          sx={{
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 1.5,
+            overflow: "hidden",
+          }}
+        >
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ "& th": { fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.04em" } }}>
+              <TableRow
+                sx={{
+                  "& th": {
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "text.secondary",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  },
+                }}
+              >
                 <TableCell>Claim ID</TableCell>
                 <TableCell>Submitted</TableCell>
                 <TableCell align="right">Amount</TableCell>
@@ -224,16 +275,31 @@ function HistoryBody() {
                 const meta = opdStatusMeta(c.statusDetails.status);
                 return (
                   <TableRow key={c.id} hover>
-                    <TableCell sx={{ fontSize: 12.5, fontFamily: "monospace" }}>{c.id}</TableCell>
-                    <TableCell sx={{ fontSize: 12.5 }}>{formatNice(c.createdDate)}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
+                    <TableCell sx={{ fontSize: 12.5, fontFamily: "monospace" }}>
+                      {c.id}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 12.5 }}>
+                      {formatNice(c.createdDate)}
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        fontSize: 12.5,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
                       {money(c.totalAmount)}
                     </TableCell>
                     <TableCell>
                       <StatusChip label={meta.label} color={meta.color} />
                     </TableCell>
                     <TableCell align="right">
-                      <Button size="small" variant="outlined" onClick={() => setSelected(c)} sx={{ textTransform: "none", fontWeight: 600 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setSelected(c)}
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
                         View
                       </Button>
                     </TableCell>
@@ -254,12 +320,19 @@ function HistoryBody() {
       {/* ClaimDetails.tsx:395-407. Resubmitting does not amend the rejected
           claim — it starts a fresh one from its bills, which replaces whatever
           draft was already saved, so that is said before it happens. */}
-      <Dialog open={resubmitting !== null} onClose={() => setResubmitting(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Claim Resubmission Confirmation</DialogTitle>
+      <Dialog
+        open={resubmitting !== null}
+        onClose={() => setResubmitting(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>
+          Claim Resubmission Confirmation
+        </DialogTitle>
         <DialogContent dividers>
           <Typography sx={{ fontSize: 13.5 }}>
-            Are you sure you want to resubmit this claim? This will create a new draft claim and{" "}
-            <b>your existing draft will be cleared</b>.
+            Are you sure you want to resubmit this claim? This will create a new
+            draft claim and <b>your existing draft will be cleared</b>.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -276,7 +349,9 @@ function HistoryBody() {
               const transactions = resubmitting?.transactions ?? [];
               setResubmitting(null);
               setSelected(null);
-              navigate("/me/opd/new", { state: { resubmitTransactions: transactions } });
+              navigate("/me/opd/new", {
+                state: { resubmitTransactions: transactions },
+              });
             }}
           >
             Resubmit

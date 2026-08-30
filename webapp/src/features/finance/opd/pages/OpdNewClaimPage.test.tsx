@@ -28,6 +28,7 @@ import type { ReactNode } from "react";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const LAST_YEAR = CURRENT_YEAR - 1;
+const TODAY = new Date().toISOString().slice(0, 10);
 
 const state = {
   lastYearClaimSummary: null as { totalClaimedAmount: number; totalRemaining: number; totalClaimLimit: number } | null,
@@ -145,7 +146,9 @@ describe("claiming against last year's balance", () => {
     fireEvent.click(await screen.findByRole("button", { name: "+ Add bill" }));
     const dateField = await screen.findByLabelText("Bill date");
     expect(dateField).toHaveAttribute("min", `${CURRENT_YEAR}-01-01`);
-    expect(dateField.getAttribute("max")).not.toBe(`${CURRENT_YEAR}-12-31`);
+    // The exact bound, not "anything but 31 Dec" — on 31 December those are the
+    // same string and the assertion would pass for the wrong reason.
+    expect(dateField).toHaveAttribute("max", TODAY);
   });
 });
 
@@ -352,5 +355,67 @@ describe("correcting a bill", () => {
     );
     // The claim total follows the edit rather than double-counting it.
     expect(screen.getByRole("button", { name: "Submit claim (Rs. 250.00)" })).toBeInTheDocument();
+  });
+});
+
+// Raised on PR #29. Resubmitting a rejected claim can seed bills from further
+// back than last year — the history screen reaches four years back — and the
+// two-value tab used to map all of them onto `currentYear - 1`. That bounded
+// the picker to a year the row was not in, so the row could not be edited and
+// every new bill was refused.
+describe("bills from further back than last year", () => {
+  const OLD_YEAR = CURRENT_YEAR - 3;
+  const oldDraft = {
+    transactions: [
+      { date: `${OLD_YEAR}-05-04`, amount: 300, comment: "Old bill", receiptUrl: "r.pdf" },
+    ],
+  };
+
+  it("bounds the picker to the bill's own year", async () => {
+    withLastYear();
+    state.draft = oldDraft;
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit bill" }));
+    const dateField = await screen.findByLabelText("Bill date");
+    expect(dateField).toHaveAttribute("min", `${OLD_YEAR}-01-01`);
+    expect(dateField).toHaveAttribute("max", `${OLD_YEAR}-12-31`);
+  });
+
+  it("keeps the seeded row editable", async () => {
+    withLastYear();
+    state.draft = oldDraft;
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit bill" }));
+    expect(await screen.findByLabelText("Bill date")).toHaveValue(`${OLD_YEAR}-05-04`);
+    fireEvent.change(screen.getByPlaceholderText("0.00"), { target: { value: "400" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save bill" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Submit claim (Rs. 400.00)" })).toBeInTheDocument(),
+    );
+  });
+
+  it("shows no balance rather than another year's", async () => {
+    withLastYear();
+    state.draft = oldDraft;
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    await screen.findByText("Old bill");
+    // Neither this year's 45,000 nor last year's 9,000 applies to that year.
+    expect(screen.queryByText("Rs. 45,000.00")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rs. 9,000.00")).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`These bills are from ${OLD_YEAR}`))).toBeInTheDocument();
+  });
+
+  it("selects neither year tab", async () => {
+    withLastYear();
+    state.draft = oldDraft;
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    await screen.findByText("Old bill");
+    for (const name of ["This Year", "Last Year"]) {
+      expect(screen.getByRole("tab", { name })).toHaveAttribute("aria-selected", "false");
+    }
   });
 });
