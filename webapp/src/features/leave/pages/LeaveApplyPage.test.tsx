@@ -31,9 +31,15 @@ const appConfigData = {
 };
 
 const employeeList = [
-  { workEmail: "here@wso2.com", firstName: "Still", lastName: "Here", employeeStatus: "Active" },
-  { workEmail: "going@wso2.com", firstName: "Marked", lastName: "Leaver", employeeStatus: "Marked leaver" },
-  { workEmail: "gone@wso2.com", firstName: "Long", lastName: "Gone", employeeStatus: "Left" },
+  {
+    workEmail: "here@wso2.com",
+    firstName: "Still",
+    lastName: "Here",
+    employeeThumbnail: "https://photos.test/still.jpg",
+    employeeStatus: "Active",
+  },
+  { workEmail: "going@wso2.com", firstName: "Marked", lastName: "Leaver", employeeThumbnail: "", employeeStatus: "Marked leaver" },
+  { workEmail: "gone@wso2.com", firstName: "Long", lastName: "Gone", employeeThumbnail: "", employeeStatus: "Left" },
 ];
 
 vi.mock("../api/useLeaveData", () => ({
@@ -185,5 +191,44 @@ describe("the confirmation before posting", () => {
     await waitFor(() =>
       expect(screen.queryByText("Do you want to submit this leave?")).toBeNull(),
     );
+  });
+});
+
+// The running app renders every picker as photo + name + address
+// (NotifyPeople.tsx:168-186). The port listed bare addresses, having fetched
+// firstName, lastName and employeeThumbnail and then discarded them.
+describe("picking someone to notify", () => {
+  async function openPicker() {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+    const field = screen.getByPlaceholderText("Add people to notify (optional)");
+    await user.click(field);
+    return { user, field };
+  }
+
+  it("shows a name and a photo, not just an address", async () => {
+    const { user, field } = await openPicker();
+    await user.type(field, "@wso2.com");
+
+    const option = await screen.findByText("Still Here");
+    expect(option).toBeInTheDocument();
+    const row = option.closest("li");
+    expect(row?.querySelector("img")).toHaveAttribute("src", "https://photos.test/still.jpg");
+    // The thumbnails are Google-hosted and 403 without this.
+    expect(row?.querySelector("img")).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(row?.textContent).toContain("here@wso2.com");
+  });
+
+  it("can be searched by name, now that names are what is on screen", async () => {
+    const { user, field } = await openPicker();
+    await user.type(field, "Marked");
+    expect(await screen.findByText("Marked Leaver")).toBeInTheDocument();
+    expect(screen.queryByText("Still Here")).toBeNull();
+  });
+
+  it("still finds someone by address", async () => {
+    const { user, field } = await openPicker();
+    await user.type(field, "here@");
+    expect(await screen.findByText("Still Here")).toBeInTheDocument();
   });
 });

@@ -33,6 +33,8 @@ import {
 } from "@wso2/oxygen-ui";
 import { describeError } from "../util/leaveError";
 import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
+import { EmployeeOption } from "../components/EmployeeOption";
+import { employeeDisplayName } from "../util/employeeName";
 import LeaveShell from "../components/LeaveShell";
 import { LeaveTypeChip } from "../components/LeaveChips";
 import type { DatabaseLeave, EmployeeStatus, LeaveFilter } from "../api/leaveTypes";
@@ -155,10 +157,12 @@ function ReportsBody() {
   const allowed = isPeopleOps || isLead;
   const leaves = useLeaves(filter, Boolean(userInfo.data) && allowed && canScopeToApprover);
 
-  const employeeOptions = useMemo(
-    () => (employees.data ?? []).map((e) => e.workEmail).filter(Boolean),
+  const offerable = useMemo(
+    () => (employees.data ?? []).filter((e) => e.workEmail),
     [employees.data],
   );
+  const employeeOptions = useMemo(() => offerable.map((e) => e.workEmail), [offerable]);
+  const byEmail = useMemo(() => new Map(offerable.map((e) => [e.workEmail, e])), [offerable]);
   // Memoised: `?? []` would hand a fresh array to the grid on every render.
   const rows = useMemo(() => leaves.data?.leaves ?? [], [leaves.data]);
   const totalDays = rows.reduce((sum, r) => sum + (r.numberOfDays ?? 0), 0);
@@ -206,6 +210,28 @@ function ReportsBody() {
                 noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
                 disableListWrap
                 ListboxComponent={VirtualizedListbox}
+                renderOption={(props, option) => {
+                  const person = byEmail.get(option);
+                  return person ? (
+                    <EmployeeOption key={option} employee={person} props={props} showStatus />
+                  ) : (
+                    <li {...props} key={option}>
+                      {option}
+                    </li>
+                  );
+                }}
+                // Names are on screen now, so they have to be searchable.
+                filterOptions={(options, { inputValue }) => {
+                  const q = inputValue.trim().toLowerCase();
+                  if (!q) return options;
+                  return options.filter((o) => {
+                    const e = byEmail.get(o);
+                    return (
+                      o.toLowerCase().includes(q) ||
+                      (e ? employeeDisplayName(e).toLowerCase().includes(q) : false)
+                    );
+                  });
+                }}
                 renderInput={(params) => <TextField {...params} placeholder="All employees" />}
               />
             </Box>

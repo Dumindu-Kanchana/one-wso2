@@ -36,6 +36,8 @@ import {
 import { describeError } from "../util/leaveError";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
+import { EmployeeOption } from "../components/EmployeeOption";
+import { employeeDisplayName } from "../util/employeeName";
 import LeaveShell from "../components/LeaveShell";
 import LeaveBalanceSummary from "../components/LeaveBalanceSummary";
 import {
@@ -199,13 +201,16 @@ function ApplyForm() {
   // and the source drops Left again on the client before offering them as
   // recipients — NotifyPeople.tsx:107. Without that filter the picker offers
   // to email people who have gone.
-  const employeeOptions = useMemo(
-    () =>
-      (employees.data ?? [])
-        .filter((e) => e.employeeStatus !== "Left")
-        .map((e) => e.workEmail)
-        .filter(Boolean),
+  const offerable = useMemo(
+    () => (employees.data ?? []).filter((e) => e.employeeStatus !== "Left" && e.workEmail),
     [employees.data],
+  );
+  const employeeOptions = useMemo(() => offerable.map((e) => e.workEmail), [offerable]);
+  // Options stay addresses — they are what the payload carries, and what the
+  // chips show — so the row is rendered by looking the person up.
+  const byEmail = useMemo(
+    () => new Map(offerable.map((e) => [e.workEmail, e])),
+    [offerable],
   );
   const mandatory = useMemo(
     () => (appConfig.data?.cachedEmails.mandatoryMails ?? []).map((m) => m.email),
@@ -457,6 +462,29 @@ function ApplyForm() {
           noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
           disableListWrap
           ListboxComponent={VirtualizedListbox}
+          renderOption={(props, option) => {
+            const employee = byEmail.get(option);
+            return employee ? (
+              <EmployeeOption key={option} employee={employee} props={props} />
+            ) : (
+              <li {...props} key={option}>
+                {option}
+              </li>
+            );
+          }}
+          // Names are on screen now, so they have to be searchable — matching
+          // the address alone would make a name you can see unfindable.
+          filterOptions={(options, { inputValue }) => {
+            const q = inputValue.trim().toLowerCase();
+            if (!q) return options;
+            return options.filter((o) => {
+              const e = byEmail.get(o);
+              return (
+                o.toLowerCase().includes(q) ||
+                (e ? employeeDisplayName(e).toLowerCase().includes(q) : false)
+              );
+            });
+          }}
           renderTags={(value, getTagProps) =>
             value.map((option, index) => {
               const isFixed = mandatory.includes(option);
