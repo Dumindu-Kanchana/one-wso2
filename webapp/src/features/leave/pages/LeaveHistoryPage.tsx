@@ -56,6 +56,7 @@ import {
   parseIso,
   startOfYearIso,
 } from "../util/leaveDates";
+import { CANCEL_CONFIRMATION, SnackMessage, noLeaveHistoryFor } from "../util/leaveCopy";
 
 // A leave whose start is more than this many days in the past can't be
 // cancelled from here (matches leave-app's allowedDaysToCancelLeave default).
@@ -123,7 +124,7 @@ function HistoryBody() {
         <Alert severity="error">Couldn't load your leave. {describeError(leaves.error)}</Alert>
       ) : (leaves.data?.leaves.length ?? 0) === 0 ? (
         <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>
-          No leave on record for {year}.
+          {noLeaveHistoryFor(year)}
         </Typography>
       ) : (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" }, gap: 1.5 }}>
@@ -210,12 +211,17 @@ function LeaveCard({ leave, onCancel }: { leave: DatabaseLeave; onCancel: () => 
 function CancelDialog({ leave, onClose }: { leave: DatabaseLeave | null; onClose: () => void }) {
   const cancel = useCancelLeave();
   const { showSuccess, showError } = useNotifications();
+  // The same name the row shows. The source builds "${Capitalised} Leave" here,
+  // which renders "Conges_payes Leave"; we keep the row's label instead.
+  const cancelType = leave?.leaveType as LeaveType | undefined;
+  const cancelLeaveLabel =
+    cancelType && cancelType in LEAVE_TYPE_LABEL ? LEAVE_TYPE_LABEL[cancelType] : "leave";
 
   const handleConfirm = () => {
     if (!leave) return;
     cancel.mutate(leave.id, {
       onSuccess: () => {
-        showSuccess("Leave cancelled");
+        showSuccess(SnackMessage.success.cancelLeaveMessage);
         onClose();
       },
       onError: (err) => showError(describeError(err)),
@@ -224,19 +230,25 @@ function CancelDialog({ leave, onClose }: { leave: DatabaseLeave | null; onClose
 
   return (
     <Dialog open={!!leave} onClose={cancel.isPending ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Cancel leave?</DialogTitle>
+      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>{CANCEL_CONFIRMATION.title}</DialogTitle>
       <DialogContent dividers>
+        {/* The source names the leave and its dates and says the action is
+            final — LeaveCard.tsx:50-57. It makes no claim about who gets
+            told, so neither do we. */}
         <Typography sx={{ fontSize: 13.5 }}>
-          This will cancel your leave from <b>{formatNice(leave?.startDate)}</b> to{" "}
-          <b>{formatNice(leave?.endDate)}</b>. Anyone notified will be told it's cancelled.
+          {CANCEL_CONFIRMATION.body({
+            leaveLabel: cancelLeaveLabel,
+            startDate: formatNice(leave?.startDate),
+            endDate: formatNice(leave?.endDate),
+          })}
         </Typography>
       </DialogContent>
       <DialogActions>
         <Button size="small" onClick={onClose} disabled={cancel.isPending}>
-          Keep it
+          {CANCEL_CONFIRMATION.dismiss}
         </Button>
         <Button size="small" color="error" variant="contained" onClick={handleConfirm} disabled={cancel.isPending}>
-          {cancel.isPending ? "Cancelling…" : "Cancel leave"}
+          {cancel.isPending ? "Cancelling…" : CANCEL_CONFIRMATION.confirm}
         </Button>
       </DialogActions>
     </Dialog>

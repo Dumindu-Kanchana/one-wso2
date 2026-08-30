@@ -18,14 +18,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { authedDelete, authedPost } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { leaveServiceUrls } from "@config/apiConfig";
-import type { CalculatedLeave, LeavePayload } from "./leaveTypes";
+import type { CalculatedLeave, LeavePayload, LeaveValidationPayload } from "./leaveTypes";
 
 // POST /leaves?isValidationOnlyMode=true — returns computed working days +
 // overlap check without creating anything. The Apply form calls this on
 // every date/portion change to surface "N working days" and validity.
 export function useValidateLeave() {
   const getAccessToken = useAccessToken();
-  return useMutation<CalculatedLeave, Error, LeavePayload>({
+  return useMutation<CalculatedLeave, Error, LeaveValidationPayload>({
     mutationFn: async (payload) => {
       const accessToken = await getAccessToken();
       const res = await authedPost<CalculatedLeave>(

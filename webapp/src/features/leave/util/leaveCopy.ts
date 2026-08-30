@@ -27,6 +27,43 @@ import type { LeaveType } from "../api/leaveTypes";
 // Nothing here is invented. A string that the source does not have is a
 // question, not something to write.
 
+/**
+ * The caption beside Submit, telling the user who will read their comment —
+ * `GeneralLeave.tsx:345-349`. The port had dropped it, so nothing on screen
+ * explained what the Public comment switch actually changes.
+ */
+export const PUBLIC_COMMENT_NOTE = {
+  public: "Your comment will be visible to all email recipients.",
+  private: "Your comment will be visible to all email recipients except the WSO2 Vacation Group.",
+} as const;
+
+/** The Public comment switch — `AdditionalComment.tsx:62`. */
+export const PUBLIC_COMMENT_LABEL = "Public comment";
+
+/** `LeaveCard.tsx:50-57`. */
+export const CANCEL_CONFIRMATION = {
+  title: "Do you want to cancel this leave?",
+  body: (args: { leaveLabel: string; startDate: string; endDate: string }) =>
+    `This will cancel your ${args.leaveLabel} (${args.startDate} \u2013 ${args.endDate}). ` +
+    `This action cannot be undone.`,
+  confirm: "Yes, Cancel",
+  dismiss: "No, Keep It",
+} as const;
+
+/** `LeaveHistory.tsx:151`. */
+export const noLeaveHistoryFor = (year: number) => `No leave history available for ${year}.`;
+
+/**
+ * The Apply form's own submit messages — `GeneralLeave.tsx:147,158`.
+ *
+ * Deliberately not `SnackMessage.submitLeaveMessage`: GeneralLeave hardcodes
+ * its own strings and the success one ends in an exclamation mark the shared
+ * constant does not have. The sabbatical path goes through the slice and so
+ * gets the SnackMessage wording instead.
+ */
+export const SUBMIT_SUCCESS = "Leave request submitted successfully!";
+export const SUBMIT_FAILED_FALLBACK = "Failed to submit leave request. Please try again.";
+
 /** `config/constant.ts:17-43`. */
 export const SnackMessage = {
   success: {

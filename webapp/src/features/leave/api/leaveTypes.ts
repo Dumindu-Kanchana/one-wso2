@@ -129,16 +129,26 @@ export interface FetchedLeavesRecord {
   leaves: DatabaseLeave[];
 }
 
-// POST /leaves body.
-export interface LeavePayload {
+// POST /leaves?isValidationOnlyMode=true body — `types.ts:128-133`. Four
+// fields, no comment and no recipients: this asks the backend to count working
+// days, not to record anything.
+export interface LeaveValidationPayload {
   startDate: string;
   endDate: string;
   isMorningLeave?: boolean | null;
   periodType?: LeavePeriodType;
+}
+
+// POST /leaves body — `types.ts:164-173`.
+export interface LeavePayload extends LeaveValidationPayload {
   leaveType?: LeaveType;
   emailRecipients?: string[];
   calendarEventId?: string | null;
-  comment?: string | null;
+  /**
+   * Always a string, never null — `types.ts:169` types it as a required
+   * `string` and the source sends its raw state, which is "" when untouched.
+   */
+  comment: string;
   isPublicComment?: boolean;
   emailSubject?: string | null;
 }
