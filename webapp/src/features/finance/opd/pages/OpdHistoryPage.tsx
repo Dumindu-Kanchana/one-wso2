@@ -25,6 +25,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  InputLabel,
   MenuItem,
   Select,
   Skeleton,
@@ -34,6 +35,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from "@wso2/oxygen-ui";
 import { isOpdBackendConfigured } from "@config/apiConfig";
@@ -43,7 +45,13 @@ import { describeError } from "../../util/financeError";
 import { money, formatNice } from "../../util/financeFormat";
 import { useOpdClaims, useOpdUserInfo } from "../useOpd";
 import { OpdClaimDetailsDialog } from "../OpdClaimDetailsDialog";
-import type { OpdClaim } from "../opdTypes";
+import {
+  OPD_FILTERABLE_STATUSES,
+  opdStatusFilter,
+  type OpdClaim,
+  type OpdClaimRange,
+  type OpdClaimStatus,
+} from "../opdTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function OpdHistoryPage() {
@@ -63,14 +71,33 @@ export default function OpdHistoryPage() {
 function HistoryBody() {
   const userInfo = useOpdUserInfo();
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
   const [selected, setSelected] = useState<OpdClaim | null>(null);
   const [resubmitting, setResubmitting] = useState<OpdClaim | null>(null);
   const navigate = useNavigate();
 
+  // FilterHolder.tsx — the source filters on a year RANGE, a status and a claim
+  // id, not a single year. A claim from two years ago was unreachable here.
+  const [range, setRange] = useState<OpdClaimRange>("This Year");
+  const [customStart, setCustomStart] = useState(currentYear - 1);
+  const [customEnd, setCustomEnd] = useState(currentYear);
+  const [status, setStatus] = useState<OpdClaimStatus | "All">("All");
+  const [claimId, setClaimId] = useState("");
+
+  // :51-65 — This Year and Last Year are single years; Custom spans the two
+  // pickers.
+  const startYear = range === "This Year" ? currentYear : range === "Last Year" ? currentYear - 1 : customStart;
+  const endYear = range === "This Year" ? currentYear : range === "Last Year" ? currentYear - 1 : customEnd;
+
   const email = userInfo.data?.workEmail ?? undefined;
   const claims = useOpdClaims(
-    { email, startYear: year, endYear: year },
+    {
+      email,
+      startYear,
+      endYear,
+      // :75 — a claim id is sent as a one-element list, and only when given.
+      ids: claimId.trim() ? [claimId.trim()] : undefined,
+      status: opdStatusFilter(status === "All" ? [] : [status]),
+    },
     Boolean(email),
   );
 
@@ -82,17 +109,88 @@ function HistoryBody() {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-        <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>Year</Typography>
+      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2, flexWrap: "wrap", rowGap: 1.5 }}>
         <FormControl size="small">
-          <Select value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 110 }}>
-            {years.map((y) => (
-              <MenuItem key={y} value={y}>
-                {y}
+          <InputLabel id="opd-range">Period</InputLabel>
+          <Select
+            labelId="opd-range"
+            label="Period"
+            value={range}
+            onChange={(e) => setRange(e.target.value as OpdClaimRange)}
+            sx={{ minWidth: 140 }}
+          >
+            {(["This Year", "Last Year", "Custom"] as OpdClaimRange[]).map((r) => (
+              <MenuItem key={r} value={r}>
+                {r}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
+
+        {range === "Custom" && (
+          <>
+            <FormControl size="small">
+              <InputLabel id="opd-start">Start Year</InputLabel>
+              <Select
+                labelId="opd-start"
+                label="Start Year"
+                value={customStart}
+                onChange={(e) => setCustomStart(Number(e.target.value))}
+                sx={{ minWidth: 110 }}
+              >
+                {years.map((y) => (
+                  <MenuItem key={y} value={y}>
+                    {y}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small">
+              <InputLabel id="opd-end">End Year</InputLabel>
+              <Select
+                labelId="opd-end"
+                label="End Year"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(Number(e.target.value))}
+                sx={{ minWidth: 110 }}
+              >
+                {years.map((y) => (
+                  <MenuItem key={y} value={y}>
+                    {y}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </>
+        )}
+
+        <FormControl size="small">
+          <InputLabel id="opd-status">Status</InputLabel>
+          <Select
+            labelId="opd-status"
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as OpdClaimStatus | "All")}
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="All">All</MenuItem>
+            {/* PENDING_OLD is not offered — "Pending Finance" already covers it
+                through opdStatusFilter (FilterBox.tsx:82-84). */}
+            {OPD_FILTERABLE_STATUSES.map((st) => (
+              <MenuItem key={st} value={st}>
+                {opdStatusMeta(st).label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <TextField
+          size="small"
+          label="Filter by claim ID"
+          value={claimId}
+          onChange={(e) => setClaimId(e.target.value)}
+          sx={{ minWidth: 200 }}
+        />
       </Stack>
 
       {userInfo.isLoading || claims.isLoading ? (
@@ -105,7 +203,9 @@ function HistoryBody() {
         <Alert severity="error">Couldn't load your claims. {describeError(claims.error)}</Alert>
       ) : (claims.data?.length ?? 0) === 0 ? (
         <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>
-          No OPD claims on record for {year}.
+          {startYear === endYear
+            ? `No OPD claims on record for ${startYear}.`
+            : `No OPD claims on record for ${startYear}–${endYear}.`}
         </Typography>
       ) : (
         <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>

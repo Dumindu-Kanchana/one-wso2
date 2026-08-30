@@ -51,7 +51,8 @@ Limits: description 100 characters; receipt 10 MB; JPG, PNG or PDF.
 
 ### 2.2 Claim history — `/me/opd/history`
 
-The employee's own claims for a chosen year. Opening one shows its bills, receipts and,
+The employee's own claims, filtered by **period** (This Year / Last Year / Custom, the
+last spanning a start and end year), **status** and **claim ID**. Opening one shows its bills, receipts and,
 when rejected, the finance reason.
 
 **Resubmission.** A *rejected* claim offers "Resubmit as New Claim": its bills seed a
@@ -59,10 +60,13 @@ fresh claim, replacing whatever draft was saved. It does not amend the rejected 
 
 ### 2.3 Approvals — `/me/opd/approvals`
 
-Finance-only. Three tabs — Pending, Approved, Rejected.
+Finance-only. Three tabs — Pending, Approved, Rejected — narrowable by **employee** and
+**claim ID**.
 
 **Pending asks for `PENDING` *and* `PENDING_OLD`.** Claims filed before the status was
 split carry `PENDING_OLD`; asking for `PENDING` alone hides them from the queue entirely.
+The rule lives in `opdStatusFilter` so the history status filter gets it too, and
+`PENDING_OLD` is never offered as its own choice.
 Pending is not year-scoped, so nothing ages out of it; Approved and Rejected scope to the
 current year.
 
@@ -85,10 +89,8 @@ current year.
 Redux store; One WSO2 renders three routes inside its own shell with React Query. Mobile
 layouts are the host's responsibility.
 
-**Not ported.** The claim-activity **timeline** (Claim Submission → Finance Review), the
-**"Print Claim" PDF export** (`ReportTemplate` + `@react-pdf/renderer`), and the richer
-history **filters** — the source offers a year *range* (This/Last/Custom), a status
-filter, a claim-ID search and an employee filter; the port has a single year dropdown.
+**Not ported.** The claim-activity **timeline** (Claim Submission → Finance Review) and
+the **"Print Claim" PDF export** (`ReportTemplate` + `@react-pdf/renderer`).
 
 **Copy.** The port keeps its own register in places the source words differently — "Add a
 bill" vs "Add OPD Claim", "Amount (LKR)" vs a `Rs.` adornment on "Claim Amount", and
@@ -115,7 +117,9 @@ follow the tab; a seeded draft picks its own year) · single-year rule · year-s
 warning clears bills and draft · resubmit offered only on a rejected claim, and only
 after confirmation · Pending asks for both pending statuses and no year · draft offered
 rather than loaded, with both refusal cases · draft-deletion warning · submit
-confirmation · in-place edit replaces the row and frees its own amount.
+confirmation · in-place edit replaces the row and frees its own amount · the period,
+status and claim-ID filters as request payloads, including the legacy-pending rule and
+that the legacy status is not offered on its own.
 
 ## 7. Unverified — questions for a live tenant
 

@@ -53,18 +53,20 @@ const rejectedClaim = {
 
 const state = { claims: [rejectedClaim] as unknown[] };
 
+// Every search payload the screen asks for, so filter assertions are about
+// what reaches the backend rather than what renders.
+const payloads: Record<string, unknown>[] = [];
+
 vi.mock("../useOpd", () => ({
   useOpdUserInfo: () => ({
     data: { workEmail: "me@wso2.com", userRoles: [444] },
     isLoading: false,
     isError: false,
   }),
-  useOpdClaims: () => ({
-    data: state.claims,
-    isLoading: false,
-    isError: false,
-    isSuccess: true,
-  }),
+  useOpdClaims: (payload: Record<string, unknown>) => {
+    payloads.push(payload);
+    return { data: state.claims, isLoading: false, isError: false, isSuccess: true };
+  },
   useOpdEmployees: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
@@ -81,6 +83,7 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   navigate.mockClear();
+  payloads.length = 0;
   state.claims = [rejectedClaim];
 });
 
@@ -150,5 +153,68 @@ describe("resubmitting a rejected claim", () => {
       expect(screen.queryByText("Claim Resubmission Confirmation")).not.toBeInTheDocument(),
     );
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+// FilterHolder.tsx. The source filters on a year RANGE, a status and a claim
+// id; the port had a single year dropdown, so a claim from two years ago — or a
+// known claim id — could not be reached at all.
+describe("what the history screen filters on", () => {
+  it("defaults to this year", async () => {
+    show();
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    const year = new Date().getFullYear();
+    expect(payloads.at(-1)).toMatchObject({ startYear: year, endYear: year });
+  });
+
+  it("moves the whole range to last year", async () => {
+    show();
+    fireEvent.mouseDown(screen.getByLabelText("Period"));
+    fireEvent.click(await screen.findByRole("option", { name: "Last Year" }));
+    const year = new Date().getFullYear() - 1;
+    await waitFor(() => expect(payloads.at(-1)).toMatchObject({ startYear: year, endYear: year }));
+  });
+
+  it("spans several years on Custom", async () => {
+    show();
+    fireEvent.mouseDown(screen.getByLabelText("Period"));
+    fireEvent.click(await screen.findByRole("option", { name: "Custom" }));
+    const start = new Date().getFullYear() - 3;
+    fireEvent.mouseDown(await screen.findByLabelText("Start Year"));
+    fireEvent.click(await screen.findByRole("option", { name: String(start) }));
+    await waitFor(() => expect(payloads.at(-1)!.startYear).toBe(start));
+    expect(payloads.at(-1)!.endYear).toBe(new Date().getFullYear());
+  });
+
+  it("sends no status until one is chosen", async () => {
+    show();
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    expect(payloads.at(-1)!.status).toBeUndefined();
+  });
+
+  it("carries legacy pending claims when filtering by pending", async () => {
+    show();
+    fireEvent.mouseDown(screen.getByLabelText("Status"));
+    fireEvent.click(await screen.findByRole("option", { name: "Pending Finance" }));
+    await waitFor(() => expect(payloads.at(-1)!.status).toEqual(["PENDING", "PENDING_OLD"]));
+  });
+
+  it("does not offer the legacy status as its own choice", async () => {
+    show();
+    fireEvent.mouseDown(screen.getByLabelText("Status"));
+    await screen.findByRole("option", { name: "All" });
+    expect(screen.queryByRole("option", { name: /Pending Old/i })).not.toBeInTheDocument();
+  });
+
+  it("sends a claim id as a one-element list", async () => {
+    show();
+    fireEvent.change(screen.getByLabelText("Filter by claim ID"), { target: { value: " C-9 " } });
+    await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["C-9"]));
+  });
+
+  it("omits the claim id when the box is empty", async () => {
+    show();
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    expect(payloads.at(-1)!.ids).toBeUndefined();
   });
 });

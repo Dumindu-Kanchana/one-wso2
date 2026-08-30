@@ -97,3 +97,28 @@ describe("what the finance queue asks for", () => {
     await waitFor(() => expect(payloads.at(-1)!.status).toEqual(["REJECTED"]));
   });
 });
+
+// FilterHolder.tsx:271-296,300-306 — the finance view can narrow the queue to
+// one employee or one claim id. Without them the only way to find a claim is to
+// scroll the whole company's.
+describe("narrowing the finance queue", () => {
+  it("sends no email or id by default", async () => {
+    show();
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    expect(payloads.at(-1)!.email).toBeUndefined();
+    expect(payloads.at(-1)!.ids).toBeUndefined();
+  });
+
+  it("filters to one claim id", async () => {
+    show();
+    fireEvent.change(screen.getByLabelText("Filter by claim ID"), { target: { value: "C-42" } });
+    await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["C-42"]));
+  });
+
+  it("keeps the tab's status while filtering", async () => {
+    show();
+    fireEvent.change(screen.getByLabelText("Filter by claim ID"), { target: { value: "C-42" } });
+    await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["C-42"]));
+    expect(payloads.at(-1)!.status).toEqual(["PENDING", "PENDING_OLD"]);
+  });
+});

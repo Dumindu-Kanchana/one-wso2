@@ -17,6 +17,7 @@
 import { useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Skeleton,
@@ -26,25 +27,23 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Stack,
   Tabs,
+  TextField,
   Typography,
 } from "@wso2/oxygen-ui";
 import { isOpdBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { money, formatNice } from "../../util/financeFormat";
-import { useOpdClaims, useOpdUserInfo } from "../useOpd";
+import { useOpdClaims, useOpdEmployees, useOpdUserInfo } from "../useOpd";
 import { OpdClaimDetailsDialog } from "../OpdClaimDetailsDialog";
-import { OPD_ROLE, opdHasRole, type OpdClaim, type OpdClaimStatus } from "../opdTypes";
+import { OPD_ROLE, opdHasRole, opdStatusFilter, type OpdClaim, type OpdClaimStatus } from "../opdTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 type TabKey = "pending" | "approved" | "rejected";
 const TAB_STATUS: Record<TabKey, OpdClaimStatus[]> = {
-  // PENDING_OLD rides along with PENDING — filteredClaimsSlice.ts:82-89 adds it
-  // whenever PENDING is the only status asked for. Claims filed before the
-  // status was split carry PENDING_OLD, so asking for PENDING alone hides them
-  // from the finance queue entirely and nobody can action them.
-  pending: ["PENDING", "PENDING_OLD"],
+  pending: ["PENDING"],
   approved: ["APPROVED"],
   rejected: ["REJECTED"],
 };
@@ -70,12 +69,21 @@ function ApprovalsBody() {
 
   const isFinance = opdHasRole(userInfo.data, OPD_ROLE.FINANCE_APPROVER);
   const currentYear = new Date().getFullYear();
+  // FilterHolder.tsx:271-296,300-306 — the finance view can narrow the queue to
+  // one employee or one claim id. Without them the only way to find a claim is
+  // to scroll the whole company's.
+  const [claimId, setClaimId] = useState("");
+  const [employee, setEmployee] = useState<string | null>(null);
+  const employees = useOpdEmployees(isFinance);
+
   const claims = useOpdClaims(
     {
-      status: TAB_STATUS[tab],
+      status: opdStatusFilter(TAB_STATUS[tab]),
       // Pending spans all years; approved/rejected scope to this year.
       startYear: tab === "pending" ? undefined : currentYear,
       endYear: tab === "pending" ? undefined : currentYear,
+      ids: claimId.trim() ? [claimId.trim()] : undefined,
+      email: employee ?? undefined,
     },
     isFinance,
   );
@@ -98,6 +106,25 @@ function ApprovalsBody() {
         <Tab value="approved" label="Approved" />
         <Tab value="rejected" label="Rejected" />
       </Tabs>
+
+      <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: "wrap", rowGap: 1.5 }}>
+        <Autocomplete
+          size="small"
+          options={(employees.data ?? []).map((e) => e.workEmail)}
+          value={employee}
+          onChange={(_e, v) => setEmployee(v)}
+          loading={employees.isLoading}
+          sx={{ minWidth: 260 }}
+          renderInput={(params) => <TextField {...params} label="Filter by email" />}
+        />
+        <TextField
+          size="small"
+          label="Filter by claim ID"
+          value={claimId}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClaimId(e.target.value)}
+          sx={{ minWidth: 200 }}
+        />
+      </Stack>
 
       {claims.isLoading ? (
         <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />
