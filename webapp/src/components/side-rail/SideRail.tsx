@@ -22,8 +22,10 @@ import { useActivePerspective } from "@context/perspective/PerspectiveContext";
 import type { PerspectiveSection } from "@constants/perspectives";
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
 import { FINANCE_ITEM_IDS } from "@constants/financeApps";
+import { LEAVE_ITEM_IDS } from "@constants/meApps";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
+import { useLeaveGate } from "@features/leave/api/useLeaveGate";
 import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
 
 // Context-sensitive left rail, built on Oxygen's compound `Sidebar`.
@@ -102,6 +104,12 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // Only fetch those roles while Me is active.
   const financeGate = useFinanceGate(active.key === "me");
 
+  // Leave is the same problem again: its backend numbers LEAD 879 /
+  // PEOPLE_OPS_TEAM 789, unrelated to people-app's 993 / 999. Reading
+  // `requires` against `caps` showed Reports to a people-app lead who cannot
+  // use it, and hid it from a leave lead who can.
+  const leaveGate = useLeaveGate(active.key === "me");
+
   // Marketing Ops is the same shape of problem and needs the same treatment:
   // its rail gates on the MARKETING OPS backend's own Asgardeo groups
   // (app-marketingops-*), which bear no relation to the people-app privilege
@@ -116,6 +124,7 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
 
   const resolveVisible = (s: PerspectiveSection): boolean => {
     if (FINANCE_ITEM_IDS.has(s.id)) return financeGate.canSee(s.id);
+    if (LEAVE_ITEM_IDS.has(s.id)) return leaveGate.canSee(s.id);
     if (isMarketingOps) return marketingOpsGate.canSee(s.id);
     return sectionAllowed(s.requires, caps);
   };

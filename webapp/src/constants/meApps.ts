@@ -58,3 +58,10 @@ export const ME_APPS: readonly MenuApp[] = [
     ],
   },
 ];
+
+// Item ids the rail must route to Leave's OWN gate rather than resolving
+// `requires` against people-app capabilities — the leave backend has its own
+// privilege vocabulary. See features/leave/api/useLeaveGate.
+export const LEAVE_ITEM_IDS: ReadonlySet<string> = new Set(
+  (ME_APPS.find((app) => app.key === "leave")?.items ?? []).map((it) => it.id),
+);

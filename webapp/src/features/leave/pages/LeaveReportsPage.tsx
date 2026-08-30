@@ -39,8 +39,9 @@ import { describeError } from "../util/leaveError";
 import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
 import LeaveShell from "../components/LeaveShell";
 import { LeaveTypeChip } from "../components/LeaveChips";
-import { LEAVE_PRIVILEGE, type EmployeeStatus, type LeaveFilter } from "../api/leaveTypes";
+import type { EmployeeStatus, LeaveFilter } from "../api/leaveTypes";
 import { useLeaveEmployees, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
+import { useLeaveGate } from "../api/useLeaveGate";
 import { formatNice, startOfYearIso, todayIso } from "../util/leaveDates";
 
 const PERIOD_LABEL: Record<string, string> = {
@@ -68,12 +69,11 @@ export default function LeaveReportsPage() {
 
 function ReportsBody() {
   const userInfo = useLeaveUserInfo();
-  const privileges = userInfo.data?.privileges ?? [];
-  const isPeopleOps = privileges.includes(LEAVE_PRIVILEGE.PEOPLE_OPS_TEAM);
-  const isLead =
-    userInfo.data?.isLead === true ||
-    privileges.includes(LEAVE_PRIVILEGE.LEAD) ||
-    (userInfo.data?.subordinateCount ?? 0) > 0;
+  // One source of truth with the rail, so the menu and the page cannot
+  // disagree about who gets in. Previously this also accepted `isLead === true`
+  // and `subordinateCount > 0`, granting the report to people the source never
+  // grants it to — it checks the privilege number alone.
+  const { isPeopleOps, isLead } = useLeaveGate();
 
   const employees = useLeaveEmployees(isPeopleOps);
 

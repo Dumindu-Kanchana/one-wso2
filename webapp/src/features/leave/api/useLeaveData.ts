@@ -53,7 +53,9 @@ function leavesQuery(filter: LeaveFilter): string {
 // GET /user-info from the LEAVE backend. Distinct from people-app's — this
 // one carries isLead, subordinateCount, location, leadEmail and the leave
 // privilege scheme. Keyed per-user so an account switch can't leak.
-export function useLeaveUserInfo() {
+// `enabled` lets the rail's gate avoid firing this while the Me perspective is
+// not active, matching useFinanceGate / useMarketingOpsGate.
+export function useLeaveUserInfo(enabled = true) {
   const { isSignedIn } = useAsgardeo();
   const getAccessToken = useAccessToken();
   const { state: subState, retry: retryIdentity } = useAsgardeoSub();
@@ -61,7 +63,7 @@ export function useLeaveUserInfo() {
   const configured = isLeaveBackendConfigured();
   const query = useQuery<LeaveUserInfo>({
     queryKey: ["leave-user-info", userSub],
-    enabled: isSignedIn && configured && Boolean(userSub),
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
       return authedGet<LeaveUserInfo>(leaveServiceUrls.userInfo, accessToken);
