@@ -20,7 +20,6 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SessionExpiryWatcher from "./SessionExpiryWatcher";
-import { POST_LOGIN_KEY } from "@layouts/postLoginRedirect";
 
 const signIn = vi.fn();
 const signOut = vi.fn();
@@ -80,51 +79,35 @@ describe("SessionExpiryWatcher", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("signs in and comes back to the page the user was on", async () => {
-    expired.value = true;
-    show("/me/par/team");
-    await userEvent.setup().click(screen.getByRole("button", { name: "Sign in again" }));
-    expect(signIn).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.getItem(POST_LOGIN_KEY)).toBe("/me/par/team");
-  });
-
-  it("stores no return path for a location that is not worth restoring", async () => {
-    // AuthGuard's own rule: "/" resolves itself, and an IdP round-trip URL
-    // replayed after login used to strand the app.
-    expired.value = true;
-    show("/");
-    await userEvent.setup().click(screen.getByRole("button", { name: "Sign in again" }));
-    expect(signIn).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.getItem(POST_LOGIN_KEY)).toBeNull();
-  });
-
-  // The dialog has no dismiss, so if signIn() never fires the user is stuck
-  // looking at it. sessionStorage throws under a storage-blocking policy and on
-  // quota, and remembering where to return is a convenience — signing in is not.
-  it("still signs in when the browser refuses to store the return path", async () => {
-    // Replacing the object, not spying on it: this environment's sessionStorage
-    // is not the prototype-backed one, so vi.spyOn(Storage.prototype) silently
-    // has no effect and the test passes whether the guard is there or not.
-    const real = globalThis.sessionStorage;
-    Object.defineProperty(globalThis, "sessionStorage", {
+  // A HAR of the real failure: zero authorize requests, API calls returning 201
+  // throughout, and the dialog stuck until the user reloaded by hand. signIn()
+  // resolves without navigating when the SDK still considers the session live —
+  // precisely when this dialog is most likely to be wrong — so the button did
+  // nothing and the modal has no dismiss.
+  it("reloads, so the button always gets the user out", async () => {
+    const reload = vi.fn();
+    Object.defineProperty(window, "location", {
       configurable: true,
-      value: {
-        setItem() {
-          throw new DOMException("denied", "SecurityError");
-        },
-        getItem: () => null,
-        removeItem() {},
-      },
+      value: { ...window.location, reload },
     });
-    try {
-      expired.value = true;
-      show("/me/par/team");
-      await userEvent.setup().click(screen.getByRole("button", { name: "Sign in again" }));
-      expect(signIn).toHaveBeenCalledTimes(1);
-    } finally {
-      Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: real });
-    }
+    expired.value = true;
+    show("/me/leave/apply");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Sign in again" }));
+    expect(reload).toHaveBeenCalledTimes(1);
   });
+
+  it("does not depend on the SDK agreeing that the session is gone", async () => {
+    const reload = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, reload },
+    });
+    expired.value = true;
+    show("/me/leave/apply");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Sign in again" }));
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
 
   it("offers signing out as the other way forward", async () => {
     expired.value = true;

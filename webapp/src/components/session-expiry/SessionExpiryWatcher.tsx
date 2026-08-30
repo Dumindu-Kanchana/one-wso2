@@ -15,11 +15,8 @@
 // under the License.
 
 import { useSyncExternalStore, type JSX } from "react";
-import { useAsgardeo } from "@asgardeo/react";
-import { useLocation } from "react-router";
 import { getSessionExpiredSnapshot, subscribeSessionExpiry } from "@api/authBridge";
 import { useSecureSignOut } from "@hooks/useSecureSignOut";
-import { isRestorableTarget, rememberPostLoginTarget } from "@layouts/postLoginRedirect";
 import SessionExpiredDialog from "./SessionExpiredDialog";
 
 /**
@@ -39,19 +36,25 @@ import SessionExpiredDialog from "./SessionExpiredDialog";
  */
 export default function SessionExpiryWatcher(): JSX.Element {
   const expired = useSyncExternalStore(subscribeSessionExpiry, getSessionExpiredSnapshot);
-  const { signIn } = useAsgardeo();
   const secureSignOut = useSecureSignOut();
-  const location = useLocation();
 
+  // Reload, rather than calling the SDK's signIn().
+  //
+  // signIn() only redirects when the SDK agrees the session is gone; when it
+  // still considers the user signed in it resolves immediately and navigates
+  // nowhere. That is exactly the case this dialog is most likely to be wrong
+  // about — a renewal can time out while the token is perfectly good — and it
+  // left the button doing nothing at all, with no dismiss and no way out. A HAR
+  // of it shows zero authorize requests and API calls returning 201 throughout,
+  // until the user reloaded by hand.
+  //
+  // A reload is what that hand-reload did, and it recovers either way: the flag
+  // is module state, so it clears; if the session really is gone, AuthGuard
+  // takes over on the way back up and performs the redirect itself, stashing the
+  // return path as it always does. The URL is unchanged, so the user lands back
+  // on the page they were on without needing a stash here at all.
   const handleSignIn = () => {
-    // Same stash AuthGuard performs for an interrupted sign-in, so the round
-    // trip returns the user to the page they were on rather than the landing
-    // page. Its own effect consumes this once the SDK reports signed in.
-    const href = location.pathname + location.search + location.hash;
-    if (isRestorableTarget(location.pathname, location.search)) {
-      rememberPostLoginTarget(href);
-    }
-    signIn();
+    window.location.reload();
   };
 
   return (
