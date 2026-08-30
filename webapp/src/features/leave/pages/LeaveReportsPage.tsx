@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import {
   Alert,
+  DataGrid,
   Autocomplete,
   Box,
   Button,
@@ -26,12 +27,6 @@ import {
   Skeleton,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -41,9 +36,6 @@ import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListb
 import LeaveShell from "../components/LeaveShell";
 import { LeaveTypeChip } from "../components/LeaveChips";
 import type { DatabaseLeave, EmployeeStatus, LeaveFilter } from "../api/leaveTypes";
-// Shared table furniture, currently living in the CRM Upload feature — the same
-// import My Team makes. Hoisting it to src/components/ is a separate change.
-import { PagingFooter } from "@features/marketing-ops/crm-upload/components/CrmUi";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { REPORT_VALIDATION_MESSAGE } from "../util/leaveCopy";
 import { useLeaveEmployees, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
@@ -101,21 +93,10 @@ function ReportsBody() {
     employeeStatuses: DEFAULT_EMPLOYEE_STATUSES,
   });
 
-  // The source pages at 10 (LeadReportTable.tsx:154).
-  const [sort, setSort] = useState<{ field: SortField; direction: "asc" | "desc" }>({
-    field: "startDate",
-    direction: "desc",
-  });
-  const [page, setPage] = useState(1);
-  const toggleSort = (field: SortField) => {
-    setSort((s) => (s.field === field ? { field, direction: s.direction === "asc" ? "desc" : "asc" } : { field, direction: "asc" }));
-    setPage(1);
-  };
+  const { showError } = useNotifications();
 
   // Checked on Fetch, not left to the To field's `min` — that only constrains
   // the picker, and a typed date goes straight past it (Toolbar.tsx:95-107).
-  const { showError } = useNotifications();
-
   const runReport = () => {
     if (!fromDate || !toDate) {
       showError(REPORT_VALIDATION_MESSAGE.datesRequired);
@@ -126,7 +107,6 @@ function ReportsBody() {
       return;
     }
     setApplied({ from: fromDate, to: toDate, email: employee, showAllEmployees, employeeStatuses });
-    setPage(1);
   };
 
   const workEmail = userInfo.data?.workEmail ?? null;
@@ -179,37 +159,14 @@ function ReportsBody() {
     () => (employees.data ?? []).map((e) => e.workEmail).filter(Boolean),
     [employees.data],
   );
-
-  // Memoised: `?? []` hands a fresh array to the sort below on every render,
-  // which would defeat its useMemo entirely.
-  const all = useMemo(() => leaves.data?.leaves ?? [], [leaves.data]);
-  const totalDays = all.reduce((sum, r) => sum + (r.numberOfDays ?? 0), 0);
-
-  // The source's report is a DataGrid, so it arrives sorted-on-click and paged
-  // at 10 rows (LeadReportTable.tsx:150-178). The port rendered every row into a
-  // plain table in whatever order the backend returned, and capped the fetch at
-  // 1000 to keep that survivable — a cap the source has no need for because it
-  // never renders more than a page.
-  const sorted = useMemo(() => {
-    const copy = [...all];
-    copy.sort((a, b) => {
-      const av = sortValue(a, sort.field);
-      const bv = sortValue(b, sort.field);
-      if (av === bv) return 0;
-      const order = av < bv ? -1 : 1;
-      return sort.direction === "asc" ? order : -order;
-    });
-    return copy;
-  }, [all, sort]);
-
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const rows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  // Memoised: `?? []` would hand a fresh array to the grid on every render.
+  const rows = useMemo(() => leaves.data?.leaves ?? [], [leaves.data]);
+  const totalDays = rows.reduce((sum, r) => sum + (r.numberOfDays ?? 0), 0);
 
   // The source shows its total only for a single-employee result
-  // (LeadReportTable.tsx:57-59,141) — summing days across a mixed list answers
-  // no question anyone asked.
-  const oneEmployee = new Set(all.map((r) => r.email)).size === 1;
+  // (LeadReportTable.tsx:141) — summing days across a mixed list answers no
+  // question anyone asked.
+  const oneEmployee = new Set(rows.map((r) => r.email)).size === 1;
 
   if (userInfo.isLoading) {
     return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />;
@@ -321,55 +278,29 @@ function ReportsBody() {
       ) : (
         <>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap" }}>
-            <Chip label={`${sorted.length} record${sorted.length === 1 ? "" : "s"}`} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
+            <Chip label={`${rows.length} record${rows.length === 1 ? "" : "s"}`} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
             {oneEmployee && (
               <Chip label={`Total: ${totalDays} day${totalDays === 1 ? "" : "s"}`} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
             )}
           </Stack>
-          <Card variant="outlined" sx={{ overflowX: "auto" }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  {REPORT_COLUMNS.map((col) => (
-                    <HeadCell key={col.field} align={col.align}>
-                      <TableSortLabel
-                        active={sort.field === col.field}
-                        direction={sort.field === col.field ? sort.direction : "asc"}
-                        onClick={() => toggleSort(col.field)}
-                      >
-                        {col.label}
-                      </TableSortLabel>
-                    </HeadCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id} hover>
-                    <TableCell sx={{ fontSize: 12.5 }}>{r.email}</TableCell>
-                    <TableCell>
-                      <LeaveTypeChip leaveType={r.leaveType} />
-                    </TableCell>
-                    <TableCell sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatNice(r.startDate)}</TableCell>
-                    <TableCell sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatNice(r.endDate)}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: 12.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{r.numberOfDays ?? "—"}</TableCell>
-                    <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>
-                      {PERIOD_LABEL[r.periodType ?? ""] ?? r.periodType ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          {/* The same component the running app uses, reached through Oxygen's
+              re-export. Sorting, paging, the filter panel, column visibility,
+              density and CSV/print export all arrive with it — hand-building
+              any of that onto a plain table would be reimplementing a
+              dependency we already ship. LeadReportTable.tsx:150-178. */}
+          <Card variant="outlined">
+            <DataGrid.DataGrid
+              rows={rows}
+              columns={REPORT_COLUMNS}
+              loading={leaves.isFetching}
+              initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+              pageSizeOptions={[5, 10, 25]}
+              disableRowSelectionOnClick
+              showToolbar
+              rowHeight={52}
+              sx={{ border: "none" }}
+            />
           </Card>
-          {/* Outside the Card: PagingFooter carries its own top margin and no
-              horizontal padding, so it sits below rather than inside. */}
-          <PagingFooter
-            page={safePage}
-            pageSize={PAGE_SIZE}
-            total={sorted.length}
-            pageCount={pageCount}
-            onPageChange={setPage}
-          />
         </>
       )}
     </Box>
@@ -377,41 +308,76 @@ function ReportsBody() {
 }
 
 /** The six columns, in the source's order (LeadReportTable.tsx:61-137). */
-/** LeadReportTable.tsx:154 — the source's initial page size. */
-const PAGE_SIZE = 10;
-
-const REPORT_COLUMNS: {
-  field: SortField;
-  label: string;
-  align?: "right";
-}[] = [
-  { field: "email", label: "Employee" },
-  { field: "leaveType", label: "Leave type" },
-  { field: "startDate", label: "Start" },
-  { field: "endDate", label: "End" },
-  { field: "numberOfDays", label: "Days", align: "right" },
-  { field: "periodType", label: "Period" },
+// The six columns, in the source's order and with its widths
+// (LeadReportTable.tsx:61-137). Defined at module scope so the grid is not
+// handed a fresh array on every render, which would reset its own state.
+const REPORT_COLUMNS: DataGrid.GridColDef<DatabaseLeave>[] = [
+  { field: "email", headerName: "Employee", flex: 1.5 },
+  {
+    field: "leaveType",
+    headerName: "Leave Type",
+    flex: 1,
+    renderCell: (params) => <LeaveTypeChip leaveType={params.value ?? null} />,
+  },
+  {
+    field: "startDate",
+    headerName: "Start Date",
+    flex: 1,
+    renderCell: (params) => <GridText>{formatNice(params.value ?? "")}</GridText>,
+  },
+  {
+    field: "endDate",
+    headerName: "End Date",
+    flex: 1,
+    renderCell: (params) => <GridText>{formatNice(params.value ?? "")}</GridText>,
+  },
+  {
+    field: "numberOfDays",
+    headerName: "Days",
+    flex: 0.6,
+    renderCell: (params) => <GridText bold>{params.value ?? "—"}</GridText>,
+  },
+  {
+    field: "periodType",
+    headerName: "Period",
+    flex: 1,
+    renderCell: (params) => (
+      <GridText muted>{PERIOD_LABEL[params.value ?? ""] ?? params.value ?? "—"}</GridText>
+    ),
+  },
 ];
 
-type SortField = "email" | "leaveType" | "startDate" | "endDate" | "numberOfDays" | "periodType";
-
 /**
- * One row's value for a column, normalised so a mixed column still orders.
+ * A cell's text, vertically centred.
  *
- * Dates are compared as their ISO prefix rather than parsed — the backend sends
- * timestamps and the first ten characters sort correctly as text, which avoids
- * building a Date per comparison.
+ * The grid gives a cell its full row height, so a bare string sits at the top of
+ * a 52px row. The source solves this the same way, wrapping each value in a
+ * centred Stack (LeadReportTable.tsx:96-120).
  */
-function sortValue(row: DatabaseLeave, field: SortField): string | number {
-  switch (field) {
-    case "numberOfDays":
-      return row.numberOfDays ?? -1;
-    case "startDate":
-    case "endDate":
-      return String(row[field] ?? "").substring(0, 10);
-    default:
-      return String(row[field] ?? "").toLowerCase();
-  }
+function GridText({
+  children,
+  bold,
+  muted,
+}: {
+  children: React.ReactNode;
+  bold?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <Stack height="100%" justifyContent="center">
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: 12.5,
+          fontWeight: bold ? 700 : undefined,
+          color: muted ? "text.secondary" : undefined,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {children}
+      </Typography>
+    </Stack>
+  );
 }
 
 function DateField({
@@ -439,10 +405,3 @@ function DateField({
   );
 }
 
-function HeadCell({ children, align }: { children: React.ReactNode; align?: "right" }) {
-  return (
-    <TableCell align={align} sx={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "text.disabled" }}>
-      {children}
-    </TableCell>
-  );
-}

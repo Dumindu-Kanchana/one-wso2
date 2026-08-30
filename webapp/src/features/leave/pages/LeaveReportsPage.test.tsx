@@ -26,7 +26,9 @@ import type { ReactNode } from "react";
 const filters: unknown[] = [];
 const userInfo = { data: undefined as unknown };
 
-const leaveRows: unknown[] = [];
+// Reassigned, not emptied: the grid freezes the rows array it is handed, so a
+// later `leaveRows.length = 0` throws.
+let leaveRows: unknown[] = [];
 vi.mock("../api/useLeaveData", () => ({
   useLeaveUserInfo: () => userInfo,
   useLeaveEmployees: () => ({ data: [], isPending: false, isError: false }),
@@ -60,7 +62,7 @@ function lastFilter() {
 
 beforeEach(() => {
   filters.length = 0;
-  leaveRows.length = 0;
+  leaveRows = [];
 });
 
 function row(over: Record<string, unknown> = {}) {
@@ -139,42 +141,65 @@ describe("the table", () => {
     expect(f.orderBy).toBeUndefined();
   });
 
-  it("pages at ten rather than rendering everything", async () => {
-    for (let i = 0; i < 25; i++) leaveRows.push(row({ email: `p${i}@wso2.com` }));
+  it("carries the source's column headers", () => {
+    leaveRows.push(row());
+    show();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
+      "Employee",
+      "Leave Type",
+      "Start Date",
+      "End Date",
+      "Days",
+      "Period",
+    ]);
+  });
+
+  it("pages at ten rather than rendering everything", () => {
+    for (let i = 0; i < 25; i++) leaveRows.push(row({ id: i, email: `p${i}@wso2.com` }));
     show();
     expect(screen.getAllByRole("row")).toHaveLength(11); // header + 10
-    expect(await screen.findByText(/Showing 1–10 of 25/)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("1–10 of 25");
   });
 
   it("sorts on a column header", async () => {
     const user = (await import("@testing-library/user-event")).default.setup();
-    leaveRows.push(row({ email: "zoe@wso2.com" }), row({ email: "amy@wso2.com" }));
+    leaveRows.push(row({ id: 1, email: "zoe@wso2.com" }), row({ id: 2, email: "amy@wso2.com" }));
     show();
 
-    await user.click(screen.getByRole("button", { name: "Employee" }));
-    const firstCell = () => screen.getAllByRole("row")[1].querySelectorAll("td")[0];
+    const firstCell = () => screen.getAllByRole("row")[1].querySelectorAll('[role="gridcell"]')[0];
+    await user.click(screen.getByRole("columnheader", { name: "Employee" }));
     expect(firstCell().textContent).toBe("amy@wso2.com");
 
-    await user.click(screen.getByRole("button", { name: "Employee" }));
+    await user.click(screen.getByRole("columnheader", { name: "Employee" }));
     expect(firstCell().textContent).toBe("zoe@wso2.com");
+  });
+
+  // The reason for using the grid rather than hand-building onto a plain table:
+  // these arrive with it, and the running app has all four.
+  it("offers the toolbar the running app offers", () => {
+    leaveRows.push(row());
+    show();
+    for (const name of ["Columns", "Filters", "Export", "Search"]) {
+      expect(screen.getByRole("button", { name }), name).toBeInTheDocument();
+    }
   });
 });
 
-// LeadReportTable.tsx:57-59,141 — summing days across a mixed list answers no
-// question anyone asked.
+// LeadReportTable.tsx:141 — summing days across a mixed list answers no question
+// anyone asked.
 describe("the totals", () => {
   beforeEach(() => {
     userInfo.data = { workEmail: "lead@wso2.com", privileges: [LEAVE_PRIVILEGE.LEAD] };
   });
 
   it("shows a day total for one employee", () => {
-    leaveRows.push(row({ numberOfDays: 2 }), row({ numberOfDays: 3 }));
+    leaveRows.push(row({ id: 1, numberOfDays: 2 }), row({ id: 2, numberOfDays: 3 }));
     show();
     expect(screen.getByText("Total: 5 days")).toBeInTheDocument();
   });
 
   it("withholds it once more than one employee is in the result", () => {
-    leaveRows.push(row({ email: "a@wso2.com" }), row({ email: "b@wso2.com" }));
+    leaveRows.push(row({ id: 1, email: "a@wso2.com" }), row({ id: 2, email: "b@wso2.com" }));
     show();
     expect(screen.queryByText(/^Total: /)).toBeNull();
     expect(screen.getByText("2 records")).toBeInTheDocument();
