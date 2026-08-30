@@ -41,6 +41,8 @@ import { useNotifications } from "@context/notifications/NotificationsContext";
 import LeaveShell from "../components/LeaveShell";
 import LeaveDateField from "../components/LeaveDateField";
 import { HistoryBody } from "./LeaveHistoryPage";
+import SabbaticalApproveTab from "../components/SabbaticalApproveTab";
+import SabbaticalApprovalHistoryTab from "../components/SabbaticalApprovalHistoryTab";
 import { useLeaveAppConfig, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
 import { useSubmitLeave } from "../api/useLeaveMutations";
 import { useLeaveGate } from "../api/useLeaveGate";
@@ -86,6 +88,10 @@ function SabbaticalTabs() {
   const tabs = [
     { key: "apply", label: "Apply", show: canApply },
     { key: "history", label: "My history", show: canApply },
+    // route.ts:87,94,101 — approving is LEAD only. People Ops can report on
+    // sabbaticals but cannot decide one.
+    { key: "approve", label: "Approve", show: gate.isLead },
+    { key: "approval-history", label: "Approval history", show: gate.isLead },
   ].filter((t) => t.show);
 
   const [tabKey, setTabKey] = useState(tabs[0]?.key ?? "apply");
@@ -122,6 +128,8 @@ function SabbaticalTabs() {
           general one, filtered to sabbatical. Statuses, year selector and the
           cancel rule all come from the shared body. */}
       {active.key === "history" && <HistoryBody leaveCategory={["sabbatical"]} />}
+      {active.key === "approve" && <SabbaticalApproveTab />}
+      {active.key === "approval-history" && <SabbaticalApprovalHistoryTab />}
     </Box>
   );
 }

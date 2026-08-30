@@ -130,3 +130,13 @@ export function entitlementPeriodLabel(
   const to = monthYear(periodEnd);
   return from && to ? `${from} – ${to}` : null;
 }
+
+/**
+ * The date as the sabbatical tables print it — `String(value).substring(0, 10)`,
+ * ApproveLeaveTable.tsx:105 and ApprovalHistoryTable.tsx:39. Deliberately not
+ * reformatted: slicing the ISO string cannot shift the day, which is what
+ * `new Date(...)` does west of UTC elsewhere in the source.
+ */
+export function isoDay(value: string | null | undefined): string {
+  return String(value ?? "").substring(0, 10);
+}

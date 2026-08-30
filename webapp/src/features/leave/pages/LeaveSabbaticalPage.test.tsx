@@ -46,6 +46,8 @@ const state = {
   leaves: [] as Record<string, unknown>[],
   canSee: true,
   featureEnabled: true,
+  isLead: false,
+  subordinateCount: 0 as number | null,
 };
 
 // Every filter useLeaves is called with, so a test can assert what the screen
@@ -53,7 +55,11 @@ const state = {
 const leaveFilters: Record<string, unknown>[] = [];
 
 vi.mock("../api/useLeaveData", () => ({
-  useLeaveUserInfo: () => ({ data: profile, isPending: false, isError: false }),
+  useLeaveUserInfo: () => ({
+    data: { ...profile, subordinateCount: state.subordinateCount },
+    isPending: false,
+    isError: false,
+  }),
   useLeaveAppConfig: () => ({
     data: { ...config, isSabbaticalLeaveEnabled: state.featureEnabled },
     isPending: false,
@@ -70,14 +76,16 @@ vi.mock("../api/useLeaveGate", () => ({
     canSee: () => state.canSee,
     isResolving: false,
     isPeopleOps: false,
-    isLead: false,
+    isLead: state.isLead,
   }),
 }));
 
 const submitMutate = vi.fn();
+const approveMutate = vi.fn();
 vi.mock("../api/useLeaveMutations", () => ({
   useSubmitLeave: () => ({ mutate: submitMutate, isPending: false, isError: false, error: null }),
   useCancelLeave: () => ({ mutate: vi.fn(), isPending: false }),
+  useApproveLeave: () => ({ mutate: approveMutate, isPending: false }),
 }));
 
 vi.mock("../components/LeaveShell", () => ({
@@ -89,7 +97,10 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   submitMutate.mockClear();
+  approveMutate.mockClear();
   leaveFilters.length = 0;
+  state.isLead = false;
+  state.subordinateCount = 0;
   profile.leadEmail = "lead@wso2.com";
   state.leaves = [];
   state.canSee = true;
@@ -368,5 +379,119 @@ describe("the my-history tab", () => {
     show();
     fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
     expect(await screen.findByText(/No leave history available for/)).toBeInTheDocument();
+  });
+});
+
+// route.ts:87,94,101 — approving is LEAD only, by the privilege number alone.
+// The orphaned draft of this screen accepted `isLead`, the LEAD privilege OR
+// `subordinateCount > 0`, which handed the approve queue to people the running
+// app does not.
+describe("who gets the approve tabs", () => {
+  it("a lead does", async () => {
+    state.isLead = true;
+    show();
+    expect(await screen.findByRole("tab", { name: "Approve" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Approval history" })).toBeInTheDocument();
+  });
+
+  it("a plain employee does not", async () => {
+    show();
+    await screen.findByRole("tab", { name: "Apply" });
+    expect(screen.queryByRole("tab", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Approval history" })).not.toBeInTheDocument();
+  });
+
+  it("having reports without the privilege is not enough", async () => {
+    state.subordinateCount = 12;
+    show();
+    await screen.findByRole("tab", { name: "Apply" });
+    expect(screen.queryByRole("tab", { name: "Approve" })).not.toBeInTheDocument();
+  });
+});
+
+describe("the approve tab", () => {
+  it("asks for its own reports' pending sabbaticals", async () => {
+    state.isLead = true;
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    expect(leaveFilters.at(-1)).toMatchObject({
+      subordinatesLeaves: true,
+      leaveCategory: ["sabbatical"],
+      statuses: ["PENDING"],
+      orderBy: "DESC",
+    });
+  });
+
+  it("asks only for decided requests on the history tab", async () => {
+    state.isLead = true;
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Approval history" }));
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    expect(leaveFilters.at(-1)).toMatchObject({
+      subordinatesLeaves: true,
+      leaveCategory: ["sabbatical"],
+      statuses: ["APPROVED", "REJECTED"],
+    });
+  });
+});
+
+// ApproveLeaveTable.tsx:51-65,69-88. The team-share sentence is the whole point
+// of the pre-dialog query: it tells the lead how much of their team is already
+// booked to be away over the same dates. It is appended to the approve message
+// and never to the reject one.
+describe("deciding on a request", () => {
+  const pendingRow = {
+    id: 7,
+    email: "report@wso2.com",
+    startDate: "2027-03-01T00:00:00Z",
+    endDate: "2027-03-20T00:00:00Z",
+    numberOfDays: 20,
+    approverEmail: "lead@wso2.com",
+    status: "PENDING",
+  };
+
+  it("tells the lead what share of the team will be away", async () => {
+    state.isLead = true;
+    state.subordinateCount = 4;
+    state.leaves = [pendingRow];
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    // One approved sabbatical returned for four reports = 25%.
+    expect(
+      await screen.findByText(
+        "This will approve the sabbatical leave for report@wso2.com (2027-03-01 – 2027-03-20). 25% of your team will be on sabbatical during this period.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves the share out of the reject message", async () => {
+    state.isLead = true;
+    state.subordinateCount = 4;
+    state.leaves = [pendingRow];
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Reject" }));
+    expect(
+      await screen.findByText(
+        "This will reject the sabbatical leave request for report@wso2.com (2027-03-01 – 2027-03-20).",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/of your team will be on sabbatical/)).not.toBeInTheDocument();
+  });
+
+  it("sends the decision only after it is confirmed", async () => {
+    state.isLead = true;
+    state.subordinateCount = 4;
+    state.leaves = [pendingRow];
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    expect(approveMutate).not.toHaveBeenCalled();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Yes, Approve" }));
+    await waitFor(() => expect(approveMutate).toHaveBeenCalled());
+    expect(approveMutate.mock.calls[0][0]).toEqual({ id: 7, action: "approve" });
   });
 });
