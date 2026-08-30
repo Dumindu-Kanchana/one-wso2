@@ -34,7 +34,7 @@ export const ME_APPS: readonly MenuApp[] = [
       { id: "leave-reports", label: "Reports", desc: "Leave usage reports across the org.", requires: ["lead", "admin"], path: "/me/leave/reports" },
       // Sabbatical use cases (apply/approve/report) are on hold this
       // iteration — placeholder links out to the Leave app instead.
-      { id: "leave-sabbatical", label: "Sabbatical", desc: "Coming soon — apply via the Leave app for now.", path: "/me/leave/sabbatical" },
+      { id: "leave-sabbatical", label: "Sabbatical", desc: "Apply for a long, planned break.", path: "/me/leave/sabbatical" },
     ],
   },
   // Moved out of its own Workspace perspective, which existed for this one
