@@ -165,9 +165,12 @@ function SabbaticalApply() {
   );
 
   const lastApproved = history.data?.leaves?.[0]?.endDate?.substring(0, 10) ?? null;
-  // ApplyTab.tsx:146-148 — the field unlocks only when there is no prior
-  // sabbatical on record, so someone with a history cannot retype their anchor.
-  const anchorEditable = !lastApproved;
+  // ApplyTab.tsx:87,134-148 — `sabbaticalEndDateFieldEditable` starts false and
+  // is only set true inside an effect guarded on `State.success`. So the field
+  // unlocks when the fetch SUCCEEDED and returned nothing; if it failed it stays
+  // locked, rather than letting someone with a hidden sabbatical history type a
+  // favourable anchor for the eligibility check.
+  const anchorEditable = history.isSuccess && !lastApproved;
 
   const [typedAnchor, setTypedAnchor] = useState("");
   const lastSabbaticalEnd = lastApproved ?? (typedAnchor || null);
@@ -307,8 +310,12 @@ function SabbaticalApply() {
     );
   }
 
-  // SabbaticalLeave.tsx:36-43 — the flag replaces the entire screen.
-  if (config && !config.isSabbaticalLeaveEnabled) {
+  // SabbaticalLeave.tsx:26-43 — the flag replaces the entire screen, and an
+  // absent config counts as off: the source holds `config: null` when the fetch
+  // fails (configSlice/config.ts:38,100) and `sabbaticalFeatureEnabled` never
+  // leaves its initial false. That matters beyond fidelity — the policy numbers
+  // default to 0, and a 0-day maximum rejects every range the user can pick.
+  if (!config?.isSabbaticalLeaveEnabled) {
     return <Alert severity="info">{SABBATICAL.featureOff}</Alert>;
   }
 

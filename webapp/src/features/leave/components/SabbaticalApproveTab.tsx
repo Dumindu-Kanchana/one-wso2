@@ -168,7 +168,14 @@ function DecisionDialog({
   // always on screen when the lead decides. We open straight away and hold the
   // confirm button until it lands, which keeps that guarantee without showing
   // an unexplained pause after the click.
-  const waitingForShare = approving && subordinateCount > 0 && overlapping.isLoading;
+  //
+  // `userInfo.isLoading` counts as waiting: until it resolves `subordinateCount`
+  // reads 0, which would both skip the query and clear this guard — the pending
+  // table does not wait for /user-info, so a row can be clicked before it lands.
+  // An *error* deliberately does not wait; the source swallows a failed fetch
+  // (ApproveLeaveTable.tsx:65) and approves with no sentence at all.
+  const waitingForShare =
+    approving && (userInfo.isLoading || (subordinateCount > 0 && overlapping.isLoading));
 
   const dateRange = `${isoDay(leave.startDate)} – ${isoDay(leave.endDate)}`;
 

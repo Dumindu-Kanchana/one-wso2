@@ -49,6 +49,11 @@ const state = {
   isLead: false,
   isPeopleOps: false,
   subordinateCount: 0 as number | null,
+  // Query outcomes, so a test can say "this fetch failed" rather than only
+  // "this fetch returned nothing" — the two must not behave the same.
+  leavesFailed: false,
+  configFailed: false,
+  userInfoLoading: false,
 };
 
 // Every filter useLeaves is called with, so a test can assert what the screen
@@ -57,19 +62,30 @@ const leaveFilters: Record<string, unknown>[] = [];
 
 vi.mock("../api/useLeaveData", () => ({
   useLeaveUserInfo: () => ({
-    data: { ...profile, subordinateCount: state.subordinateCount },
-    isPending: false,
+    data: state.userInfoLoading ? undefined : { ...profile, subordinateCount: state.subordinateCount },
+    isPending: state.userInfoLoading,
+    isLoading: state.userInfoLoading,
     isError: false,
   }),
   useLeaveAppConfig: () => ({
-    data: { ...config, isSabbaticalLeaveEnabled: state.featureEnabled },
+    data: state.configFailed
+      ? undefined
+      : { ...config, isSabbaticalLeaveEnabled: state.featureEnabled },
     isPending: false,
-    isError: false,
+    isError: state.configFailed,
+    isSuccess: !state.configFailed,
   }),
   useLeaveEmployees: () => ({ data: [], isLoading: false, isError: false }),
   useLeaves: (filter: Record<string, unknown>) => {
     leaveFilters.push(filter);
-    return { data: { leaves: state.leaves }, isPending: false, isError: false, isLoading: false };
+    return {
+      data: state.leavesFailed ? undefined : { leaves: state.leaves },
+      isPending: false,
+      isLoading: false,
+      isError: state.leavesFailed,
+      isSuccess: !state.leavesFailed,
+      error: state.leavesFailed ? new Error("boom") : null,
+    };
   },
 }));
 
@@ -104,6 +120,9 @@ beforeEach(() => {
   state.isLead = false;
   state.isPeopleOps = false;
   state.subordinateCount = 0;
+  state.leavesFailed = false;
+  state.configFailed = false;
+  state.userInfoLoading = false;
   profile.leadEmail = "lead@wso2.com";
   state.leaves = [];
   state.canSee = true;
@@ -568,5 +587,90 @@ describe("the sabbatical report tab", () => {
     fireEvent.change(screen.getByLabelText("To"), { target: { value: "2027-04-01" } });
     fireEvent.click(screen.getByRole("button", { name: /Fetch report/ }));
     expect(await screen.findByText("End date must be after start date")).toBeInTheDocument();
+  });
+});
+
+// A failed fetch is not the same as a fetch that returned nothing, and the
+// difference decides whether policy numbers and the eligibility anchor can be
+// trusted. Raised on PR #28.
+describe("when the data the form depends on fails to load", () => {
+  it("does not render the form on a policy-config failure", async () => {
+    state.configFailed = true;
+    show();
+    // SabbaticalLeave.tsx holds config: null on failure, so the feature flag
+    // never turns on. Without this the policy values default to 0 and a 0-day
+    // maximum rejects every range the user can pick.
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe(
+      "Sabbatical  Leave Feature is currently not available. Please check again later.",
+    );
+    expect(screen.queryByRole("button", { name: "Apply" })).not.toBeInTheDocument();
+  });
+
+  it("never shows a zero-week duration limit", async () => {
+    state.configFailed = true;
+    show();
+    await screen.findByRole("alert");
+    expect(screen.queryByText(/must not exceed 0 weeks/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the anchor locked when the sabbatical history failed", async () => {
+    state.leavesFailed = true;
+    show();
+    // ApplyTab.tsx:87,134-148 — the field only unlocks inside a success-guarded
+    // effect. Unlocking it here would let someone whose history we failed to
+    // read type their own eligibility anchor.
+    expect(await screen.findByLabelText(/Last sabbatical leave end date/)).toBeDisabled();
+  });
+
+  it("still unlocks the anchor when the history loaded and was empty", async () => {
+    show();
+    expect(await screen.findByLabelText(/Last sabbatical leave end date/)).toBeEnabled();
+  });
+});
+
+// ApproveLeaveTable.tsx:51-65 fetches the team share BEFORE opening the dialog,
+// so the lead cannot decide without seeing it. We open immediately and hold the
+// confirm button instead — which only holds if it accounts for /user-info still
+// being in flight, since subordinateCount reads 0 until then. Raised on PR #28.
+describe("holding the approve button until the team share is known", () => {
+  const pendingRow = {
+    id: 7,
+    email: "report@wso2.com",
+    startDate: "2027-03-01T00:00:00Z",
+    endDate: "2027-03-20T00:00:00Z",
+    numberOfDays: 20,
+    approverEmail: "lead@wso2.com",
+    status: "PENDING",
+  };
+
+  it("is held while the profile is still loading", async () => {
+    state.isLead = true;
+    state.userInfoLoading = true;
+    state.leaves = [pendingRow];
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    expect(await screen.findByRole("button", { name: "Yes, Approve" })).toBeDisabled();
+  });
+
+  it("is live once the profile has loaded", async () => {
+    state.isLead = true;
+    state.subordinateCount = 4;
+    state.leaves = [pendingRow];
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    expect(await screen.findByRole("button", { name: "Yes, Approve" })).toBeEnabled();
+  });
+
+  it("is live for rejection, which never carries a share", async () => {
+    state.isLead = true;
+    state.userInfoLoading = true;
+    state.leaves = [pendingRow];
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Reject" }));
+    expect(await screen.findByRole("button", { name: "Yes, Reject" })).toBeEnabled();
   });
 });
