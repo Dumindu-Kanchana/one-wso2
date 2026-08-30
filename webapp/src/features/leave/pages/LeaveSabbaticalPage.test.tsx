@@ -47,6 +47,7 @@ const state = {
   canSee: true,
   featureEnabled: true,
   isLead: false,
+  isPeopleOps: false,
   subordinateCount: 0 as number | null,
 };
 
@@ -65,6 +66,7 @@ vi.mock("../api/useLeaveData", () => ({
     isPending: false,
     isError: false,
   }),
+  useLeaveEmployees: () => ({ data: [], isLoading: false, isError: false }),
   useLeaves: (filter: Record<string, unknown>) => {
     leaveFilters.push(filter);
     return { data: { leaves: state.leaves }, isPending: false, isError: false, isLoading: false };
@@ -75,7 +77,7 @@ vi.mock("../api/useLeaveGate", () => ({
   useLeaveGate: () => ({
     canSee: () => state.canSee,
     isResolving: false,
-    isPeopleOps: false,
+    isPeopleOps: state.isPeopleOps,
     isLead: state.isLead,
   }),
 }));
@@ -100,6 +102,7 @@ beforeEach(() => {
   approveMutate.mockClear();
   leaveFilters.length = 0;
   state.isLead = false;
+  state.isPeopleOps = false;
   state.subordinateCount = 0;
   profile.leadEmail = "lead@wso2.com";
   state.leaves = [];
@@ -493,5 +496,77 @@ describe("deciding on a request", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Yes, Approve" }));
     await waitFor(() => expect(approveMutate).toHaveBeenCalled());
     expect(approveMutate.mock.calls[0][0]).toEqual({ id: 7, action: "approve" });
+  });
+});
+
+// AdminSabbaticalTab.tsx. Two things separate this from the general report:
+// every status rather than approved only, and no employee-status filter — the
+// source never passes that handler, so Toolbar.tsx:265 hides the control.
+describe("the sabbatical report tab", () => {
+  it("is open to a lead and to People Ops", async () => {
+    state.isLead = true;
+    show();
+    expect(await screen.findByRole("tab", { name: "Report" })).toBeInTheDocument();
+  });
+
+  it("is open to People Ops who cannot apply", async () => {
+    state.canSee = false;
+    state.isPeopleOps = true;
+    show();
+    expect(await screen.findByRole("tab", { name: "Report" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Apply" })).not.toBeInTheDocument();
+  });
+
+  it("is closed to a plain employee", async () => {
+    show();
+    await screen.findByRole("tab", { name: "Apply" });
+    expect(screen.queryByRole("tab", { name: "Report" })).not.toBeInTheDocument();
+  });
+
+  it("asks for every status, unlike the general report", async () => {
+    state.isLead = true;
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    expect(leaveFilters.at(-1)).toMatchObject({
+      leaveCategory: ["sabbatical"],
+      statuses: ["PENDING", "APPROVED", "REJECTED", "CANCELLED"],
+    });
+  });
+
+  it("scopes a plain lead to their own reports", async () => {
+    state.isLead = true;
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    expect(leaveFilters.at(-1)!.approverEmail).toBe("me@wso2.com");
+  });
+
+  it("starts People Ops across everyone", async () => {
+    state.isLead = true;
+    state.isPeopleOps = true;
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    expect(leaveFilters.at(-1)!.approverEmail).toBeUndefined();
+  });
+
+  it("offers no employee-status filter", async () => {
+    state.isLead = true;
+    state.isPeopleOps = true;
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
+    await screen.findByRole("button", { name: /Fetch report/ });
+    expect(screen.queryByLabelText(/Employee status/i)).not.toBeInTheDocument();
+  });
+
+  it("refuses a range that ends before it starts", async () => {
+    state.isLead = true;
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2027-05-01" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2027-04-01" } });
+    fireEvent.click(screen.getByRole("button", { name: /Fetch report/ }));
+    expect(await screen.findByText("End date must be after start date")).toBeInTheDocument();
   });
 });

@@ -43,6 +43,7 @@ import LeaveDateField from "../components/LeaveDateField";
 import { HistoryBody } from "./LeaveHistoryPage";
 import SabbaticalApproveTab from "../components/SabbaticalApproveTab";
 import SabbaticalApprovalHistoryTab from "../components/SabbaticalApprovalHistoryTab";
+import SabbaticalReportTab from "../components/SabbaticalReportTab";
 import { useLeaveAppConfig, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
 import { useSubmitLeave } from "../api/useLeaveMutations";
 import { useLeaveGate } from "../api/useLeaveGate";
@@ -92,6 +93,8 @@ function SabbaticalTabs() {
     // sabbaticals but cannot decide one.
     { key: "approve", label: "Approve", show: gate.isLead },
     { key: "approval-history", label: "Approval history", show: gate.isLead },
+    // route.ts:148 — LEAD or People Ops, same as the general report.
+    { key: "report", label: "Report", show: gate.isLead || gate.isPeopleOps },
   ].filter((t) => t.show);
 
   const [tabKey, setTabKey] = useState(tabs[0]?.key ?? "apply");
@@ -107,8 +110,10 @@ function SabbaticalTabs() {
 
   return (
     <Box>
-      {tabs.length > 1 && (
-        <Tabs
+      {/* Rendered even for a single tab. A People-Ops-only account gets Report
+          and nothing else, and without the label the screen reads as whatever
+          the page subtitle says — which is written for someone applying. */}
+      <Tabs
           value={active.key}
           onChange={(_e, v) => setTabKey(String(v))}
           sx={{
@@ -120,8 +125,7 @@ function SabbaticalTabs() {
           {tabs.map((t) => (
             <Tab key={t.key} value={t.key} label={t.label} />
           ))}
-        </Tabs>
-      )}
+      </Tabs>
 
       {active.key === "apply" && <SabbaticalApply />}
       {/* SabbaticalLeaveHistory.tsx:21-28 — the same history screen as the
@@ -130,6 +134,7 @@ function SabbaticalTabs() {
       {active.key === "history" && <HistoryBody leaveCategory={["sabbatical"]} />}
       {active.key === "approve" && <SabbaticalApproveTab />}
       {active.key === "approval-history" && <SabbaticalApprovalHistoryTab />}
+      {active.key === "report" && <SabbaticalReportTab isPeopleOps={gate.isPeopleOps} />}
     </Box>
   );
 }
