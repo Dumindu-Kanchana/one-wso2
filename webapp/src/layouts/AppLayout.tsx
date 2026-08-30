@@ -25,6 +25,7 @@ import AppFooter from "@components/footer/AppFooter";
 import AuthDebugPanel from "@features/debug/AuthDebugPanel";
 import AppShellLayout from "@layouts/AppShellLayout";
 import IdleTimeoutProvider from "@context/idle-timeout/IdleTimeoutProvider";
+import SessionExpiryWatcher from "@components/session-expiry/SessionExpiryWatcher";
 
 const SIDEBAR_COLLAPSED_KEY = "one-wso2.sidebar.collapsed";
 
@@ -79,6 +80,10 @@ export default function AppLayout(): JSX.Element {
     // Wraps the shell rather than sitting inside it so the dialog is a sibling
     // of the layout, not a child of the scrolling content area.
     <IdleTimeoutProvider>
+      {/* Raises the sign-in prompt when @api/authBridge gives up renewing the
+          session. Inside AuthGuard on purpose: a signed-out user is already
+          being redirected, so there is nothing here to ask them. */}
+      <SessionExpiryWatcher />
       <Box
         sx={{
           display: "flex",

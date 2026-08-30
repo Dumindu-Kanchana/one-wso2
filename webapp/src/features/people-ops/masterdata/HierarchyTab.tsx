@@ -16,7 +16,6 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -43,6 +42,7 @@ import {
   sortBusinessUnits,
   sortNodes,
 } from "./hierarchyLogic";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // The org chart as four drill-down columns: business unit → team → sub team →
 // unit. Picking an item in one column fills the next.
@@ -175,16 +175,9 @@ export default function HierarchyTab() {
 
   if (hierarchy.isError) {
     return (
-      <Alert
-        severity="error"
-        action={
-          <Button color="inherit" size="small" onClick={() => void hierarchy.refetch()}>
-            Retry
-          </Button>
-        }
-      >
-        Couldn't load the org structure. {describeError(hierarchy.error)}
-      </Alert>
+      <ErrorNotice error={hierarchy.error} onRetry={() => void hierarchy.refetch()}>
+        Couldn't load the org structure.
+      </ErrorNotice>
     );
   }
 

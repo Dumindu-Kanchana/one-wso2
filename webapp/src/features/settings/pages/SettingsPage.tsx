@@ -18,26 +18,23 @@ import { Box, MenuItem, TextField, Typography } from "@wso2/oxygen-ui";
 import { useState, type JSX } from "react";
 import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
 import {
-  deploymentLandingKey,
   landingOptions,
   landingPreference,
   setLandingPreference,
 } from "@config/landingConfig";
 
-/** Sentinel for "no preference of my own", which is not the same as choosing Me. */
-const FOLLOW_DEPLOYMENT = "";
+/** Where everyone opens until they choose otherwise. */
+const DEFAULT_KEY = "me";
 
 export default function SettingsPage(): JSX.Element {
   const options = landingOptions();
-  const [choice, setChoice] = useState<string>(() => landingPreference() ?? FOLLOW_DEPLOYMENT);
-
-  const deploymentKey = deploymentLandingKey();
-  const deploymentLabel =
-    options.find((o) => o.key === deploymentKey)?.label ?? deploymentKey;
+  // No "follow the deployment" state to represent any more, so the select shows
+  // the perspective that will actually be opened — Me until they pick another.
+  const [choice, setChoice] = useState<string>(() => landingPreference() ?? DEFAULT_KEY);
 
   const handleChange = (next: string) => {
     setChoice(next);
-    setLandingPreference(next === FOLLOW_DEPLOYMENT ? undefined : next);
+    setLandingPreference(next);
   };
 
   return (
@@ -55,19 +52,8 @@ export default function SettingsPage(): JSX.Element {
           label="Open on"
           value={choice}
           onChange={(e) => handleChange(e.target.value)}
-          helperText={
-            choice === FOLLOW_DEPLOYMENT
-              ? `Following the default set for this deployment (${deploymentLabel}).`
-              : "Saved. This overrides the deployment default."
-          }
+          helperText="Saved on this browser."
         >
-          {/* Kept as a distinct option rather than pre-selecting the deployment
-              value: choosing "follow the default" means this user keeps moving
-              when that default changes, where picking the same perspective
-              explicitly would pin them to it. */}
-          <MenuItem value={FOLLOW_DEPLOYMENT}>
-            Deployment default ({deploymentLabel})
-          </MenuItem>
           {options.map((o) => (
             <MenuItem key={o.key} value={o.key}>
               {o.label}

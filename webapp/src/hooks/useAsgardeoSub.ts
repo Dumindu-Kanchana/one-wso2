@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAsgardeo } from "@asgardeo/react";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { refreshIdToken } from "@api/authBridge";
+import { getSessionExpiredSnapshot, refreshIdToken } from "@api/authBridge";
 
 // Resolves the current Asgardeo user's `sub` claim. Used as an identity
 // discriminator in downstream query keys so a sign-out → different-user
@@ -39,6 +39,26 @@ import { refreshIdToken } from "@api/authBridge";
 // `sub` (useMeProfile, useUserInfo, and others) consumes this hook, so
 // the resolved `sub` is byte-identical across every consumer within a
 // render tree.
+/**
+ * A loggable one-liner for a rejection of unknown shape.
+ *
+ * Asgardeo's exception type is a plain class with no `extends Error` and no
+ * toString, so `String(it)` yields "[object Object]". The readable text sits on
+ * `name`, an identifier on `code`, and `message` is itself the underlying
+ * error object — which is why it is not read here: it can carry the token that
+ * failed to decode, and that must not reach a console.
+ */
+function describeForLog(error: unknown): string {
+  if (error instanceof Error) return error.message || error.name;
+  if (typeof error === "object" && error !== null) {
+    const { name, code } = error as { name?: unknown; code?: unknown };
+    const parts = [typeof code === "string" ? code : null, typeof name === "string" ? name : null];
+    const described = parts.filter(Boolean).join(" ");
+    if (described) return described;
+  }
+  return "unknown error";
+}
+
 export type SubState =
   | { status: "loading" }
   | { status: "ready"; sub: string }
@@ -73,13 +93,14 @@ export function useAsgardeoSub(): { state: SubState; retry: () => void } {
           });
         }
       })
-      .catch(async (e: unknown) => {
+      .catch(async (decodeError: unknown) => {
         if (cancelled) return;
         // getDecodedIdToken() rejects once the cached id_token has expired
         // (~15min in practice) — try one silent re-auth via the same
         // bridge @api/http uses for 401s, then retry the decode, instead
         // of leaving every sub-keyed query (useUserInfo, useLeaveUserInfo,
         // useLeaves, ...) silently disabled with no visible error.
+        let recoveryFailure: unknown;
         try {
           await refreshIdToken();
           const token = await getDecodedIdToken();
@@ -89,13 +110,34 @@ export function useAsgardeoSub(): { state: SubState; retry: () => void } {
             setState({ status: "ready", sub: s });
             return;
           }
-        } catch {
+        } catch (recoveryError: unknown) {
           // Refresh or the retried decode also failed — fall through to
-          // the terminal error state below, using the original error.
+          // the terminal error state below.
+          recoveryFailure = recoveryError;
         }
         if (cancelled) return;
-        const msg = e instanceof Error ? e.message : String(e);
-        setState({ status: "error", message: `Couldn't decode identity token: ${msg}` });
+        // The user gets plain words: Asgardeo's exception type is a plain class
+        // — no `extends Error`, no toString — so interpolating it printed
+        // "[object Object]", and the decode reason is not something a reader
+        // can act on anyway.
+        //
+        // It still has to go somewhere. Without this line a failed sign-in is
+        // indistinguishable from an expired session, a blocked renewal iframe,
+        // and a rejected token exchange — and the dialog those raise says the
+        // same thing in all four cases.
+        console.warn(
+          "[auth] Could not resolve the user's identity.",
+          `decode: ${describeForLog(decodeError)};`,
+          `recovery: ${recoveryFailure ? describeForLog(recoveryFailure) : "succeeded but still no sub"}`,
+        );
+        // Once the bridge has declared the session dead, the session-expired
+        // dialog is already up and owns the message. Going to "error" here
+        // would additionally light up whichever ErrorNotice is on screen —
+        // eleven different sentences blaming eleven different features for one
+        // dead session, each offering a Retry that cannot help. Staying in
+        // "loading" leaves the page on its skeleton behind the modal.
+        if (getSessionExpiredSnapshot()) return;
+        setState({ status: "error", message: "Couldn't verify your session." });
       });
     return () => {
       cancelled = true;

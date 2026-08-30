@@ -15,11 +15,12 @@
 // under the License.
 
 import type { ReactNode } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Chip, CircularProgress, Stack, Typography } from "@wso2/oxygen-ui";
 import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import { isMarketingOpsBackendConfigured } from "@config/apiConfig";
 import { useMarketingOpsGate } from "../api/useMarketingOpsGate";
 import MarketingOpsLocked from "./MarketingOpsLocked";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // Shared page frame for every Marketing Ops screen: an operation eyebrow chip,
 // a title + subtitle, and — the reason this exists — ONE place that owns all
@@ -168,17 +169,9 @@ function MarketingOpsBody({
   // chasing an Asgardeo group they already have.
   if (requireAuthorized && gate.isError) {
     return (
-      <Alert
-        severity="error"
-        sx={{ mt: 1.5 }}
-        action={
-          <Button color="inherit" size="small" onClick={gate.retry}>
-            Retry
-          </Button>
-        }
-      >
+      <ErrorNotice onRetry={gate.retry} sx={{ mt: 1.5 }}>
         Couldn't check your Marketing Ops access. {gate.errorMessage}
-      </Alert>
+      </ErrorNotice>
     );
   }
 

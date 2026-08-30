@@ -19,7 +19,7 @@ import { Box, Link, Sidebar, Typography } from "@wso2/oxygen-ui";
 import { ExternalLinkIcon, SettingsIcon } from "@wso2/oxygen-ui-icons-react";
 import { Link as RouterLink, matchPath, useLocation, useNavigate } from "react-router";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
-import { CROSS_PERSPECTIVES, type PerspectiveSection } from "@constants/perspectives";
+import type { PerspectiveSection } from "@constants/perspectives";
 import { capabilitiesFromPrivileges, type Capability } from "@constants/appMenu";
 import { FINANCE_ITEM_IDS } from "@constants/financeApps";
 import { useUserInfo } from "@api/useUserInfo";
@@ -50,8 +50,6 @@ interface SideRailProps {
   collapsed: boolean;
 }
 
-/** Id for a cross-perspective row; namespaced so it can't collide with a section id. */
-const crossId = (key: string) => `cross-${key}`;
 /** Id for the perspective's own landing route. */
 const OVERVIEW_ID = "perspective-overview";
 /** Footer row, outside any perspective — it is a global page, not a section. */
@@ -126,16 +124,21 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // dependency lists below on every render, defeating both useMemos.
   const sections = useMemo(() => active.sections ?? [], [active.sections]);
 
-  // Manual open/close choices for groups the user has explicitly clicked,
-  // for when they're NOT the group containing the current route (see
-  // activeGroupIds below, which always wins over this while it applies).
+  // Manual open/close choices for groups the user has explicitly clicked.
+  // These win: navigating into a group opens it, and closing it again is
+  // allowed even while you are inside it.
   const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map());
 
-  // Whichever group contains the current route is ALWAYS shown expanded —
-  // no override, manual or otherwise, can suppress this. Otherwise landing
+  // Whichever group contains the current route opens itself. Otherwise landing
   // on e.g. Reports via a direct link, browser back/forward, or the waffle
-  // renders that group collapsed while you're actively on one of its own
-  // pages, hiding both where you are and its sibling links.
+  // renders that group collapsed while you're actively on one of its own pages,
+  // hiding both where you are and its sibling links.
+  //
+  // It used to be forced open, with the header made non-interactive so a click
+  // that could do nothing did not read as the rail being broken. Opening on its
+  // own is the useful half; refusing to close again was not. Collapsing it does
+  // hide the row marking where you are — but that is now a state the user chose,
+  // which is how every other accordion behaves.
   const activeGroupIds = useMemo(() => {
     const ids = new Set<string>();
     for (const s of sections) {
@@ -152,19 +155,11 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   const expandedMenus = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const id of activeGroupIds) map[id] = true;
-    for (const [id, isOpen] of overrides) {
-      if (activeGroupIds.has(id)) continue; // active route always wins
-      map[id] = isOpen;
-    }
+    for (const [id, isOpen] of overrides) map[id] = isOpen;
     return map;
   }, [activeGroupIds, overrides]);
 
-  // No-op while the group contains the current route — you can't collapse
-  // the group you're actively browsing (activeGroupIds always wins over any
-  // override anyway), so recording one here would silently arm a collapse
-  // for later with no visible effect now.
   const onToggleExpand = (id: string) => {
-    if (activeGroupIds.has(id)) return;
     setOverrides((prev) => new Map(prev).set(id, !expandedMenus[id]));
   };
 
@@ -244,10 +239,15 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
     // Not in pathById: Settings belongs to no perspective, so it is routed here
     // rather than through the registry.
     if (id === SETTINGS_ID) {
-      navigate(SETTINGS_PATH);
+      // Carry the perspective along. Settings belongs to none of them — it is
+      // reached from all of them, and it is where the default perspective is
+      // chosen — so the rail has nothing in the URL to keep it where it was.
+      // Passing it in the navigation itself is the one place this can live
+      // without a ref or an effect, both of which the hooks lint rules refuse.
+      navigate(SETTINGS_PATH, { state: { fromPerspective: active.key } });
       return;
     }
-    if (id === OVERVIEW_ID || id.startsWith("cross-")) return;
+    if (id === OVERVIEW_ID) return;
     const path = pathById.get(id);
     if (path) {
       navigate(path);
@@ -255,13 +255,6 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
     }
     scrollToSection(id);
   };
-
-  const crossPerspectives = CROSS_PERSPECTIVES.filter((p) => p.access && p.path);
-  // The Home perspective (cross group) is itself the "Me" landing, so a
-  // "For you → Me" link there is redundant. Inside an App (functional group)
-  // we keep it so the user can jump home. Switching between Apps is the
-  // waffle's job — the rail doesn't duplicate that launcher.
-  const onHome = active.group === "cross";
 
   return (
     <Sidebar
@@ -307,21 +300,6 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
           )}
         </Sidebar.Category>
 
-        {!onHome && crossPerspectives.length > 0 && (
-          <Sidebar.Category>
-            <Sidebar.CategoryLabel>For you</Sidebar.CategoryLabel>
-            {crossPerspectives.map((p) => (
-              <RouteItem key={p.key} id={crossId(p.key)} to={p.path!}>
-                <Sidebar.Item id={crossId(p.key)}>
-                  <Sidebar.ItemIcon>
-                    <p.icon />
-                  </Sidebar.ItemIcon>
-                  <Sidebar.ItemLabel sx={ELLIPSIS_SX}>{p.label}</Sidebar.ItemLabel>
-                </Sidebar.Item>
-              </RouteItem>
-            ))}
-          </Sidebar.Category>
-        )}
       </Sidebar.Nav>
 
       <Sidebar.Footer showDivider>
@@ -377,15 +355,13 @@ function SectionNode({
   section: PerspectiveSection;
   resolveVisible: (section: PerspectiveSection) => boolean;
   /**
-   * True while this group holds the current route. Drives two things that used
-   * to be tracked separately but are the same fact:
+   * True while this group holds the current route, which tints its icon so an
+   * expanded group signals that you are inside it. Oxygen computes an equivalent
+   * internally but only spends it when the rail is collapsed, and the child row
+   * carrying the highlight has no icon.
    *
-   *  - The header is forced open (see activeGroupIds), so toggling is a no-op.
-   *    Render it non-interactive rather than leaving a click target that
-   *    silently does nothing, which reads as "the rail is broken".
-   *  - Its icon is tinted, so an expanded group signals that you are inside it.
-   *    Oxygen computes an equivalent internally but only spends it when the rail
-   *    is collapsed, and the child row carrying the highlight has no icon.
+   * It no longer makes the header non-interactive: the group opens itself on
+   * navigation, and closing it again is the user's business.
    */
   containsActiveRoute: boolean;
 }): JSX.Element | null {
@@ -406,19 +382,7 @@ function SectionNode({
 
 
     return (
-      <Sidebar.Item
-        id={section.id}
-        // `aria-disabled` alongside the visual treatment: the row stays a
-        // focusable button whose activation is a no-op (onToggleExpand refuses
-        // to collapse the group you're browsing), and without this a keyboard
-        // or screen-reader user gets no signal that pressing it does nothing.
-        aria-disabled={containsActiveRoute || undefined}
-        sx={
-          containsActiveRoute
-            ? { cursor: "default", "&:hover": { bgcolor: "transparent" } }
-            : undefined
-        }
-      >
+      <Sidebar.Item id={section.id}>
         <Sidebar.ItemIcon
           sx={containsActiveRoute ? { color: "primary.main" } : undefined}
         >

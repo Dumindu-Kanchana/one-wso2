@@ -16,7 +16,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -36,7 +35,6 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { InboxIcon, PencilIcon, PlusIcon, SearchIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
-import { describeError } from "@api/errors";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import PersonCell from "../components/PersonCell";
 import { emailKey } from "../components/employeePickerOptions";
@@ -51,6 +49,7 @@ import {
 } from "../api/useOrgChartEntities";
 import OrgEntityDialog from "./OrgEntityDialog";
 import { filterOrgEntities, type StatusFilter } from "./orgEntityFilter";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // One kind's management table: search, an active/inactive filter, and a
 // create/edit dialog. All four kinds render this — the only difference is the
@@ -167,17 +166,13 @@ export default function OrgEntityTab({ kind }: { kind: OrgEntityKind }) {
       </Box>
 
       {entities.isError && (
-        <Alert
-          severity="error"
+        <ErrorNotice
+          error={entities.error}
+          onRetry={() => void entities.refetch()}
           sx={{ mb: 1.5 }}
-          action={
-            <Button color="inherit" size="small" onClick={() => void entities.refetch()}>
-              Retry
-            </Button>
-          }
         >
-          Couldn't load {config.pluralLabel.toLowerCase()}. {describeError(entities.error)}
-        </Alert>
+          Couldn't load {config.pluralLabel.toLowerCase()}.
+        </ErrorNotice>
       )}
 
       <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 1 }}>

@@ -25,6 +25,7 @@ import { display, emergencyContactList, formatDate, fullName, serviceLength } fr
 import { useTeamMember, useTeamMemberPersonalInfo } from "../api/useTeamSearch";
 import { employeeStatusMeta } from "../util/employeeStatus";
 import EmployeeAvatar from "../components/EmployeeAvatar";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // One team member's record, read-only.
 //
@@ -69,22 +70,17 @@ export default function TeamMemberPage() {
     return (
       <Box>
         {back}
-        <Alert
+        <ErrorNotice
           severity={status === 403 || status === 404 ? "info" : "error"}
-          action={
-            status === 403 || status === 404 ? undefined : (
-              <Button color="inherit" size="small" onClick={() => member.refetch()}>
-                Retry
-              </Button>
-            )
-          }
+          error={status === 403 || status === 404 ? undefined : member.error}
+          onRetry={status === 403 || status === 404 ? undefined : () => member.refetch()}
         >
           {status === 403
             ? "You don't have access to this employee's record."
             : status === 404
               ? "That employee doesn't exist."
-              : `Couldn't load this employee. ${describeError(member.error)}`}
-        </Alert>
+              : "Couldn't load this employee."}
+        </ErrorNotice>
       </Box>
     );
   }

@@ -14,51 +14,46 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { reachablePerspectives } from "@constants/perspectives";
+import { reachablePerspectives, type PerspectiveDef } from "@constants/perspectives";
 
 /**
- * Which perspective the app opens on.
+ * Where the app opens, when the URL names no particular page.
  *
- * `ONE_WSO2_DEFAULT_PERSPECTIVE` names a perspective key ("me", "people-ops",
- * ...) and the index route resolves it to that perspective's path. Anything
- * unusable falls back to Me, which is the one perspective every signed-in user
- * can always open.
+ * A per-user choice only. There used to be a deployment-wide
+ * ONE_WSO2_DEFAULT_PERSPECTIVE as well, with the user's preference layered over
+ * it — a "follow the deployment" state distinct from picking a perspective, so
+ * a user kept moving when the deployment moved. It bought nothing: everyone
+ * lands on Me until they say otherwise, and anyone who wants something else can
+ * set it themselves in a couple of clicks.
  *
- * A DEPLOYMENT-WIDE setting, so pick a perspective the whole tenant can use.
- * Note that `access: true` in the registry only means "this perspective is
- * built" — it is not a per-user permission check. Marketing Ops in particular
- * gates its own contents against a separate backend's groups, so landing every
- * user there would show most of them an unauthorized state on login. Me,
- * People Ops, Finance and Workspace all render usefully for any signed-in user.
+ * Me is the floor. It is the one perspective every signed-in user can open, so
+ * anything unusable resolves back to it.
  */
 const FALLBACK_KEY = "me";
 
-/**
- * Every perspective that could legitimately be the landing page.
- *
- * Narrower than `reachablePerspectives()` on purpose: a perspective whose
- * contents are gated by another backend is routable but not usable by everyone,
- * and landing is the one place a user arrives without having chosen to. Being
- * dropped on an authorization notice at login reads as the app being broken.
- *
- * Excluded here rather than in `reachablePerspectives()`, because the rail, the
- * launcher and favourites should all still offer these — there the gate's own
- * message is the right response to a deliberate click.
- */
-export function landingOptions(): { key: string; label: string; path: string }[] {
-  return reachablePerspectives()
-    .filter((p) => !p.externallyGated)
-    .map((p) => ({
-      key: p.key,
-      label: p.label,
-      path: p.path as string,
-    }));
+export interface LandingOption {
+  key: string;
+  label: string;
+  path: string;
+}
+
+function asOptions(perspectives: PerspectiveDef[]): LandingOption[] {
+  return perspectives.map((p) => ({ key: p.key, label: p.label, path: p.path as string }));
 }
 
 /**
- * True when `key` names a perspective that can be landed on. A type predicate so
- * callers narrow away `null` from localStorage and `unknown` from window.config.
+ * What one PERSON may choose for themselves, in Settings.
+ *
+ * Everything reachable, gated or not. Someone who works in Marketing Ops all
+ * day should be able to open there, and they are the only one affected by the
+ * choice — they would not pick it if it did not work for them. An authorized
+ * caller gets the real page; only an unauthorized one meets the locked door,
+ * and that is the same screen the launcher would have given them.
  */
+export function landingOptions(): LandingOption[] {
+  return asOptions(reachablePerspectives());
+}
+
 export function isLandingKey(value: unknown): value is string {
   if (typeof value !== "string") return false;
   return landingOptions().some((o) => o.key === value);
@@ -79,38 +74,11 @@ export function landingPathFor(key: string | undefined): string {
   return fallback?.path ?? "/me";
 }
 
-/**
- * The deployment's configured landing key, or the fallback.
- *
- * Read per call rather than resolved at module load: `window.config` is fetched
- * before the app mounts, and a module-level constant would bake in whatever was
- * there at import time.
- */
-export function deploymentLandingKey(): string {
-  const configured = window.config?.ONE_WSO2_DEFAULT_PERSPECTIVE;
-  if (configured !== undefined && !isLandingKey(configured)) {
-    // Worth saying out loud: a typo here silently changes where everyone lands,
-    // and the fallback would otherwise look like the setting being ignored.
-    console.warn(
-      `[landing] ONE_WSO2_DEFAULT_PERSPECTIVE="${String(configured)}" is not a ` +
-        `perspective that can be landed on. Falling back to "${FALLBACK_KEY}". ` +
-        `Valid keys: ${landingOptions()
-          .map((o) => o.key)
-          .join(", ")}.`,
-    );
-  }
-  return isLandingKey(configured) ? configured : FALLBACK_KEY;
-}
-
 /** Namespaced like the app's other browser-stored keys. */
 const STORAGE_KEY = "one-wso2.landing";
 
 /**
  * The user's own landing choice, or undefined when they have not made one.
- *
- * Undefined is meaningful and distinct from "me": it means follow the
- * deployment default, so changing that default still moves this user. Storing
- * the resolved key instead would silently pin them to today's default forever.
  *
  * Validated on read — localStorage is user-editable, and a perspective can stop
  * being landable between releases.
@@ -124,7 +92,7 @@ export function landingPreference(): string | undefined {
   }
 }
 
-/** Save a landing choice, or clear it with `undefined` to follow the deployment. */
+/** Save a landing choice, or clear it with `undefined` to fall back to Me. */
 export function setLandingPreference(key: string | undefined): void {
   try {
     if (key === undefined) localStorage.removeItem(STORAGE_KEY);
@@ -135,10 +103,7 @@ export function setLandingPreference(key: string | undefined): void {
   }
 }
 
-/**
- * Where the app opens: the user's choice if they made one, otherwise the
- * deployment default, otherwise Me.
- */
+/** Where the app opens: the user's choice if they made one, otherwise Me. */
 export function landingPath(): string {
-  return landingPathFor(landingPreference() ?? deploymentLandingKey());
+  return landingPathFor(landingPreference());
 }

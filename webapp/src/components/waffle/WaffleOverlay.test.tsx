@@ -70,16 +70,30 @@ describe("launcher favourites", () => {
     expect(star.closest("button")).toBe(star);
   });
 
-  it("adds a favourite, and shows the Favourites group once there is one", () => {
+  it("shows Favourites from the start, holding Me", () => {
+    // Me is a default favourite. The launcher has no "For you" group any more,
+    // so this is the only tile for it on a first visit.
     renderLauncher();
-    expect(within(panel()).queryByRole("heading", { name: "Favourites" })).toBeNull();
+    expect(within(panel()).getByRole("heading", { name: "Favourites" })).toBeInTheDocument();
+    expect(readFavourites("user-under-test")).toEqual(["me"]);
+  });
+
+  it("appends a newly favourited app after the default", () => {
+    renderLauncher();
     return userEvent
       .setup()
       .click(within(panel()).getByRole("button", { name: "Add Finance to favourites" }))
       .then(() => {
-        expect(readFavourites("user-under-test")).toEqual(["finance"]);
-        expect(within(panel()).getByRole("heading", { name: "Favourites" })).toBeInTheDocument();
+        expect(readFavourites("user-under-test")).toEqual(["me", "finance"]);
       });
+  });
+
+  it("hides the group entirely once the user has removed everything", () => {
+    // An empty "Favourites" heading is worse than no heading. This is the case
+    // the group's own render guard exists for.
+    localStorage.setItem("one-wso2.favourites.v1.user-under-test", JSON.stringify([]));
+    renderLauncher();
+    expect(within(panel()).queryByRole("heading", { name: "Favourites" })).toBeNull();
   });
 
   it("shows a favourited app in both Favourites and its own group", () => {

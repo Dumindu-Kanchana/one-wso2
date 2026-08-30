@@ -14,11 +14,10 @@
 // specific language governing permissions and limitations
 // under the License.
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Skeleton } from "@wso2/oxygen-ui";
+import { Alert, Box, Skeleton } from "@wso2/oxygen-ui";
 import PerspectiveHeader from "@components/perspective-header/PerspectiveHeader";
 import { useUserInfo } from "@api/useUserInfo";
 import { capabilitiesFromPrivileges } from "@constants/appMenu";
-import { describeError } from "@api/errors";
 import { useOrgReference, type OrgSelection } from "../../api/useOrgReference";
 import { useTeamSearch } from "../api/useTeamSearch";
 import {
@@ -37,6 +36,7 @@ import MyTeamTable from "../components/MyTeamTable";
 import TeamFilterBar from "../components/TeamFilterBar";
 import TeamFilterDialog from "../components/TeamFilterDialog";
 import type { EmployeeSort } from "../../api/types";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // My Team — a lead's reporting chain.
 //
@@ -64,17 +64,9 @@ export default function MyTeamPage() {
   // hides a real, retryable error behind a message implying it's permanent.
   if (isError) {
     return (
-      <Alert
-        severity="error"
-        action={
-          <Button color="inherit" size="small" onClick={() => refetch()} disabled={isFetching}>
-            Retry
-          </Button>
-        }
-      >
+      <ErrorNotice error={error} onRetry={() => refetch()} retrying={isFetching}>
         Couldn&apos;t check your access to My Team.
-        {error instanceof Error ? ` ${error.message}` : ""}
-      </Alert>
+      </ErrorNotice>
     );
   }
 
@@ -197,16 +189,9 @@ function TeamRoster() {
       />
 
       {list.isError ? (
-        <Alert
-          severity="error"
-          action={
-            <Button color="inherit" size="small" onClick={() => list.refetch()}>
-              Retry
-            </Button>
-          }
-        >
-          Couldn&apos;t load your team. {describeError(list.error)}
-        </Alert>
+        <ErrorNotice error={list.error} onRetry={() => list.refetch()}>
+          Couldn&apos;t load your team.
+        </ErrorNotice>
       ) : list.isLoading ? (
         <Skeleton variant="rectangular" height={280} sx={{ borderRadius: 1.5 }} />
       ) : (
