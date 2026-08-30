@@ -43,10 +43,14 @@ const config = {
 };
 
 const state = {
-  leaves: [] as { id: number; endDate: string }[],
+  leaves: [] as Record<string, unknown>[],
   canSee: true,
   featureEnabled: true,
 };
+
+// Every filter useLeaves is called with, so a test can assert what the screen
+// actually asked the backend for rather than what it rendered.
+const leaveFilters: Record<string, unknown>[] = [];
 
 vi.mock("../api/useLeaveData", () => ({
   useLeaveUserInfo: () => ({ data: profile, isPending: false, isError: false }),
@@ -55,7 +59,10 @@ vi.mock("../api/useLeaveData", () => ({
     isPending: false,
     isError: false,
   }),
-  useLeaves: () => ({ data: { leaves: state.leaves }, isPending: false, isError: false }),
+  useLeaves: (filter: Record<string, unknown>) => {
+    leaveFilters.push(filter);
+    return { data: { leaves: state.leaves }, isPending: false, isError: false, isLoading: false };
+  },
 }));
 
 vi.mock("../api/useLeaveGate", () => ({
@@ -70,6 +77,7 @@ vi.mock("../api/useLeaveGate", () => ({
 const submitMutate = vi.fn();
 vi.mock("../api/useLeaveMutations", () => ({
   useSubmitLeave: () => ({ mutate: submitMutate, isPending: false, isError: false, error: null }),
+  useCancelLeave: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("../components/LeaveShell", () => ({
@@ -81,6 +89,7 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   submitMutate.mockClear();
+  leaveFilters.length = 0;
   profile.leadEmail = "lead@wso2.com";
   state.leaves = [];
   state.canSee = true;
@@ -301,5 +310,63 @@ describe("who and when the screen is available", () => {
     show();
     expect(await screen.findByText(/isn't available for your role/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Apply" })).not.toBeInTheDocument();
+  });
+});
+
+// The source reaches these through separate routes (route.ts:73-127); One WSO2
+// keeps one Sabbatical entry and gates tabs instead. The rules that decide what
+// a person can reach are the same either way.
+describe("the sabbatical tabs", () => {
+  it("offers apply and my history to someone eligible", async () => {
+    show();
+    expect(await screen.findByRole("tab", { name: "Apply" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "My history" })).toBeInTheDocument();
+  });
+
+  it("opens on Apply", async () => {
+    show();
+    expect(await screen.findByRole("button", { name: "Apply" })).toBeInTheDocument();
+  });
+
+  it("shows no tabs at all to a role the gate rejects", async () => {
+    state.canSee = false;
+    show();
+    expect(await screen.findByText(/isn't available for your role/)).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+  });
+});
+
+// SabbaticalLeaveHistory.tsx:21-28 — the general history screen with the
+// category swapped. What matters is that the swap actually reaches the request:
+// a tab that rendered the same rows as the general page would look right and be
+// wrong.
+describe("the my-history tab", () => {
+  it("asks only for sabbatical leave", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    const historyFilter = leaveFilters.at(-1)!;
+    expect(historyFilter.leaveCategory).toEqual(["sabbatical"]);
+  });
+
+  it("keeps the source's statuses and ordering", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    const historyFilter = leaveFilters.at(-1)!;
+    expect(historyFilter.statuses).toEqual(["APPROVED", "PENDING"]);
+    expect(historyFilter.orderBy).toBe("DESC");
+  });
+
+  it("brings the year selector with it", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
+    expect(await screen.findByText("Year")).toBeInTheDocument();
+  });
+
+  it("says so when there is no sabbatical on record", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
+    expect(await screen.findByText(/No leave history available for/)).toBeInTheDocument();
   });
 });

@@ -68,12 +68,16 @@ export default function LeaveHistoryPage() {
       title="My leave history"
       subtitle="Your approved and pending leave for the selected year. You can cancel a leave up to 30 days after it starts."
     >
-      <HistoryBody />
+      <HistoryBody leaveCategory={GENERAL_LEAVE_TYPES} />
     </LeaveShell>
   );
 }
 
-function HistoryBody() {
+// The body is shared by the general history page and the Sabbatical tab, the
+// way the source shares one LeaveHistory component between GeneralLeaveHistory
+// and SabbaticalLeaveHistory — same year selector, same cards, same 30-day
+// cancel rule, only the category filter differs.
+export function HistoryBody({ leaveCategory }: { leaveCategory: LeaveType[] }) {
   const userInfo = useLeaveUserInfo();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
@@ -87,7 +91,7 @@ function HistoryBody() {
       endDate: endOfYearIso(year),
       statuses: ["APPROVED", "PENDING"],
       orderBy: "DESC",
-      leaveCategory: GENERAL_LEAVE_TYPES,
+      leaveCategory,
     },
     Boolean(workEmail),
   );

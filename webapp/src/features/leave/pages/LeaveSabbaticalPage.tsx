@@ -32,12 +32,15 @@ import {
   Link,
   Skeleton,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import LeaveShell from "../components/LeaveShell";
 import LeaveDateField from "../components/LeaveDateField";
+import { HistoryBody } from "./LeaveHistoryPage";
 import { useLeaveAppConfig, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
 import { useSubmitLeave } from "../api/useLeaveMutations";
 import { useLeaveGate } from "../api/useLeaveGate";
@@ -64,16 +67,66 @@ import {
 export default function LeaveSabbaticalPage() {
   return (
     <LeaveShell
-      title="Apply for sabbatical"
+      title="Sabbatical"
       subtitle="A sabbatical is a long, planned break. Your lead approves it, so agree the dates with them before applying."
     >
-      <SabbaticalApply />
+      <SabbaticalTabs />
     </LeaveShell>
   );
 }
 
-function SabbaticalApply() {
+// The source splits these across four top-level routes (route.ts:73-149) and
+// builds its router from the role table. One WSO2 keeps a single Sabbatical
+// entry and gates the tabs instead, so the same rules decide what a person can
+// reach — they just reach it from one place.
+function SabbaticalTabs() {
   const gate = useLeaveGate();
+  const canApply = gate.canSee("leave-sabbatical");
+
+  const tabs = [
+    { key: "apply", label: "Apply", show: canApply },
+    { key: "history", label: "My history", show: canApply },
+  ].filter((t) => t.show);
+
+  const [tabKey, setTabKey] = useState(tabs[0]?.key ?? "apply");
+  const active = tabs.find((t) => t.key === tabKey) ?? tabs[0];
+
+  if (gate.isResolving) {
+    return <Skeleton variant="rectangular" height={420} sx={{ borderRadius: 1.5 }} />;
+  }
+
+  if (!active) {
+    return <Alert severity="info">Sabbatical leave isn&apos;t available for your role.</Alert>;
+  }
+
+  return (
+    <Box>
+      {tabs.length > 1 && (
+        <Tabs
+          value={active.key}
+          onChange={(_e, v) => setTabKey(String(v))}
+          sx={{
+            mb: 2,
+            minHeight: 36,
+            "& .MuiTab-root": { minHeight: 36, textTransform: "none", fontSize: 13, fontWeight: 600 },
+          }}
+        >
+          {tabs.map((t) => (
+            <Tab key={t.key} value={t.key} label={t.label} />
+          ))}
+        </Tabs>
+      )}
+
+      {active.key === "apply" && <SabbaticalApply />}
+      {/* SabbaticalLeaveHistory.tsx:21-28 — the same history screen as the
+          general one, filtered to sabbatical. Statuses, year selector and the
+          cancel rule all come from the shared body. */}
+      {active.key === "history" && <HistoryBody leaveCategory={["sabbatical"]} />}
+    </Box>
+  );
+}
+
+function SabbaticalApply() {
   const userInfo = useLeaveUserInfo();
   const appConfig = useLeaveAppConfig();
   const { showError } = useNotifications();
@@ -231,7 +284,7 @@ function SabbaticalApply() {
     );
   };
 
-  if (gate.isResolving || userInfo.isPending || appConfig.isPending || history.isPending) {
+  if (userInfo.isPending || appConfig.isPending || history.isPending) {
     return <Skeleton variant="rectangular" height={420} sx={{ borderRadius: 1.5 }} />;
   }
 
@@ -239,11 +292,6 @@ function SabbaticalApply() {
     return (
       <Alert severity="error">Couldn&apos;t load your leave profile. {describeError(userInfo.error)}</Alert>
     );
-  }
-
-  // route.ts:77-78 — [EMPLOYEE, LEAD] with INTERN denied.
-  if (!gate.canSee("leave-sabbatical")) {
-    return <Alert severity="info">Sabbatical leave isn&apos;t available for your role.</Alert>;
   }
 
   // SabbaticalLeave.tsx:36-43 — the flag replaces the entire screen.
