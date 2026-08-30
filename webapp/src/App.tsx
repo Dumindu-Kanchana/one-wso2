@@ -14,6 +14,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Suspense, lazy } from "react";
+import { Skeleton } from "@wso2/oxygen-ui";
 import { Navigate, Route, Routes } from "react-router";
 import { landingPath } from "@config/landingConfig";
 import SettingsPage from "@features/settings/pages/SettingsPage";
@@ -55,7 +57,12 @@ import {
 } from "@features/marketing-ops/email-workbench/pages/EmailWorkbenchPages";
 import LeaveApplyPage from "@features/leave/pages/LeaveApplyPage";
 import LeaveHistoryPage from "@features/leave/pages/LeaveHistoryPage";
-import LeaveReportsPage from "@features/leave/pages/LeaveReportsPage";
+// Lazy on purpose. This is the only screen that pulls in the DataGrid, which
+// costs ~115 kB gzipped — and only leads and People Ops can open it, so loading
+// it for everyone taxes the many for the few. The sabbatical approve and report
+// screens will share the same chunk when they land.
+const LeaveReportsPage = lazy(() => import("@features/leave/pages/LeaveReportsPage"));
+
 import LeaveSabbaticalComingSoonPage from "@features/leave/pages/LeaveSabbaticalComingSoonPage";
 import OpdNewClaimPage from "@features/finance/opd/pages/OpdNewClaimPage";
 import OpdHistoryPage from "@features/finance/opd/pages/OpdHistoryPage";
@@ -92,7 +99,16 @@ export default function App() {
               themself, not an HR-team tool. */}
           <Route path="me/leave/apply" element={<LeaveApplyPage />} />
           <Route path="me/leave/history" element={<LeaveHistoryPage />} />
-          <Route path="me/leave/reports" element={<LeaveReportsPage />} />
+          <Route
+            path="me/leave/reports"
+            element={
+              // Skeleton rather than null: the chunk is fetched on navigation,
+              // and a blank frame reads as a broken link.
+              <Suspense fallback={<Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />}>
+                <LeaveReportsPage />
+              </Suspense>
+            }
+          />
           {/* Sabbatical use cases (apply/approve/report) are on hold this
               iteration — placeholder links out to the Leave app instead. */}
           <Route path="me/leave/sabbatical" element={<LeaveSabbaticalComingSoonPage />} />

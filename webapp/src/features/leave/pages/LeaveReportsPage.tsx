@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import {
   Alert,
+  DataGrid,
   Autocomplete,
   Box,
   Button,
@@ -26,21 +27,21 @@ import {
   Skeleton,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
 } from "@wso2/oxygen-ui";
 import { describeError } from "../util/leaveError";
 import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
+import { EmployeeOption } from "../components/EmployeeOption";
+import { employeeDisplayName } from "../util/employeeName";
 import LeaveShell from "../components/LeaveShell";
 import { LeaveTypeChip } from "../components/LeaveChips";
-import { LEAVE_PRIVILEGE, type EmployeeStatus, type LeaveFilter } from "../api/leaveTypes";
+import type { DatabaseLeave, EmployeeStatus, LeaveFilter } from "../api/leaveTypes";
+import { useNotifications } from "@context/notifications/NotificationsContext";
+import { REPORT_VALIDATION_MESSAGE } from "../util/leaveCopy";
 import { useLeaveEmployees, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
+import { useLeaveGate } from "../api/useLeaveGate";
 import { formatNice, startOfYearIso, todayIso } from "../util/leaveDates";
 
 const PERIOD_LABEL: Record<string, string> = {
@@ -68,12 +69,11 @@ export default function LeaveReportsPage() {
 
 function ReportsBody() {
   const userInfo = useLeaveUserInfo();
-  const privileges = userInfo.data?.privileges ?? [];
-  const isPeopleOps = privileges.includes(LEAVE_PRIVILEGE.PEOPLE_OPS_TEAM);
-  const isLead =
-    userInfo.data?.isLead === true ||
-    privileges.includes(LEAVE_PRIVILEGE.LEAD) ||
-    (userInfo.data?.subordinateCount ?? 0) > 0;
+  // One source of truth with the rail, so the menu and the page cannot
+  // disagree about who gets in. Previously this also accepted `isLead === true`
+  // and `subordinateCount > 0`, granting the report to people the source never
+  // grants it to — it checks the privilege number alone.
+  const { isPeopleOps, isLead } = useLeaveGate();
 
   const employees = useLeaveEmployees(isPeopleOps);
 
@@ -95,10 +95,21 @@ function ReportsBody() {
     employeeStatuses: DEFAULT_EMPLOYEE_STATUSES,
   });
 
-  // Bound the fetch — for People Ops this is otherwise an org-wide, un-paged
-  // pull rendered into a non-virtualised table. If we hit the cap the totals
-  // below only cover what came back, so the UI says so.
-  const REPORT_LIMIT = 1000;
+  const { showError } = useNotifications();
+
+  // Checked on Fetch, not left to the To field's `min` — that only constrains
+  // the picker, and a typed date goes straight past it (Toolbar.tsx:95-107).
+  const runReport = () => {
+    if (!fromDate || !toDate) {
+      showError(REPORT_VALIDATION_MESSAGE.datesRequired);
+      return;
+    }
+    if (toDate < fromDate) {
+      showError(REPORT_VALIDATION_MESSAGE.endBeforeStart);
+      return;
+    }
+    setApplied({ from: fromDate, to: toDate, email: employee, showAllEmployees, employeeStatuses });
+  };
 
   const workEmail = userInfo.data?.workEmail ?? null;
   // Whether *this* applied filter needs approverEmail scoping — plain leads
@@ -115,12 +126,24 @@ function ReportsBody() {
       startDate: applied.from,
       endDate: applied.to,
       statuses: ["APPROVED"],
-      orderBy: "DESC",
-      limit: REPORT_LIMIT,
+      // No orderBy and no limit — the running app sends neither
+      // (LeadReportTab.tsx:55-62). The cap existed only because every row was
+      // rendered at once; the table pages now, and the totals below cover the
+      // whole result rather than the first page of it.
     };
+    // Sent for everyone, not only People Ops. The running app spreads it
+    // unconditionally (LeadReportTab.tsx:46,61) even though only People Ops can
+    // edit the control — its state defaults to [Active, Marked leaver] and goes
+    // out on every request, including a plain lead's.
+    //
+    // It is not a display filter: it changes which rows the backend returns, so
+    // withholding it for leads gave them a different report from the one they
+    // get in the app that is live today. Reproducing what ships is the whole
+    // point; the mechanism behind it is the backend's business.
+    if (applied.employeeStatuses.length > 0) base.employeeStatuses = applied.employeeStatuses;
+
     if (isPeopleOps) {
       if (applied.email) base.email = applied.email;
-      if (applied.employeeStatuses.length > 0) base.employeeStatuses = applied.employeeStatuses;
       // Matches leave-app's "Subordinates only" toggle — People Ops default
       // to org-wide, but can narrow to their own reports like a plain lead.
       if (!applied.showAllEmployees && workEmail) base.approverEmail = workEmail;
@@ -134,10 +157,20 @@ function ReportsBody() {
   const allowed = isPeopleOps || isLead;
   const leaves = useLeaves(filter, Boolean(userInfo.data) && allowed && canScopeToApprover);
 
-  const employeeOptions = useMemo(
-    () => (employees.data ?? []).map((e) => e.workEmail).filter(Boolean),
+  const offerable = useMemo(
+    () => (employees.data ?? []).filter((e) => e.workEmail),
     [employees.data],
   );
+  const employeeOptions = useMemo(() => offerable.map((e) => e.workEmail), [offerable]);
+  const byEmail = useMemo(() => new Map(offerable.map((e) => [e.workEmail, e])), [offerable]);
+  // Memoised: `?? []` would hand a fresh array to the grid on every render.
+  const rows = useMemo(() => leaves.data?.leaves ?? [], [leaves.data]);
+  const totalDays = rows.reduce((sum, r) => sum + (r.numberOfDays ?? 0), 0);
+
+  // The source shows its total only for a single-employee result
+  // (LeadReportTable.tsx:141) — summing days across a mixed list answers no
+  // question anyone asked.
+  const oneEmployee = new Set(rows.map((r) => r.email)).size === 1;
 
   if (userInfo.isLoading) {
     return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />;
@@ -156,11 +189,6 @@ function ReportsBody() {
     );
   }
 
-  const rows = leaves.data?.leaves ?? [];
-  const totalDays = rows.reduce((sum, r) => sum + (r.numberOfDays ?? 0), 0);
-  // We asked for at most REPORT_LIMIT rows; if we got exactly that many there
-  // may be more, and the total below under-reports. Surface that caveat.
-  const capped = rows.length >= REPORT_LIMIT;
 
   return (
     <Box>
@@ -182,6 +210,28 @@ function ReportsBody() {
                 noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
                 disableListWrap
                 ListboxComponent={VirtualizedListbox}
+                renderOption={(props, option) => {
+                  const person = byEmail.get(option);
+                  return person ? (
+                    <EmployeeOption key={option} employee={person} props={props} showStatus />
+                  ) : (
+                    <li {...props} key={option}>
+                      {option}
+                    </li>
+                  );
+                }}
+                // Names are on screen now, so they have to be searchable.
+                filterOptions={(options, { inputValue }) => {
+                  const q = inputValue.trim().toLowerCase();
+                  if (!q) return options;
+                  return options.filter((o) => {
+                    const e = byEmail.get(o);
+                    return (
+                      o.toLowerCase().includes(q) ||
+                      (e ? employeeDisplayName(e).toLowerCase().includes(q) : false)
+                    );
+                  });
+                }}
                 renderInput={(params) => <TextField {...params} placeholder="All employees" />}
               />
             </Box>
@@ -191,7 +241,7 @@ function ReportsBody() {
           <Button
             variant="contained"
             onClick={() =>
-              setApplied({ from: fromDate, to: toDate, email: employee, showAllEmployees, employeeStatuses })
+              runReport()
             }
             disabled={leaves.isFetching}
             sx={{ fontWeight: 600 }}
@@ -254,47 +304,105 @@ function ReportsBody() {
       ) : (
         <>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap" }}>
-            <Chip label={`${rows.length}${capped ? "+" : ""} record${rows.length === 1 ? "" : "s"}`} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
-            <Chip label={`${totalDays} day${totalDays === 1 ? "" : "s"} total`} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
-            {capped && (
-              <Typography sx={{ fontSize: 11, color: "warning.main" }}>
-                Showing the first {REPORT_LIMIT} — narrow the date range for a complete total.
-              </Typography>
+            <Chip label={`${rows.length} record${rows.length === 1 ? "" : "s"}`} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
+            {oneEmployee && (
+              <Chip label={`Total: ${totalDays} day${totalDays === 1 ? "" : "s"}`} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
             )}
           </Stack>
-          <Card variant="outlined" sx={{ overflowX: "auto" }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <HeadCell>Employee</HeadCell>
-                  <HeadCell>Leave type</HeadCell>
-                  <HeadCell>Start</HeadCell>
-                  <HeadCell>End</HeadCell>
-                  <HeadCell align="right">Days</HeadCell>
-                  <HeadCell>Period</HeadCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id} hover>
-                    <TableCell sx={{ fontSize: 12.5 }}>{r.email}</TableCell>
-                    <TableCell>
-                      <LeaveTypeChip leaveType={r.leaveType} />
-                    </TableCell>
-                    <TableCell sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatNice(r.startDate)}</TableCell>
-                    <TableCell sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatNice(r.endDate)}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: 12.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{r.numberOfDays ?? "—"}</TableCell>
-                    <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>
-                      {PERIOD_LABEL[r.periodType ?? ""] ?? r.periodType ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          {/* The same component the running app uses, reached through Oxygen's
+              re-export. Sorting, paging, the filter panel, column visibility,
+              density and CSV/print export all arrive with it — hand-building
+              any of that onto a plain table would be reimplementing a
+              dependency we already ship. LeadReportTable.tsx:150-178. */}
+          <Card variant="outlined">
+            <DataGrid.DataGrid
+              rows={rows}
+              columns={REPORT_COLUMNS}
+              loading={leaves.isFetching}
+              initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+              pageSizeOptions={[5, 10, 25]}
+              disableRowSelectionOnClick
+              showToolbar
+              rowHeight={52}
+              sx={{ border: "none" }}
+            />
           </Card>
         </>
       )}
     </Box>
+  );
+}
+
+/** The six columns, in the source's order (LeadReportTable.tsx:61-137). */
+// The six columns, in the source's order and with its widths
+// (LeadReportTable.tsx:61-137). Defined at module scope so the grid is not
+// handed a fresh array on every render, which would reset its own state.
+const REPORT_COLUMNS: DataGrid.GridColDef<DatabaseLeave>[] = [
+  { field: "email", headerName: "Employee", flex: 1.5 },
+  {
+    field: "leaveType",
+    headerName: "Leave Type",
+    flex: 1,
+    renderCell: (params) => <LeaveTypeChip leaveType={params.value ?? null} />,
+  },
+  {
+    field: "startDate",
+    headerName: "Start Date",
+    flex: 1,
+    renderCell: (params) => <GridText>{formatNice(params.value ?? "")}</GridText>,
+  },
+  {
+    field: "endDate",
+    headerName: "End Date",
+    flex: 1,
+    renderCell: (params) => <GridText>{formatNice(params.value ?? "")}</GridText>,
+  },
+  {
+    field: "numberOfDays",
+    headerName: "Days",
+    flex: 0.6,
+    renderCell: (params) => <GridText bold>{params.value ?? "—"}</GridText>,
+  },
+  {
+    field: "periodType",
+    headerName: "Period",
+    flex: 1,
+    renderCell: (params) => (
+      <GridText muted>{PERIOD_LABEL[params.value ?? ""] ?? params.value ?? "—"}</GridText>
+    ),
+  },
+];
+
+/**
+ * A cell's text, vertically centred.
+ *
+ * The grid gives a cell its full row height, so a bare string sits at the top of
+ * a 52px row. The source solves this the same way, wrapping each value in a
+ * centred Stack (LeadReportTable.tsx:96-120).
+ */
+function GridText({
+  children,
+  bold,
+  muted,
+}: {
+  children: React.ReactNode;
+  bold?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <Stack height="100%" justifyContent="center">
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: 12.5,
+          fontWeight: bold ? 700 : undefined,
+          color: muted ? "text.secondary" : undefined,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {children}
+      </Typography>
+    </Stack>
   );
 }
 
@@ -323,10 +431,3 @@ function DateField({
   );
 }
 
-function HeadCell({ children, align }: { children: React.ReactNode; align?: "right" }) {
-  return (
-    <TableCell align={align} sx={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "text.disabled" }}>
-      {children}
-    </TableCell>
-  );
-}

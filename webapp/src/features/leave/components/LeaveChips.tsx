@@ -14,10 +14,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Chip } from "@wso2/oxygen-ui";
+import { Chip, alpha } from "@wso2/oxygen-ui";
 import type { LucideIcon } from "@wso2/oxygen-ui-icons-react";
 import {
   LEAVE_TYPE_ICON,
+  LEAVE_TYPE_COLOR,
+  LEAVE_TYPE_COLOR_FALLBACK,
   LEAVE_TYPE_ICON_FALLBACK,
   LEAVE_TYPE_LABEL,
   type LeaveStatus,
@@ -57,16 +59,23 @@ export function StatusChip({ status }: { status: LeaveStatus | null }) {
 // `hasOwn` rather than `in`: `leaveType` comes from the backend, and `in` also
 // matches inherited names such as "toString" — which would resolve `Icon` to a
 // function and crash the render rather than fall through to the fallback.
-function normalizeType(raw: string | null): { label: string; Icon: LucideIcon } {
+function normalizeType(raw: string | null): {
+  label: string;
+  Icon: LucideIcon;
+  color: string;
+} {
   const t = raw as LeaveType | null;
   if (t && Object.hasOwn(LEAVE_TYPE_LABEL, t)) {
-    return { label: LEAVE_TYPE_LABEL[t], Icon: LEAVE_TYPE_ICON[t] };
+    return { label: LEAVE_TYPE_LABEL[t], Icon: LEAVE_TYPE_ICON[t], color: LEAVE_TYPE_COLOR[t] };
   }
-  return { label: raw ?? "—", Icon: LEAVE_TYPE_ICON_FALLBACK };
+  // The source title-cases an unknown key rather than printing it raw
+  // (LeadReportTable.tsx:74).
+  const label = raw ? raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
+  return { label, Icon: LEAVE_TYPE_ICON_FALLBACK, color: LEAVE_TYPE_COLOR_FALLBACK };
 }
 
 export function LeaveTypeChip({ leaveType }: { leaveType: string | null }) {
-  const { label, Icon } = normalizeType(leaveType);
+  const { label, Icon, color } = normalizeType(leaveType);
   return (
     <Chip
       // Icon goes in the Chip's own icon slot, not concatenated into the label,
@@ -74,9 +83,18 @@ export function LeaveTypeChip({ leaveType }: { leaveType: string | null }) {
       icon={<Icon size={14} />}
       label={label}
       size="small"
-      color="primary"
-      variant="outlined"
-      sx={{ height: 20, fontSize: 10.5, fontWeight: 600 }}
+      // Tinted per type, as the source does (LeadReportTable.tsx:82-86): a
+      // 10%-alpha fill of the type's own colour, with the text in it. A column
+      // of identical primary outlines cannot be scanned.
+      sx={{
+        height: 20,
+        fontSize: 10.5,
+        fontWeight: 600,
+        border: "none",
+        color,
+        bgcolor: alpha(color, 0.1),
+        "& .MuiChip-icon": { color },
+      }}
     />
   );
 }
