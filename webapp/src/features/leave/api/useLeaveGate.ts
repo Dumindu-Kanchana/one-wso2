@@ -54,11 +54,9 @@ export function useLeaveGate(enabled = true): LeaveGate {
   const privileges = userInfo.data?.privileges ?? [];
 
   const isPeopleOps = privileges.includes(LEAVE_PRIVILEGE.PEOPLE_OPS_TEAM);
-  // The privilege number, and nothing else. `isLead` and `subordinateCount > 0`
-  // were also being accepted, which granted the report to people the source
-  // never grants it to — it checks the number alone (LeadReportTab.tsx:50).
-  // The backend grants LEAD purely on having subordinates (service.bal:74-76),
-  // so anyone who genuinely leads a team already holds it.
+  // The privilege number, and nothing else — LeadReportTab.tsx:50. `isLead`
+  // and `subordinateCount > 0` were also being accepted, which granted the
+  // report to people the running app does not grant it to.
   const isLead = privileges.includes(LEAVE_PRIVILEGE.LEAD);
 
   const canSee = (itemId: string): boolean => {

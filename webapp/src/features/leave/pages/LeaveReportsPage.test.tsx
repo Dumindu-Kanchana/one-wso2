@@ -68,12 +68,9 @@ describe("a plain lead's report", () => {
     };
   });
 
-  // This is not a display filter. With employeeStatuses present the backend
-  // resolves the employee set by leadEmail and clears approverEmail
-  // (service.bal:264-284); without it, it filters leave rows on the stored
-  // approverEmail. So its absence silently changes "leave of the people who
-  // report to me now" into "leave rows I am recorded against" — a different set
-  // after any reporting-line change.
+  // Not a display filter — it changes which rows come back, so withholding it
+  // for leads gave them a different report from the one the live app gives.
+  // LeadReportTab.tsx:46,61 sends it on every request, lead or People Ops.
   it("asks for employee statuses, exactly as the source does for every lead", () => {
     show();
     expect(lastFilter().employeeStatuses).toEqual(["Active", "Marked leaver"]);

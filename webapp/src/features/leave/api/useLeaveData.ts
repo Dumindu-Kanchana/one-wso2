@@ -148,10 +148,9 @@ export function useLeaveEmployees(enabled = true) {
     enabled: enabled && isSignedIn && configured,
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      // The status filter is not optional. The backend passes `status: ()`
-      // straight to the HR GraphQL filter (service.bal:779-793), so omitting it
-      // returns whatever that defaults to rather than the three the source
-      // asks for by name (leaveService.ts:58-66).
+      // The three statuses the running app asks for, by name
+      // (leaveService.ts:58-66). It has always sent them; what the backend
+      // returns without them is not something to guess at.
       const params = new URLSearchParams();
       for (const status of ["Active", "Marked leaver", "Left"]) {
         params.append("employeeStatuses", status);

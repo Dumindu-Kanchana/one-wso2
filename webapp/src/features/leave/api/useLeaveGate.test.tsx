@@ -46,11 +46,8 @@ describe("who can see Reports", () => {
     expect(gateFor({ privileges: [P.EMPLOYEE] }).canSee("leave-reports")).toBe(false);
   });
 
-  // Two widenings the port had that the source does not: it checks the
-  // privilege number alone (LeadReportTab.tsx:50). The backend grants LEAD
-  // purely on having subordinates (service.bal:74-76), so anyone who genuinely
-  // leads a team already holds the number — accepting these as well only ever
-  // let in people the source keeps out.
+  // Two widenings the port had that the running app does not: it checks the
+  // privilege number alone (LeadReportTab.tsx:50).
   it("an isLead flag without the privilege does not count", () => {
     expect(gateFor({ isLead: true, privileges: [P.EMPLOYEE] }).canSee("leave-reports")).toBe(false);
   });
