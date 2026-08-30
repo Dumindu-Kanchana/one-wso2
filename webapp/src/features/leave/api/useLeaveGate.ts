@@ -58,6 +58,8 @@ export function useLeaveGate(enabled = true): LeaveGate {
   // and `subordinateCount > 0` were also being accepted, which granted the
   // report to people the running app does not grant it to.
   const isLead = privileges.includes(LEAVE_PRIVILEGE.LEAD);
+  const isEmployee = privileges.includes(LEAVE_PRIVILEGE.EMPLOYEE);
+  const isIntern = privileges.includes(LEAVE_PRIVILEGE.INTERN);
 
   const canSee = (itemId: string): boolean => {
     switch (itemId) {
@@ -67,6 +69,16 @@ export function useLeaveGate(enabled = true): LeaveGate {
       // route.ts:94,101 — LEAD only. People Ops cannot approve.
       case "leave-approve":
         return isLead;
+      // route.ts:77-78 and :124-125 — `allowRoles: [EMPLOYEE, LEAD]` with
+      // `denyRoles: [INTERN]`, on both the apply and history routes. Interns
+      // cannot take a sabbatical, and a People-Ops-only user holds neither
+      // allowed role, so neither sees it.
+      //
+      // Named explicitly rather than left to RESTRICTED_IDS: the registry entry
+      // carries no `requires`, because the people-app capabilities that field is
+      // resolved against have no word for "intern".
+      case "leave-sabbatical":
+        return (isEmployee || isLead) && !isIntern;
       default:
         // Apply and My History are per-user and stay open. Anything else that
         // declares a restriction and is not named above fails closed, so the

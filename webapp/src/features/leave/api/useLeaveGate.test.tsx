@@ -74,11 +74,30 @@ describe("who can approve", () => {
 });
 
 describe("the per-user screens", () => {
-  it("stay open to anyone", () => {
+  it("stay open to any employee", () => {
     const gate = gateFor({ privileges: [P.EMPLOYEE] });
     expect(gate.canSee("leave-apply")).toBe(true);
     expect(gate.canSee("leave-history")).toBe(true);
-    expect(gate.canSee("leave-sabbatical")).toBe(true);
+  });
+});
+
+// route.ts:77-78 and :124-125 — allowRoles [EMPLOYEE, LEAD], denyRoles [INTERN],
+// on both the apply and the history sabbatical routes.
+describe("who can see Sabbatical", () => {
+  it("an employee can", () => {
+    expect(gateFor({ privileges: [P.EMPLOYEE] }).canSee("leave-sabbatical")).toBe(true);
+  });
+
+  it("a lead can", () => {
+    expect(gateFor({ privileges: [P.LEAD] }).canSee("leave-sabbatical")).toBe(true);
+  });
+
+  it("an intern cannot, even holding the employee privilege", () => {
+    expect(gateFor({ privileges: [P.EMPLOYEE, P.INTERN] }).canSee("leave-sabbatical")).toBe(false);
+  });
+
+  it("a People-Ops-only user cannot — they hold neither allowed role", () => {
+    expect(gateFor({ privileges: [P.PEOPLE_OPS_TEAM] }).canSee("leave-sabbatical")).toBe(false);
   });
 });
 
