@@ -15,6 +15,7 @@
 // under the License.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router";
 import {
   Alert,
   Box,
@@ -106,16 +107,28 @@ function NewClaimBody() {
   const remainingAfter =
     summary != null ? Math.max(summary.totalRemaining - claimedInList, 0) : undefined;
 
-  // Seed the working list from any server-side draft, once, when app-data
-  // first arrives and the list is still empty.
+  // Bills carried over from a rejected claim via "Resubmit as New Claim"
+  // (OpdHistoryPage). ClaimDetails.tsx:187-192 adds them to the working list
+  // and navigates here; autosave then persists them, replacing the old draft.
+  const location = useLocation();
+  const carriedOver = (location.state as { resubmitTransactions?: OpdTransaction[] } | null)
+    ?.resubmitTransactions;
+
+  // Seed the working list once — from a resubmitted claim if we arrived with
+  // one, otherwise from any server-side draft.
   const seeded = useRef(false);
   useEffect(() => {
     if (seeded.current) return;
+    if (carriedOver && carriedOver.length > 0) {
+      seeded.current = true;
+      setItems(carriedOver);
+      return;
+    }
     if (!appData.isSuccess) return;
     seeded.current = true;
     const drafted = appData.data?.draft?.transactions ?? [];
     if (drafted.length > 0) setItems(drafted);
-  }, [appData.isSuccess, appData.data]);
+  }, [appData.isSuccess, appData.data, carriedOver]);
 
   // Debounced autosave: POST the draft while there are items, DELETE it once
   // the list is emptied (e.g. after submit).

@@ -15,10 +15,15 @@
 // under the License.
 
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Alert,
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   MenuItem,
   Select,
@@ -60,6 +65,8 @@ function HistoryBody() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [selected, setSelected] = useState<OpdClaim | null>(null);
+  const [resubmitting, setResubmitting] = useState<OpdClaim | null>(null);
+  const navigate = useNavigate();
 
   const email = userInfo.data?.workEmail ?? undefined;
   const claims = useOpdClaims(
@@ -138,7 +145,44 @@ function HistoryBody() {
         </Box>
       )}
 
-      <OpdClaimDetailsDialog claim={selected} onClose={() => setSelected(null)} />
+      <OpdClaimDetailsDialog
+        claim={selected}
+        onClose={() => setSelected(null)}
+        onResubmit={(c) => setResubmitting(c)}
+      />
+
+      {/* ClaimDetails.tsx:395-407. Resubmitting does not amend the rejected
+          claim — it starts a fresh one from its bills, which replaces whatever
+          draft was already saved, so that is said before it happens. */}
+      <Dialog open={resubmitting !== null} onClose={() => setResubmitting(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Claim Resubmission Confirmation</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontSize: 13.5 }}>
+            Are you sure you want to resubmit this claim? This will create a new draft claim and{" "}
+            <b>your existing draft will be cleared</b>.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setResubmitting(null)}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            color="success"
+            variant="contained"
+            onClick={() => {
+              // :187-192 — the bills are carried over locally and the New Claim
+              // screen persists them as the draft, exactly as the source does.
+              const transactions = resubmitting?.transactions ?? [];
+              setResubmitting(null);
+              setSelected(null);
+              navigate("/me/opd/new", { state: { resubmitTransactions: transactions } });
+            }}
+          >
+            Resubmit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

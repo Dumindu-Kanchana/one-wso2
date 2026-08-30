@@ -45,10 +45,16 @@ export function OpdClaimDetailsDialog({
   claim,
   onClose,
   review = false,
+  onResubmit,
 }: {
   claim: OpdClaim | null;
   onClose: () => void;
   review?: boolean;
+  /**
+   * Offered on the employee's own rejected claim — ClaimDetails.tsx:101-114,307.
+   * Absent in the finance review view, which never resubmits.
+   */
+  onResubmit?: (claim: OpdClaim) => void;
 }) {
   const getAccessToken = useAccessToken();
   const { showError, showSuccess } = useNotifications();
@@ -185,9 +191,17 @@ export function OpdClaimDetailsDialog({
             </>
           )
         ) : (
-          <Button size="small" onClick={onClose}>
-            Close
-          </Button>
+          <>
+            <Button size="small" onClick={onClose}>
+              Close
+            </Button>
+            {/* :195-196 — only a rejected claim can be taken up again. */}
+            {onResubmit && claim && claim.statusDetails.status === "REJECTED" && (
+              <Button size="small" variant="contained" onClick={() => onResubmit(claim)}>
+                Resubmit as New Claim
+              </Button>
+            )}
+          </>
         )}
       </DialogActions>
     </Dialog>

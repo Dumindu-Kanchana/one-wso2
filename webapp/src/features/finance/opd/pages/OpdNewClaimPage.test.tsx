@@ -19,6 +19,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router";
 import type { ReactNode } from "react";
 
 // First tests for any of the three finance ports. The audit against
@@ -82,7 +83,9 @@ function show() {
   return render(
     <QueryClientProvider client={new QueryClient()}>
       <NotificationsProvider>
-        <OpdNewClaimPage />
+        <MemoryRouter>
+          <OpdNewClaimPage />
+        </MemoryRouter>
       </NotificationsProvider>
     </QueryClientProvider>,
   );
