@@ -78,7 +78,32 @@ The day total is shown only when the result covers one employee.
 
 ### 2.4 Sabbatical — `/me/leave/sabbatical`
 
-Not yet ported. Currently a card linking out to the standalone app. See §8.
+One screen with role-gated tabs. The source spreads these across four top-level routes and builds its
+router from the role table; the tabs are gated by the same rules, so the same people reach the same
+things from one place.
+
+| Tab | Who | Source |
+|---|---|---|
+| Apply | employee or lead, not intern | `ApplyTab.tsx` |
+| My history | employee or lead, not intern | `SabbaticalLeaveHistory.tsx` |
+| Approve | lead | `ApproveLeaveTab.tsx` + `ApproveLeaveTable.tsx` |
+| Approval history | lead | `ApproveHistoryTab.tsx` + `ApprovalHistoryTable.tsx` |
+| Report | lead or People Ops | `AdminSabbaticalTab.tsx` |
+
+The whole screen is replaced by a notice when `appConfig.isSabbaticalLeaveEnabled` is false. Apply is
+replaced by an explanation when the user has no `leadEmail` — there is nobody to route the request
+to. Eligibility is measured from the last approved sabbatical, or the employment start date when
+there is none, and the warning names which of the two it used. It renders as a warning but blocks
+submit.
+
+The date the user gives as their last sabbatical is **appended to the free-text comment**
+(`**** Last Sabbatical Leave End Date: … ****`) rather than sent as a field: `types.ts:275-280`
+declares `SabbaticalApplicationRequest.lastSabbaticalLeaveEndDate`, but nothing sends it — the submit
+is the ordinary `POST /leaves`. Reproduced, not corrected; that is where the approver reads it.
+
+Approving shows what share of the lead's team is already booked away over the same dates. The source
+fetches that before opening the dialog; we open immediately and hold the confirm button until it
+lands, so the lead still cannot decide without seeing it.
 
 ---
 
@@ -100,9 +125,12 @@ Not yet ported. Currently a card linking out to the standalone app. See §8.
 |---|---|---|---|---|
 | Apply (general) | ✓ | ✓ | ✓ | ✓ |
 | Apply (sabbatical) | ✓ | ✗ | ✓ | ✗ * |
-| My History | ✓ | ✓ | ✓ | ✗ * |
-| Reports | ✗ | ✗ | ✓ | ✓ |
+| My History (general) | ✓ | ✓ | ✓ | ✗ * |
+| My History (sabbatical) | ✓ | ✗ | ✓ | ✗ * |
+| Reports (general) | ✗ | ✗ | ✓ | ✓ |
 | Approve sabbatical | ✗ | ✗ | ✓ | ✗ |
+| Approval history | ✗ | ✗ | ✓ | ✗ |
+| Sabbatical report | ✗ | ✗ | ✓ | ✓ |
 
 \* A People-Ops-**only** user holds no EMPLOYEE privilege and so has no personal screens. In practice
 the backend grants EMPLOYEE to anyone in the employee groups, so most hold both.
@@ -151,21 +179,39 @@ UTC midnight, so dates render a day early west of UTC; it renders "1 days"; it r
 "Conges_payes Leave"; and its `SingleLeaveHistory` omits `status`, which the backend returns and the
 port's DTO carries.
 
-**Not ported.** The source's Apply/History screens each have a General | Sabbatical tab strip; here
-those are separate rail entries. The source's employee pickers show avatars and display names; ours
-list addresses.
+**Structural.** The source puts each sabbatical screen beside its general counterpart — Apply →
+General|Sabbatical, My History → General|Sabbatical, Reports → General|Sabbatical, plus a lead-only
+Approve. One WSO2 keeps a single Sabbatical entry with tabs inside it. Behaviour and gating are
+unchanged; only the grouping differs.
+
+**Cosmetic.** The source's tables are MUI DataGrids; the sabbatical approve, approval-history and
+report tables here are plain tables, so they have no column picker or CSV export. The general report
+does use the DataGrid, lazily, and that is the only screen that pays for it.
 
 ---
 
-## 8. Sabbatical — not yet ported
+## 8. Sabbatical — the arithmetic
 
-Five screens in the source, ~1,300 lines: Apply, Approve, Approve History, My Sabbatical History, and
-a Sabbatical Report. `LeaveApprovePage.tsx` in this repo is an unrouted first draft of the approve
-screen — shipped in `8a7f924`, unwired in `a944919` in favour of the link-out, never deleted.
+Two `appConfig` values drive every rule, both in **days**, while every message speaks in years and
+weeks. `util/sabbatical.ts` holds the conversions so no screen does the arithmetic inline.
 
-The whole Apply screen is gated on `appConfig.isSabbaticalLeaveEnabled`, and hidden entirely when the
-user has no `leadEmail`. Eligibility is a warning derived from the last approved sabbatical, or the
-employment start date when there is none.
+| Rule | Config | Default | Shown as |
+|---|---|---|---|
+| Eligibility gap | `sabbaticalLeaveEligibilityDuration` | 1095 days | "at least 3 years" |
+| Maximum length | `sabbaticalLeaveMaxApplicationDuration` | 42 days | "6 weeks" |
+
+`eligibilityGapDays` subtracts one from the plain day difference (`ApplyTab.tsx:168`), which makes
+the check a day stricter than it reads. Reproduced deliberately — §9 records it as a question for a
+live tenant, not something corrected here. With the defaults, an anchor of 2024-01-01 first becomes
+eligible on 2027-01-01.
+
+Length is inclusive of both ends and strictly greater than the limit is too long, so 42 days is
+accepted and 43 is not.
+
+`LeaveApprovePage.tsx` — the unrouted first draft of the approve screen, shipped in `8a7f924` and
+unwired in `a944919` — has been **deleted**. It widened the lead check to `isLead ||
+LEAD privilege || subordinateCount > 0`, which granted the approve queue to people the running app
+does not, and it had none of the source's dialog copy or the team-share query.
 
 ---
 
