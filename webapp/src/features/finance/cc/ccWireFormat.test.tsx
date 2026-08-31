@@ -63,10 +63,19 @@ vi.mock("@config/apiConfig", () => ({
       `https://cc.test/credit-cards/${id}?label=${encodeURIComponent(label)}`,
     transactions: (q: string) => `https://cc.test/transactions${q}`,
     jobNumberDetails: (j: string) => `https://cc.test/travels/${encodeURIComponent(j)}`,
+    transactionSummary: "https://cc.test/transactions/new-transaction-summary",
+    submittedByCategory: "https://cc.test/transactions/submitted-transaction-summary",
+    cardHolderCompliance: "https://cc.test/transactions/card-holder-compliance-summary",
   },
 }));
 
-const { useCreditCards, useCcTransactions } = await import("./useCc");
+const {
+  useCreditCards,
+  useCcTransactions,
+  useCcCardHolderCompliance,
+  useCcSubmittedByCategory,
+  useCcTransactionSummary,
+} = await import("./useCc");
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -143,5 +152,52 @@ describe("the transaction window", () => {
     for (const p of ["dateFrom=", "dateTo=", "includeInactive="]) {
       expect(requests[0].url).toContain(p);
     }
+  });
+});
+
+// transactionSummary.ts:54 / submittedExpensesByCategory.ts:50 /
+// cardHolderCompliance.ts:52 all spread each parameter only when truthy, so a
+// false flag or an absent date is left off the query string entirely.
+describe("what the dashboard asks for", () => {
+  it("omits ownedCardsOnly rather than sending false", async () => {
+    renderHook(() => useCcTransactionSummary(undefined, false), { wrapper });
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    expect(requests[0].url).not.toContain("ownedCardsOnly");
+  });
+
+  it("sends it when the view is narrowed to own cards", async () => {
+    renderHook(() => useCcTransactionSummary(undefined, true), { wrapper });
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    expect(requests[0].url).toContain("ownedCardsOnly=true");
+  });
+
+  it("leaves dateFrom off for the all-time period", async () => {
+    renderHook(() => useCcTransactionSummary(undefined, false), { wrapper });
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    expect(requests[0].url).not.toContain("dateFrom");
+  });
+
+  it("bounds the category breakdown at both ends", async () => {
+    renderHook(
+      () => useCcSubmittedByCategory({ dateFrom: "2026-03-01", dateTo: "2026-08-31" }, false),
+      { wrapper },
+    );
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    expect(requests[0].url).toContain("dateFrom=2026-03-01");
+    expect(requests[0].url).toContain("dateTo=2026-08-31");
+  });
+
+  // index.tsx:80-83 dispatches the compliance fetch only inside the admin
+  // guard, so a card holder's browser never issues the request at all.
+  it("does not call compliance when it is not shown", async () => {
+    renderHook(() => useCcCardHolderCompliance(undefined, false, false), { wrapper });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(requests).toHaveLength(0);
+  });
+
+  it("calls it once an approver is on the company view", async () => {
+    renderHook(() => useCcCardHolderCompliance(undefined, false, true), { wrapper });
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    expect(requests[0].url).toContain("card-holder-compliance-summary");
   });
 });

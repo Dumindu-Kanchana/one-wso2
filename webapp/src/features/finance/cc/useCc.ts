@@ -26,8 +26,11 @@ import type {
   CcCreditCard,
   CcEmployee,
   CcExpenseTypeList,
+  CcCardHolderCompliance,
+  CcCategoryMonthAmount,
   CcJobNumberDetails,
   CcJobNumberList,
+  CcTransactionSummary,
   CcProductAndBusinessUnitList,
   CcSubRegionList,
   CcTransaction,
@@ -194,3 +197,86 @@ export function useCcJobNumberDetails(jobNumber: string | undefined) {
     retry: financeRetry,
   });
 }
+
+// ---- dashboard ------------------------------------------------------------
+//
+// Three analytics endpoints, each scoped by `ownedCardsOnly` — dashboard
+// /index.tsx:64 sets it when a lead or finance switches to the employee view,
+// so they can see their own spend rather than everyone's.
+
+function dashboardQuery<T>(
+  key: unknown[],
+  url: string,
+  enabled: boolean,
+  getAccessToken: () => Promise<string>,
+) {
+  return {
+    queryKey: key,
+    enabled,
+    queryFn: async () => authedGet<T>(url, await getAccessToken()),
+    staleTime: 5 * 60 * 1000,
+    retry: financeRetry,
+  };
+}
+
+// transactionSummary.ts:54 spreads each parameter only when it is truthy, so a
+// false `ownedCardsOnly` is left off the query string rather than sent as
+// "false". Same for an absent `dateFrom` on the "All time" period.
+const scoped = (base: string, params: Record<string, string | boolean | undefined>) => {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== false && v !== "") p.set(k, String(v));
+  }
+  const q = p.toString();
+  return q ? `${base}?${q}` : base;
+};
+
+export function useCcTransactionSummary(dateFrom: string | undefined, ownedCardsOnly: boolean) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isCcBackendConfigured();
+  return useQuery<CcTransactionSummary>(
+    dashboardQuery<CcTransactionSummary>(
+      ["cc-txn-summary", dateFrom ?? null, ownedCardsOnly],
+      scoped(ccServiceUrls.transactionSummary, { dateFrom, ownedCardsOnly }),
+      isSignedIn && configured,
+      getAccessToken,
+    ),
+  );
+}
+
+export function useCcSubmittedByCategory(
+  range: { dateFrom: string; dateTo: string },
+  ownedCardsOnly: boolean,
+) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isCcBackendConfigured();
+  return useQuery<CcCategoryMonthAmount[]>(
+    dashboardQuery<CcCategoryMonthAmount[]>(
+      ["cc-submitted-by-category", range.dateFrom, range.dateTo, ownedCardsOnly],
+      scoped(ccServiceUrls.submittedByCategory, { ...range, ownedCardsOnly }),
+      isSignedIn && configured,
+      getAccessToken,
+    ),
+  );
+}
+
+export function useCcCardHolderCompliance(
+  dateFrom: string | undefined,
+  ownedCardsOnly: boolean,
+  enabled: boolean,
+) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isCcBackendConfigured();
+  return useQuery<CcCardHolderCompliance[]>(
+    dashboardQuery<CcCardHolderCompliance[]>(
+      ["cc-cardholder-compliance", dateFrom ?? null, ownedCardsOnly],
+      scoped(ccServiceUrls.cardHolderCompliance, { dateFrom, ownedCardsOnly }),
+      enabled && isSignedIn && configured,
+      getAccessToken,
+    ),
+  );
+}
+

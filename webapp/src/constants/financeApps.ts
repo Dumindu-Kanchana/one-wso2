@@ -48,6 +48,7 @@ export const FINANCE_APPS: readonly MenuApp[] = [
     icon: CreditCardIcon,
     purpose: "Reconcile and submit corporate credit-card transactions for approval.",
     items: [
+      { id: "cc-dashboard", label: "Dashboard", desc: "Unsubmitted spend, how long it has been sitting, and what has been claimed.", path: "/me/cc/dashboard" },
       { id: "cc-new", label: "New Transactions", desc: "Unsubmitted card transactions to categorise and submit.", path: "/me/cc/new" },
       { id: "cc-pending", label: "Pending Submissions", desc: "Submissions awaiting approval.", path: "/me/cc/pending" },
       { id: "cc-approve", label: "Approve Submissions", desc: "Review and approve your team's submitted card transactions.", requires: ["lead", "admin"], path: "/me/cc/approve" },

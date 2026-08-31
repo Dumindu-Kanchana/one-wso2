@@ -172,3 +172,46 @@ export function ccTxnComplete(t: CcTransaction): boolean {
     return Boolean(t.subRegion && t.productUnit);
   return Boolean(t.productUnit);
 }
+
+// ---- dashboard ------------------------------------------------------------
+
+/** transactionSummary.ts:16-20. */
+export interface CcPendingSnapshot {
+  count: number;
+  amount: number;
+  avgDaysToSubmit: number | null;
+}
+
+/** :22-26 — one ageing bucket of unsubmitted spend. */
+export interface CcAgeBucketAmount {
+  label: string;
+  count: number;
+  amount: number;
+}
+
+export interface CcTransactionSummary {
+  current: CcPendingSnapshot | null;
+  ageBuckets: Record<string, CcAgeBucketAmount>;
+}
+
+/** submittedExpensesByCategory.ts:22-26. `txnMonth` is "YYYY-MM". */
+export interface CcCategoryMonthAmount {
+  category: string;
+  txnMonth: string;
+  amount: number;
+}
+
+/** cardHolderCompliance.ts:16-25. */
+export interface CcCardHolderCompliance {
+  employeeEmail: string;
+  cardHolderName: string;
+  transactionCount: number;
+  outstandingAmount: number;
+  avgDaysToSubmit: number | null;
+  // How many of their unsubmitted transactions fall in each ageing band.
+  bucket0To7: number;
+  bucket8To14: number;
+  bucket15To30: number;
+  bucket30Plus: number;
+}
+

@@ -67,6 +67,7 @@ import LeaveSabbaticalPage from "@features/leave/pages/LeaveSabbaticalPage";
 import OpdNewClaimPage from "@features/finance/opd/pages/OpdNewClaimPage";
 import OpdHistoryPage from "@features/finance/opd/pages/OpdHistoryPage";
 import OpdApprovalsPage from "@features/finance/opd/pages/OpdApprovalsPage";
+import CcDashboardPage from "@features/finance/cc/pages/CcDashboardPage";
 import CcNewTransactionsPage from "@features/finance/cc/pages/CcNewTransactionsPage";
 import CcPendingPage from "@features/finance/cc/pages/CcPendingPage";
 import CcApprovePage from "@features/finance/cc/pages/CcApprovePage";
@@ -120,6 +121,7 @@ export default function App() {
           <Route path="me/opd/new" element={<OpdNewClaimPage />} />
           <Route path="me/opd/history" element={<OpdHistoryPage />} />
           <Route path="me/opd/approvals" element={<OpdApprovalsPage />} />
+          <Route path="me/cc/dashboard" element={<CcDashboardPage />} />
           <Route path="me/cc/new" element={<CcNewTransactionsPage />} />
           <Route path="me/cc/pending" element={<CcPendingPage />} />
           <Route path="me/cc/approve" element={<CcApprovePage />} />
