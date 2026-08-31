@@ -23,17 +23,16 @@ import {
   Stack,
   Tab,
   Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
 import { useDebouncedValue } from "@hooks/useDebouncedValue";
-import { isExpenseBackendConfigured } from "@config/apiConfig";
-import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { useExpenseAppData, useExpenseClaims, useExpenseEmployees } from "../useExpense";
 import { ExpenseClaimDetailsDialog } from "../ExpenseClaimDetailsDialog";
 import { ClaimsTable } from "./ExpenseHistoryPage";
-import { FINANCE_EYEBROW } from "@constants/financeApps";
 import {
   FINANCE_TABS,
   LEAD_TABS,
@@ -41,38 +40,40 @@ import {
   type ExpenseClaim,
 } from "../expenseTypes";
 
-// Both approval screens are this component, parameterized by stage.
-export function ExpenseLeadApprovalsPage() {
-  return (
-    <ApprovalsScreen
-      view="LEAD"
-      title="Expense — Lead approvals"
-      subtitle="Review and approve expense claims submitted by your reports. Approving forwards a claim to finance."
-    />
-  );
-}
+// The expense tab of Claim approval. It used to be two menu entries under Me,
+// one per stage; the stage is now a control on one screen, because the two
+// backend flags are independent and a person holding both had to leave the
+// screen to see the other half of their own queue.
+export default function ExpenseApprovalsTab() {
+  const appData = useExpenseAppData();
+  const canLead = Boolean(appData.data?.enableLeadView);
+  const canFinance = Boolean(appData.data?.enableFinanceView);
 
-export function ExpenseFinanceApprovalsPage() {
-  return (
-    <ApprovalsScreen
-      view="FINANCE"
-      title="Expense — Finance approvals"
-      subtitle="Give the final decision on lead-approved expense claims across the company."
-    />
-  );
-}
+  // Opens on whichever stage this person actually holds. Someone with one flag
+  // never sees the switch at all — there is nothing to switch to.
+  const [view, setView] = useState<ApproverView>(canLead ? "LEAD" : "FINANCE");
+  const stage: ApproverView = canLead && canFinance ? view : canLead ? "LEAD" : "FINANCE";
 
-function ApprovalsScreen({ view, title, subtitle }: { view: ApproverView; title: string; subtitle: string }) {
   return (
-    <FinanceShell
-      eyebrow={FINANCE_EYEBROW.expense}
-      title={title}
-      subtitle={subtitle}
-      configured={isExpenseBackendConfigured()}
-      configKey="ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL"
-    >
-      <ApprovalsBody view={view} />
-    </FinanceShell>
+    <Box>
+      {canLead && canFinance && (
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={stage}
+          onChange={(_e, v) => v && setView(v as ApproverView)}
+          sx={{ mb: 2 }}
+        >
+          <ToggleButton value="LEAD" sx={{ textTransform: "none" }}>
+            As lead
+          </ToggleButton>
+          <ToggleButton value="FINANCE" sx={{ textTransform: "none" }}>
+            As finance
+          </ToggleButton>
+        </ToggleButtonGroup>
+      )}
+      <ApprovalsBody view={stage} />
+    </Box>
   );
 }
 

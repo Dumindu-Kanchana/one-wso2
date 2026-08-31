@@ -1,0 +1,211 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Box,
+  Chip,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+  Typography,
+} from "@wso2/oxygen-ui";
+import { describeError } from "../util/financeError";
+import { formatNice, money } from "../util/financeFormat";
+import { useExpenseAppData, useExpenseClaims } from "../expense/useExpense";
+import { useOpdClaims, useOpdUserInfo } from "../opd/useOpd";
+import { OPD_ROLE, opdHasRole } from "../opd/opdTypes";
+import type { ExpenseClaim } from "../expense/expenseTypes";
+import type { OpdClaim } from "../opd/opdTypes";
+import { ExpenseClaimDetailsDialog } from "../expense/ExpenseClaimDetailsDialog";
+import { OpdClaimDetailsDialog } from "../opd/OpdClaimDetailsDialog";
+
+// Claims in this person's scope that already have a decision.
+//
+// Called "Decided", not "Decided by you", and the distinction is the data's
+// rather than a stylistic one: both DTOs record `financeApproverEmail`, so a
+// finance decision can be attributed — but the lead side carries only
+// `leadApprovedDate` and `leadRejectedDate`, with no lead approver. A lead's own
+// decisions cannot be told from a co-lead's on the same card. Rows say who
+// decided wherever the backend knows, and say nothing where it does not.
+
+export default function DecidedTab() {
+  const expenseAppData = useExpenseAppData();
+  const opdUserInfo = useOpdUserInfo();
+
+  const canLead = Boolean(expenseAppData.data?.enableLeadView);
+  const canExpenseFinance = Boolean(expenseAppData.data?.enableFinanceView);
+  const canOpd = opdHasRole(opdUserInfo.data, OPD_ROLE.FINANCE_APPROVER);
+  const myEmail = expenseAppData.data?.userInfo.workEmail ?? undefined;
+
+  // A lead's decided queue is the claims they forwarded or turned down, so it is
+  // scoped to their reports the same way their pending queue is.
+  const leadDecided = useExpenseClaims(
+    { leadEmail: myEmail, status: ["PENDING_FINANCE", "APPROVED", "FINANCE_REJECTED", "LEAD_REJECTED"] },
+    canLead && !canExpenseFinance && Boolean(myEmail),
+  );
+  const financeDecided = useExpenseClaims(
+    { status: ["APPROVED", "FINANCE_REJECTED"] },
+    canExpenseFinance,
+  );
+  const opdDecided = useOpdClaims({ status: ["APPROVED", "REJECTED"] }, canOpd);
+
+  const [expenseTarget, setExpenseTarget] = useState<ExpenseClaim | null>(null);
+  const [opdTarget, setOpdTarget] = useState<OpdClaim | null>(null);
+
+  const expenseRows = useMemo(
+    () => [...(financeDecided.data ?? []), ...(leadDecided.data ?? [])],
+    [financeDecided.data, leadDecided.data],
+  );
+  const opdRows = opdDecided.data ?? [];
+
+  const loading =
+    expenseAppData.isPending ||
+    opdUserInfo.isPending ||
+    leadDecided.isPending ||
+    financeDecided.isPending ||
+    opdDecided.isPending;
+
+  if (loading) return <Skeleton variant="rectangular" height={280} sx={{ borderRadius: 1.5 }} />;
+
+  const failure =
+    (leadDecided.isError && describeError(leadDecided.error)) ||
+    (financeDecided.isError && describeError(financeDecided.error)) ||
+    (opdDecided.isError && describeError(opdDecided.error)) ||
+    null;
+
+  if (expenseRows.length === 0 && opdRows.length === 0) {
+    return (
+      <Box>
+        {failure && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Some queues couldn&apos;t be loaded. {failure}
+          </Alert>
+        )}
+        <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>
+          Nothing has been decided yet.
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      {failure && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Some queues couldn&apos;t be loaded. {failure}
+        </Alert>
+      )}
+      <Box sx={{ overflowX: "auto" }}>
+        <Table size="small">
+          <TableBody>
+            {opdRows.length > 0 && <Heading label="OPD claims" count={opdRows.length} />}
+            {opdRows.map((claim) => (
+              <TableRow key={claim.id} hover onClick={() => setOpdTarget(claim)} sx={ROW}>
+                <TableCell sx={ID}>{claim.id}</TableCell>
+                <TableCell sx={CELL}>{claim.employeeEmail}</TableCell>
+                <TableCell sx={CELL}>
+                  {decidedOn(claim.statusDetails.financeApprovedDate, claim.statusDetails.financeRejectedDate)}
+                </TableCell>
+                <TableCell align="right" sx={CELL}>{money(claim.totalAmount, "LKR")}</TableCell>
+                <TableCell sx={CELL}>{claim.statusDetails.financeApproverEmail ?? "—"}</TableCell>
+                <TableCell sx={CELL}>
+                  <Outcome status={claim.statusDetails.status ?? null} />
+                </TableCell>
+              </TableRow>
+            ))}
+
+            {expenseRows.length > 0 && <Heading label="Expense claims" count={expenseRows.length} />}
+            {expenseRows.map((claim) => (
+              <TableRow key={claim.id} hover onClick={() => setExpenseTarget(claim)} sx={ROW}>
+                <TableCell sx={ID}>{claim.id}</TableCell>
+                <TableCell sx={CELL}>{claim.employeeEmail}</TableCell>
+                <TableCell sx={CELL}>
+                  {decidedOn(
+                    claim.statusDetails.financeApprovedDate ?? claim.statusDetails.leadApprovedDate,
+                    claim.statusDetails.financeRejectedDate ?? claim.statusDetails.leadRejectedDate,
+                  )}
+                </TableCell>
+                <TableCell align="right" sx={CELL}>
+                  {money(claim.totalAmount, claim.currencyCode ?? "LKR")}
+                </TableCell>
+                {/* Blank for a lead-stage decision: the backend records no lead
+                    approver, so naming one would be a guess. */}
+                <TableCell sx={CELL}>{claim.statusDetails.financeApproverEmail ?? "—"}</TableCell>
+                <TableCell sx={CELL}>
+                  <Outcome status={claim.statusDetails.status} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Box>
+
+      {/* Read-only: `review` is left off, so these open as a record of what was
+          decided rather than offering the decision again. */}
+      <ExpenseClaimDetailsDialog claim={expenseTarget} onClose={() => setExpenseTarget(null)} />
+      <OpdClaimDetailsDialog claim={opdTarget} onClose={() => setOpdTarget(null)} />
+    </Box>
+  );
+}
+
+const CELL = { fontSize: 12.5, fontVariantNumeric: "tabular-nums" } as const;
+const ID = { ...CELL, fontWeight: 600 } as const;
+const ROW = { cursor: "pointer" } as const;
+
+function decidedOn(approved: string | null | undefined, rejected: string | null | undefined): string {
+  const when = approved ?? rejected;
+  return when ? formatNice(when) : "—";
+}
+
+function Heading({ label, count }: { label: string; count: number }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={6} sx={{ border: 0, pt: 2, pb: 0.75 }}>
+        <Typography
+          component="span"
+          sx={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "text.secondary",
+          }}
+        >
+          {label} · {count}
+        </Typography>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function Outcome({ status }: { status: string | null }) {
+  const rejected = Boolean(status?.includes("REJECTED"));
+  const forwarded = status === "PENDING_FINANCE";
+  return (
+    <Chip
+      size="small"
+      color={rejected ? "error" : forwarded ? "default" : "success"}
+      label={rejected ? "Rejected" : forwarded ? "Sent to finance" : "Approved"}
+      sx={{ height: 18, fontSize: 10.5 }}
+    />
+  );
+}

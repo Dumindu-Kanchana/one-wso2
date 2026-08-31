@@ -59,16 +59,25 @@ export function useFinanceGate(enabled = true): FinanceGate {
 
   const canSee = (itemId: string): boolean => {
     switch (itemId) {
+      // Claim approval, in the Finance perspective. The rules are the two
+      // standalone apps' own, unchanged — only where they are read has moved.
+      //
+      // The entry appears when ANY claim is approvable by this person, so
+      // holding one flag of the three is enough to get a screen with one thing
+      // in it. Each tab inside is gated by its own id at its own route.
+      case "claim-approval":
+        return opdFinance || expenseLead || expenseFinance;
+      // Either stage. userSlice-style independence: a person can hold both, or
+      // just one, and the tab is the same screen either way.
+      case "claim-approval-expense":
+        return expenseLead || expenseFinance;
+      // No lead stage exists for OPD — the backend grants role 555 or nothing.
+      case "claim-approval-opd":
+        return opdFinance;
       case "cc-approve":
         return ccLeadOrFinance;
       case "cc-settings":
         return ccFinance;
-      case "opd-approvals":
-        return opdFinance;
-      case "expense-lead":
-        return expenseLead;
-      case "expense-finance":
-        return expenseFinance;
       default:
         // Per-user views (New / Pending / History) are open; any other item
         // that declares `requires` but reaches here fails closed rather than

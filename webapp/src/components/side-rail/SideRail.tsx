@@ -106,7 +106,10 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // doesn't see "Approve Submissions". Dispatched per item id rather than
   // per perspective since Finance items are just some of Me's sections now.
   // Only fetch those roles while Me is active.
-  const financeGate = useFinanceGate(active.key === "me");
+  // Both perspectives: the claim apps' own screens are under Me, and Claim
+  // approval is under Finance. One gate answers for both, so it has to be
+  // asked in either place.
+  const financeGate = useFinanceGate(active.key === "me" || active.key === "finance");
 
   // Leave is the same problem again: its backend numbers LEAD 879 /
   // PEOPLE_OPS_TEAM 789, unrelated to people-app's 993 / 999. Reading

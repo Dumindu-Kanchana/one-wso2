@@ -19,6 +19,7 @@
 
 import { csmUrl, isCsmConfigured, isIsacConfigured, isacUrl } from "@config/apiConfig";
 import {
+  CheckCheckIcon,
   DatabaseIcon,
   HouseIcon,
   LifeBuoyIcon,
@@ -33,6 +34,7 @@ import {
 } from "@wso2/oxygen-ui-icons-react";
 import type { Capability, MenuApp } from "@constants/appMenu";
 import { FINANCE_APPS } from "@constants/financeApps";
+import { CLAIM_APPROVAL_PATH } from "@features/finance/approvals/claimApprovalTabs";
 import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 import { ME_APPS } from "@constants/meApps";
 
@@ -207,16 +209,24 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     path: "/people-ops",
     sections: PEOPLE_OPS_SECTIONS,
   },
-  // Skeleton tile — clickable, lands on a "coming soon" page (see
-  // FinancePage). The actual OPD/credit-card/expense claim apps live under
-  // Me now (see ME_SECTIONS above); this just reserves the Finance spot in
-  // the waffle/rail for whatever surfaces here next.
+  // Submitting a claim and looking up your own stay under Me (see ME_SECTIONS)
+  // — those are things you do for yourself. Deciding other people's claims is
+  // not, so it lives here. Its rail entry is gated by the three claim backends'
+  // own rules, not by `requires`; see features/finance/api/useFinanceGate.
   {
     key: "finance",
     label: "Finance",
     icon: WalletIcon,
     access: true,
     path: "/finance",
+    sections: [
+      {
+        id: "claim-approval",
+        label: "Claim approval",
+        icon: CheckCheckIcon,
+        path: CLAIM_APPROVAL_PATH,
+      },
+    ],
   },
   // A separate application, opened in a new tab. `access` follows the URL being
   // configured: without one the tile stays in its unbuilt state rather than

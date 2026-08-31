@@ -32,6 +32,9 @@ import type { MenuApp } from "@constants/appMenu";
 
 export const FINANCE_APPS: readonly MenuApp[] = [
   {
+    // Approving moved to Finance → Claim approval: it is work done for other
+    // people, and this menu is for what you do for yourself. Same for expense
+    // claims below.
     key: "opd",
     name: "OPD Claims",
     icon: StethoscopeIcon,
@@ -39,7 +42,6 @@ export const FINANCE_APPS: readonly MenuApp[] = [
     items: [
       { id: "opd-new", label: "New Claim", desc: "Submit an OPD medical expense claim.", path: "/me/opd/new" },
       { id: "opd-history", label: "Claim History", desc: "Your submitted OPD claims and their status.", path: "/me/opd/history" },
-      { id: "opd-approvals", label: "Approvals", desc: "Finance review and approval of OPD claims.", requires: ["admin"], path: "/me/opd/approvals" },
     ],
   },
   {
@@ -64,8 +66,6 @@ export const FINANCE_APPS: readonly MenuApp[] = [
     items: [
       { id: "expense-new", label: "New Claim", desc: "Submit an expense claim / reimbursement.", path: "/me/expense/new" },
       { id: "expense-history", label: "Claim History", desc: "Your submitted expense claims and their status.", path: "/me/expense/history" },
-      { id: "expense-lead", label: "Lead Approvals", desc: "Approve your team's expense claims.", requires: ["lead"], path: "/me/expense/lead-approvals" },
-      { id: "expense-finance", label: "Finance Approvals", desc: "Finance review and approval of expense claims.", requires: ["admin"], path: "/me/expense/finance-approvals" },
     ],
   },
 ];
@@ -74,9 +74,14 @@ export const FINANCE_APPS: readonly MenuApp[] = [
 // useFinanceGate (each app's OWN backend roles) instead of the coarse
 // people-app capabilities, regardless of which perspective section it's
 // rendered under.
-export const FINANCE_ITEM_IDS: ReadonlySet<string> = new Set(
-  FINANCE_APPS.flatMap((app) => app.items.map((it) => it.id)),
-);
+export const FINANCE_ITEM_IDS: ReadonlySet<string> = new Set([
+  ...FINANCE_APPS.flatMap((app) => app.items.map((it) => it.id)),
+  // Claim approval is not an item of any one app — it spans two of them — so it
+  // is named here rather than derived. Without it the rail would fall back to
+  // the people-app capabilities, which have no word for "expense finance
+  // approver" and would show the entry to the wrong people.
+  "claim-approval",
+]);
 
 // Eyebrow descriptors for FinanceShell, derived from the registry above so the
 // chip on every finance screen can't drift from the app's own name and icon.

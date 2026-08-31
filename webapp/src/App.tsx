@@ -77,7 +77,7 @@ const SabbaticalReportTab = lazy(
 import SabbaticalApplyTab from "@features/leave/pages/LeaveSabbaticalPage";
 import OpdNewClaimPage from "@features/finance/opd/pages/OpdNewClaimPage";
 import OpdHistoryPage from "@features/finance/opd/pages/OpdHistoryPage";
-import OpdApprovalsPage from "@features/finance/opd/pages/OpdApprovalsPage";
+import OpdApprovalsTab from "@features/finance/opd/pages/OpdApprovalsPage";
 import CcDashboardPage from "@features/finance/cc/pages/CcDashboardPage";
 import CcNewTransactionsPage from "@features/finance/cc/pages/CcNewTransactionsPage";
 import CcPendingPage from "@features/finance/cc/pages/CcPendingPage";
@@ -86,10 +86,13 @@ import CcHistoryPage from "@features/finance/cc/pages/CcHistoryPage";
 import CcSettingsPage from "@features/finance/cc/pages/CcSettingsPage";
 import ExpenseNewClaimPage from "@features/finance/expense/pages/ExpenseNewClaimPage";
 import ExpenseHistoryPage from "@features/finance/expense/pages/ExpenseHistoryPage";
-import {
-  ExpenseLeadApprovalsPage,
-  ExpenseFinanceApprovalsPage,
-} from "@features/finance/expense/pages/ExpenseApprovalsPage";
+import ClaimApprovalPage, {
+  ClaimApprovalIndex,
+  ClaimApprovalTabRoute,
+} from "@features/finance/approvals/ClaimApprovalPage";
+import NeedsYouTab from "@features/finance/approvals/NeedsYouTab";
+import DecidedTab from "@features/finance/approvals/DecidedTab";
+import ExpenseApprovalsTab from "@features/finance/expense/pages/ExpenseApprovalsPage";
 
 export default function App() {
   return (
@@ -199,7 +202,6 @@ export default function App() {
               FinancePage) — these apps don't live there anymore. */}
           <Route path="me/opd/new" element={<OpdNewClaimPage />} />
           <Route path="me/opd/history" element={<OpdHistoryPage />} />
-          <Route path="me/opd/approvals" element={<OpdApprovalsPage />} />
           <Route path="me/cc/dashboard" element={<CcDashboardPage />} />
           <Route path="me/cc/new" element={<CcNewTransactionsPage />} />
           <Route path="me/cc/pending" element={<CcPendingPage />} />
@@ -208,8 +210,6 @@ export default function App() {
           <Route path="me/cc/settings" element={<CcSettingsPage />} />
           <Route path="me/expense/new" element={<ExpenseNewClaimPage />} />
           <Route path="me/expense/history" element={<ExpenseHistoryPage />} />
-          <Route path="me/expense/lead-approvals" element={<ExpenseLeadApprovalsPage />} />
-          <Route path="me/expense/finance-approvals" element={<ExpenseFinanceApprovalsPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
           {/* People Ops reports. Admin-only, but enforced by the backend and
               explained by PeopleOpsShell — there is no route-level guard, so
@@ -238,6 +238,46 @@ export default function App() {
           {/* Finance perspective — skeleton "coming soon" tile; the actual
               claim apps are the me/opd, me/cc, me/expense routes above. */}
           <Route path="finance" element={<FinancePage />} />
+          {/* Finance → Claim approval. Approving is work you do for other
+              people, so it sits here rather than under Me with the things you
+              do for yourself; submitting and history stay there. Each tab is a
+              real route, gated by its own rule at the route rather than only
+              hidden from the bar. See features/finance/approvals. */}
+          <Route path="finance/claim-approval" element={<ClaimApprovalPage />}>
+            <Route index element={<ClaimApprovalIndex />} />
+            <Route
+              path="needs-you"
+              element={
+                <ClaimApprovalTabRoute gateId="claim-approval">
+                  <NeedsYouTab />
+                </ClaimApprovalTabRoute>
+              }
+            />
+            <Route
+              path="expense"
+              element={
+                <ClaimApprovalTabRoute gateId="claim-approval-expense">
+                  <ExpenseApprovalsTab />
+                </ClaimApprovalTabRoute>
+              }
+            />
+            <Route
+              path="opd"
+              element={
+                <ClaimApprovalTabRoute gateId="claim-approval-opd">
+                  <OpdApprovalsTab />
+                </ClaimApprovalTabRoute>
+              }
+            />
+            <Route
+              path="decided"
+              element={
+                <ClaimApprovalTabRoute gateId="claim-approval">
+                  <DecidedTab />
+                </ClaimApprovalTabRoute>
+              }
+            />
+          </Route>
           {/* Marketing Ops perspective — overview + the Phase 1 Utilities
               screens, ported from the Marketing Ops frontend. The remaining
               operations (Ad Campaigns, Email Workbench, Events, CRM Upload)

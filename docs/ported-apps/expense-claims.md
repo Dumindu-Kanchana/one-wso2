@@ -5,8 +5,9 @@ Ported from `digiops-finance/apps/expense-claims/webapp` (5,849 lines) into
 had no specification and no tests, and its DTOs were mirrored from the *backend* rather
 than the running app.
 
-Routes: `/me/expense/new`, `/me/expense/history`, `/me/expense/lead-approvals`,
-`/me/expense/finance-approvals`. Backend is `ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL`.
+Routes: `/me/expense/new`, `/me/expense/history`. Approving moved to
+`/finance/claim-approval/expense` — see `claim-approval.md`. Backend is
+`ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL`.
 
 ---
 

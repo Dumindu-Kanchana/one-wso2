@@ -26,12 +26,20 @@ vi.mock("@asgardeo/react", () => ({ useAsgardeo: () => ({ isSignedIn: true }) })
 
 const payloads: Record<string, unknown>[] = [];
 
+// Which stages this person holds. Independent flags, so all three combinations
+// are reachable and each renders a different screen.
+const flags = { lead: true, finance: true };
+
 vi.mock("../useExpense", () => ({
   useExpenseAppData: () => ({
     data: {
       userInfo: { workEmail: "approver@wso2.com", firstName: "A", lastName: "B" },
-      enableLeadView: true,
-      enableFinanceView: true,
+      get enableLeadView() {
+        return flags.lead;
+      },
+      get enableFinanceView() {
+        return flags.finance;
+      },
       currencyCode: "LKR",
       countryCode: "LK",
       travels: [],
@@ -59,20 +67,27 @@ vi.mock("../../components/FinanceShell", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-const { ExpenseLeadApprovalsPage, ExpenseFinanceApprovalsPage } = await import(
-  "./ExpenseApprovalsPage"
-);
+const { default: ExpenseApprovalsTab } = await import("./ExpenseApprovalsPage");
 const { NotificationsProvider } = await import("@context/notifications/NotificationsContext");
 
 beforeEach(() => {
   payloads.length = 0;
+  flags.lead = true;
+  flags.finance = true;
 });
 
-function show(Page: () => ReactNode) {
+/**
+ * The tab, scoped to one stage the way a user reaches it: someone who holds a
+ * single flag has no switch at all, which is also the simplest way to isolate
+ * a stage in a test.
+ */
+function show(stage: "LEAD" | "FINANCE") {
+  flags.lead = stage === "LEAD";
+  flags.finance = stage === "FINANCE";
   return render(
     <QueryClientProvider client={new QueryClient()}>
       <NotificationsProvider>
-        <Page />
+        <ExpenseApprovalsTab />
       </NotificationsProvider>
     </QueryClientProvider>,
   );
@@ -83,14 +98,14 @@ function show(Page: () => ReactNode) {
 // afterwards.
 describe("what each approval stage asks for", () => {
   it("a lead's pending queue is its own stage, scoped to them", async () => {
-    show(ExpenseLeadApprovalsPage);
+    show("LEAD");
     await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
     expect(payloads.at(-1)!.status).toEqual(["PENDING_LEAD"]);
     expect(payloads.at(-1)!.leadEmail).toBe("approver@wso2.com");
   });
 
   it("a lead's approved tab spans what finance did next", async () => {
-    show(ExpenseLeadApprovalsPage);
+    show("LEAD");
     fireEvent.click(await screen.findByRole("tab", { name: /Approved/ }));
     await waitFor(() =>
       expect(payloads.at(-1)!.status).toEqual([
@@ -102,7 +117,7 @@ describe("what each approval stage asks for", () => {
   });
 
   it("finance sees only its own stage, unscoped by lead", async () => {
-    show(ExpenseFinanceApprovalsPage);
+    show("FINANCE");
     await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
     expect(payloads.at(-1)!.status).toEqual(["PENDING_FINANCE"]);
     expect(payloads.at(-1)!.leadEmail).toBeUndefined();
@@ -113,14 +128,14 @@ describe("what each approval stage asks for", () => {
 // scroll everyone's queue.
 describe("narrowing an approval queue", () => {
   it("sends no email or id by default", async () => {
-    show(ExpenseFinanceApprovalsPage);
+    show("FINANCE");
     await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
     expect(payloads.at(-1)!.email).toBeUndefined();
     expect(payloads.at(-1)!.ids).toBeUndefined();
   });
 
   it("filters to one claim id while keeping the tab's status", async () => {
-    show(ExpenseFinanceApprovalsPage);
+    show("FINANCE");
     fireEvent.change(await screen.findByLabelText("Filter by claim ID"), {
       target: { value: "EC-3" },
     });
@@ -129,7 +144,7 @@ describe("narrowing an approval queue", () => {
   });
 
   it("keeps a lead scoped to their own reports while filtering", async () => {
-    show(ExpenseLeadApprovalsPage);
+    show("LEAD");
     fireEvent.change(await screen.findByLabelText("Filter by claim ID"), {
       target: { value: "EC-3" },
     });
@@ -151,7 +166,7 @@ describe("typing a claim id does not search on every keystroke", () => {
   const distinctIds = () => new Set(payloads.map((p) => JSON.stringify(p.ids)));
 
   it("asks for nothing new while the field is still being typed", async () => {
-    show(ExpenseFinanceApprovalsPage);
+    show("FINANCE");
     await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
 
     const field = screen.getByLabelText("Filter by claim ID");
@@ -162,7 +177,7 @@ describe("typing a claim id does not search on every keystroke", () => {
   });
 
   it("searches once the typing settles", async () => {
-    show(ExpenseFinanceApprovalsPage);
+    show("FINANCE");
     await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
     const field = screen.getByLabelText("Filter by claim ID");
     for (const value of ["E", "EC", "EC-", "EC-3"]) {

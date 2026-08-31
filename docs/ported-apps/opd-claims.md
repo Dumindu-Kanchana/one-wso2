@@ -5,7 +5,8 @@ Ported from `digiops-finance/apps/opd-claims/webapp` (7,021 lines) into
 had no specification and no tests, and its DTOs were mirrored from the *backend*
 rather than from the running app, which is where the gaps below came from.
 
-Routes: `/me/opd/new`, `/me/opd/history`, `/me/opd/approvals`. Backend is
+Routes: `/me/opd/new`, `/me/opd/history`. Approving moved to
+`/finance/claim-approval/opd` — see `claim-approval.md`. Backend is
 `ONE_WSO2_OPD_BACKEND_URL`.
 
 ---
@@ -58,7 +59,7 @@ when rejected, the finance reason.
 **Resubmission.** A *rejected* claim offers "Resubmit as New Claim": its bills seed a
 fresh claim, replacing whatever draft was saved. It does not amend the rejected claim.
 
-### 2.3 Approvals — `/me/opd/approvals`
+### 2.3 Approvals — `/finance/claim-approval/opd`
 
 Finance-only. Three tabs — Pending, Approved, Rejected — narrowable by **employee** and
 **claim ID**.
