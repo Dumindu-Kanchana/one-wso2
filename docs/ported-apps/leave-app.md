@@ -11,8 +11,8 @@ production; what it does is observed. Its Ballerina backend was read only to und
 anything inferred from it and never seen in the running app is marked as such in §9 and is a question,
 not a claim.
 
-**In One WSO2:** two entries under Me → Leave, one per kind of leave, each opening on tabs for
-everything you can do with that kind. `/me/leave/general` → `apply`, `history`, `reports`;
+**In One WSO2:** two entries under Me → Leave — **General** and **Sabbatical**, the names the source
+uses (`route.ts:67,74`) — each opening on tabs for everything you can do with that kind. `/me/leave/general` → `apply`, `history`, `reports`;
 `/me/leave/sabbatical` → `apply`, `history`, `approve`, `approval-history`, `report`. Backend is the
 leave service configured as `ONE_WSO2_LEAVE_BACKEND_URL`.
 

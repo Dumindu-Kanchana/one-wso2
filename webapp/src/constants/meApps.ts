@@ -37,7 +37,7 @@ export const ME_APPS: readonly MenuApp[] = [
       // Roles are decided by features/leave/api/useLeaveGate, not by `requires`,
       // because the leave backend has its own privilege vocabulary. An entry
       // appears when any tab inside it does.
-      { id: "leave-general", label: "Leave", desc: "Apply for leave, track your own, and report on your team.", path: "/me/leave/general" },
+      { id: "leave-general", label: "General", desc: "Apply for leave, track your own, and report on your team.", path: "/me/leave/general" },
       { id: "leave-sabbatical", label: "Sabbatical", desc: "Apply for a long, planned break, and approve or report on them.", path: "/me/leave/sabbatical" },
     ],
   },

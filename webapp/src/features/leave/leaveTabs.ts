@@ -63,7 +63,9 @@ export const LEAVE_GROUPS: readonly LeaveGroupDef[] = [
     id: "leave-general",
     key: "general",
     path: "/me/leave/general",
-    title: "Leave",
+    // route.ts:67 and GeneralLeave.tsx:244-252 both name this "General". The
+    // shell's eyebrow already says "Leave", so the title is the category.
+    title: "General",
     subtitle:
       "Request leave, track what you have taken, and report on your team. Working days are validated against the holiday calendar before you submit.",
     tabs: [
