@@ -33,6 +33,7 @@ import {
   TableRow,
   Typography,
 } from "@wso2/oxygen-ui";
+import { useDebouncedValue } from "@hooks/useDebouncedValue";
 import { isExpenseBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { StatusChip, expenseStatusMeta } from "../../components/FinanceChips";
@@ -76,6 +77,11 @@ function HistoryBody() {
   // and by claim id as well as by period.
   const [status, setStatus] = useState<ExpenseClaimStatus | "All">("All");
   const [claimId, setClaimId] = useState("");
+  // Debounced before it reaches the query: useExpenseClaims keys on the whole
+  // payload, so the raw value would fire a search per keystroke — and on the
+  // finance view that search spans the company. The source batches the same
+  // fields behind an Apply button (FilterHolder.tsx:53,81-82).
+  const claimIdFilter = useDebouncedValue(claimId.trim());
 
   const email = appData.data?.userInfo.workEmail ?? undefined;
   const claims = useExpenseClaims(
@@ -85,7 +91,7 @@ function HistoryBody() {
         ? { limit: 100 }
         : { startDate: startOfYearIso(range), endDate: endOfYearIso(range) }),
       // tableSlice.ts:47,51 — both are omitted rather than sent empty.
-      ids: claimId.trim() ? [claimId.trim()] : undefined,
+      ids: claimIdFilter ? [claimIdFilter] : undefined,
       status: status === "All" ? undefined : [status],
     },
     Boolean(email),

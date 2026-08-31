@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -135,5 +135,43 @@ describe("narrowing an approval queue", () => {
     });
     await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["EC-3"]));
     expect(payloads.at(-1)!.leadEmail).toBe("approver@wso2.com");
+  });
+});
+
+// Raised on the OPD PR (#29) and applied here too: useExpenseClaims keys on the
+// whole payload, so an undebounced claim-id field mints a key per keystroke and
+// fires a search for every prefix. The source batches the same fields behind an
+// Apply button (FilterHolder.tsx:53,81-82).
+describe("typing a claim id does not search on every keystroke", () => {
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+  afterEach(() => vi.useRealTimers());
+
+  // The payload is rebuilt on every render, so counting calls proves nothing.
+  // What drives a fetch is the query KEY changing, so count distinct ones.
+  const distinctIds = () => new Set(payloads.map((p) => JSON.stringify(p.ids)));
+
+  it("asks for nothing new while the field is still being typed", async () => {
+    show(ExpenseFinanceApprovalsPage);
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+
+    const field = screen.getByLabelText("Filter by claim ID");
+    for (const value of ["E", "EC", "EC-", "EC-3"]) {
+      fireEvent.change(field, { target: { value } });
+    }
+    expect(distinctIds()).toEqual(new Set([JSON.stringify(undefined)]));
+  });
+
+  it("searches once the typing settles", async () => {
+    show(ExpenseFinanceApprovalsPage);
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    const field = screen.getByLabelText("Filter by claim ID");
+    for (const value of ["E", "EC", "EC-", "EC-3"]) {
+      fireEvent.change(field, { target: { value } });
+    }
+    await vi.advanceTimersByTimeAsync(400);
+    await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["EC-3"]));
+    expect(distinctIds()).toEqual(
+      new Set([JSON.stringify(undefined), JSON.stringify(["EC-3"])]),
+    );
   });
 });

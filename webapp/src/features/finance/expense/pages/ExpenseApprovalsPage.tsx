@@ -26,6 +26,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
+import { useDebouncedValue } from "@hooks/useDebouncedValue";
 import { isExpenseBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
@@ -89,6 +90,11 @@ function ApprovalsBody({ view }: { view: ApproverView }) {
   // employee or one claim id. Without them the only way to find a claim is to
   // scroll everyone's.
   const [claimId, setClaimId] = useState("");
+  // Debounced before it reaches the query: useExpenseClaims keys on the whole
+  // payload, so the raw value would fire a search per keystroke — and on the
+  // finance view that search spans the company. The source batches the same
+  // fields behind an Apply button (FilterHolder.tsx:53,81-82).
+  const claimIdFilter = useDebouncedValue(claimId.trim());
   const [employee, setEmployee] = useState<string | null>(null);
   const employees = useExpenseEmployees(Boolean(allowed));
 
@@ -96,7 +102,7 @@ function ApprovalsBody({ view }: { view: ApproverView }) {
     {
       ...(view === "LEAD" ? { leadEmail: email } : {}),
       status: activeTab.statuses,
-      ids: claimId.trim() ? [claimId.trim()] : undefined,
+      ids: claimIdFilter ? [claimIdFilter] : undefined,
       email: employee ?? undefined,
     },
     Boolean(allowed),
