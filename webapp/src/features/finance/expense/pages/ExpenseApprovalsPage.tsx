@@ -15,11 +15,21 @@
 // under the License.
 
 import { useState } from "react";
-import { Alert, Box, Skeleton, Tab, Tabs, Typography } from "@wso2/oxygen-ui";
+import {
+  Alert,
+  Autocomplete,
+  Box,
+  Skeleton,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from "@wso2/oxygen-ui";
 import { isExpenseBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
-import { useExpenseAppData, useExpenseClaims } from "../useExpense";
+import { useExpenseAppData, useExpenseClaims, useExpenseEmployees } from "../useExpense";
 import { ExpenseClaimDetailsDialog } from "../ExpenseClaimDetailsDialog";
 import { ClaimsTable } from "./ExpenseHistoryPage";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
@@ -75,10 +85,20 @@ function ApprovalsBody({ view }: { view: ApproverView }) {
   const activeTab = tabs.find((t) => t.key === tabKey) ?? tabs[0];
   const email = appData.data?.userInfo.workEmail ?? undefined;
 
+  // FilterHolder.tsx:218-249 — an approver can narrow the queue to one
+  // employee or one claim id. Without them the only way to find a claim is to
+  // scroll everyone's.
+  const [claimId, setClaimId] = useState("");
+  const [employee, setEmployee] = useState<string | null>(null);
+  const employees = useExpenseEmployees(Boolean(allowed));
+
   const claims = useExpenseClaims(
-    view === "LEAD"
-      ? { leadEmail: email, status: activeTab.statuses }
-      : { status: activeTab.statuses },
+    {
+      ...(view === "LEAD" ? { leadEmail: email } : {}),
+      status: activeTab.statuses,
+      ids: claimId.trim() ? [claimId.trim()] : undefined,
+      email: employee ?? undefined,
+    },
     Boolean(allowed),
   );
 
@@ -111,6 +131,25 @@ function ApprovalsBody({ view }: { view: ApproverView }) {
           <Tab key={t.key} value={t.key} label={t.label} />
         ))}
       </Tabs>
+
+      <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: "wrap", rowGap: 1.5 }}>
+        <Autocomplete
+          size="small"
+          options={(employees.data ?? []).map((e) => e.workEmail)}
+          value={employee}
+          onChange={(_e, v) => setEmployee(v)}
+          loading={employees.isLoading}
+          sx={{ minWidth: 260 }}
+          renderInput={(params) => <TextField {...params} label="Filter by email" />}
+        />
+        <TextField
+          size="small"
+          label="Filter by claim ID"
+          value={claimId}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClaimId(e.target.value)}
+          sx={{ minWidth: 200 }}
+        />
+      </Stack>
 
       {claims.isLoading ? (
         <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />

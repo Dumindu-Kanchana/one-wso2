@@ -109,6 +109,19 @@ export interface ExpenseClaim {
   createdDate: string;
 }
 
+/**
+ * The statuses a person can filter their own claims by — every one of them,
+ * unlike OPD where a legacy value is hidden (`FilterBox.tsx` has no exclusion
+ * here).
+ */
+export const EXPENSE_FILTERABLE_STATUSES: ExpenseClaimStatus[] = [
+  "PENDING_LEAD",
+  "LEAD_REJECTED",
+  "PENDING_FINANCE",
+  "APPROVED",
+  "FINANCE_REJECTED",
+];
+
 export interface ExpenseClaimSearchPayload {
   ids?: string[] | null;
   email?: string | null;

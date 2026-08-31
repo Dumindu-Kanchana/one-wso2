@@ -72,7 +72,13 @@ export function AddExpenseDialog({
 }) {
   const { showError } = useNotifications();
   const reimbursementCurrency = appData.currencyCode;
-  const minDate = appData.pastDateRestrictionDays != null ? daysAgoIso(appData.pastDateRestrictionDays) : undefined;
+  // ExpenseForm.tsx:133-143 compares the bill date against a TIMESTAMP
+  // (`now - N days`) with `isAfter`, while the date itself is midnight — so
+  // midnight of N days ago is never after it, and the oldest date the source
+  // accepts is N-1 days ago. "Within the last N days" counting today as the
+  // first. An inclusive min at N days ago allowed one day more.
+  const restrictionDays = appData.pastDateRestrictionDays;
+  const minDate = restrictionDays != null ? daysAgoIso(restrictionDays - 1) : undefined;
 
   // Seeded from the line being edited, so the dialog opens on its values.
   // ExpenseForm.tsx:81-97 does the same via initialFormData.
@@ -85,6 +91,10 @@ export function AddExpenseDialog({
   const [receiptUrl, setReceiptUrl] = useState<string | null>(editing?.receiptUrl ?? null);
   const [fileName, setFileName] = useState(editing?.receiptUrl ?? "");
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // The picker's `min` steers, but the field is typeable, so the rule is
+  // checked rather than implied.
+  const dateWithinLimit = minDate == null || date >= minDate;
 
   const rates = useExchangeRates(reimbursementCurrency, date);
   const expenseTypes = useExpenseTypes(jobNumber === NO_JOB ? undefined : jobNumber);
@@ -111,6 +121,7 @@ export function AddExpenseDialog({
   const reimbursementAmount = amountValid && rateReady ? Math.round(amountNum * rate * 100) / 100 : 0;
   const selectedType = (expenseTypes.data ?? []).find((t) => t.id === expenseTypeId);
   const valid =
+    dateWithinLimit &&
     amountValid &&
     rateReady &&
     expenseTypeId !== "" &&
@@ -150,7 +161,13 @@ export function AddExpenseDialog({
                 fullWidth
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                inputProps={{ min: minDate, max: todayIso() }}
+                error={!dateWithinLimit}
+                helperText={
+                  dateWithinLimit ? undefined : `Date within last ${restrictionDays} days required`
+                }
+                // aria-label on the input: the caption above is a plain
+                // Typography, so without it the field has no accessible name.
+                inputProps={{ min: minDate, max: todayIso(), "aria-label": "Bill date" }}
               />
             </Box>
             <Box>

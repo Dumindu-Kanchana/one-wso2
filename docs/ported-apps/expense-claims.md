@@ -41,8 +41,12 @@ the backend and are not sent.
 - **Expense types depend on the job number** — `GET /user-configurations/expense-types`
   is re-fetched per selection.
 - **Past-date restriction.** `pastDateRestrictionDays` bounds how far back a bill date may
-  go. On a resubmission the source measures it from the claim's `createdDate` instead of
-  today.
+  go. The source compares against a *timestamp* (`now − N days`) with `isAfter`, while the
+  date is midnight — so midnight of N days ago is never after it, and the oldest date
+  accepted is **N−1 days ago**: "within the last N days", counting today as the first. The
+  rule is checked on the typed value, not only set as the picker's `min`.
+  On a resubmission the source measures it from the claim's `createdDate` instead of today
+  — **not ported**; the port measures from today in both cases.
 - **Draft.** Lines autosave to `/claim-drafts`. A saved draft is **offered** via "Restore
   Draft", not loaded automatically; adding a new line while one is held warns first.
 - **Editing.** A line can be corrected in place, or removed. This matters more here than
@@ -54,7 +58,8 @@ the backend and are not sent.
 ### 3.2 Claim history — `/me/expense/history`
 
 Defaults to **Latest 100** (`limit: 100` and *no* date filter, so claims across all years
-appear); a chosen year narrows to a `startDate`/`endDate` range.
+appear); a chosen year narrows to a `startDate`/`endDate` range. Also filterable by
+**status** and by **claim ID**, both omitted from the request rather than sent empty.
 
 **Resubmission.** A claim rejected at **either** stage (`LEAD_REJECTED` or
 `FINANCE_REJECTED`) can have its lines corrected and be resubmitted with
@@ -73,8 +78,9 @@ One screen parameterised by stage, three tabs each. The status sets are not symm
 | Rejected | `LEAD_REJECTED` | `FINANCE_REJECTED` |
 
 A lead's "Approved" tab deliberately spans everything they have passed on, whatever
-finance later did with it. The lead view is scoped by `leadEmail`. Rejection requires a
-reason.
+finance later did with it. The lead view is scoped by `leadEmail`, which survives any
+filter applied on top. Both stages can narrow the queue by **employee** and **claim ID**.
+Rejection requires a reason.
 
 ## 4. Deferred — "Submitting for" (claim on behalf of another employee)
 
@@ -101,13 +107,8 @@ WSO2 renders four routes inside its own shell with React Query.
 **Not ported.** The **PDF "Print Claim" export** (`ReportTemplate` + `@react-pdf/renderer`)
 and the **claim-activity timeline** (Claim Submission → Lead Review → Finance Review).
 
-**Filters.** The source's history has a status and claim-ID filter, and the approver views
-add an employee filter; the port has the period selector only. Its custom range is an
-arbitrary date range in the source and whole years here.
-
-**Boundary.** `pastDateRestrictionDays` is enforced here as an inclusive `min` date, where
-the source compares against a timestamp (`now − N days`) — so the port accepts a bill one
-day older at the edge.
+**Filters.** The source's custom period is an arbitrary date range; the port offers whole
+years alongside Latest 100.
 
 **Copy.** The port keeps its own register in places — "Add an expense" vs "Add Item", and
 shorter snackbars without the source's "…contact Internal Apps Team" tail.
@@ -120,7 +121,10 @@ total survives the round trip) · draft-deletion warning · submit confirmation 
 lead, falling back to the address, and omitting the parenthetical when there is none ·
 in-place line edit replaces rather than appends · resubmission offered on both rejected
 statuses and on neither approved one · the claim's **own id** and the **trimmed** payload on
-the wire · corrections reaching the request · the discard confirmation.
+the wire · corrections reaching the request · the discard confirmation · the past-date
+boundary at N-1 days and the typed-date refusal · the status, claim-ID and employee filters
+as request payloads, including that a lead stays scoped to their own reports through them,
+and that a lead's Approved tab spans all three later statuses.
 
 ## 7. Unverified — questions for a live tenant
 

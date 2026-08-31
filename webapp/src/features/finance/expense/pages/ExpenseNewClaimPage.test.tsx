@@ -245,3 +245,44 @@ describe("correcting a line", () => {
     expect(screen.queryByDisplayValue("Airport transfer")).not.toBeInTheDocument();
   });
 });
+
+// ExpenseForm.tsx:133-143 compares the bill date against a timestamp
+// (`now - N days`) with isAfter, and the date is midnight — so midnight of N
+// days ago is never after it. The oldest date accepted is N-1 days ago:
+// "within the last N days" counting today as the first. The port's inclusive
+// min allowed one day more, and did not check the typed value at all.
+describe("how far back a bill date may go", () => {
+  const daysAgo = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+  };
+
+  it("bounds the picker at N-1 days, not N", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
+    // pastDateRestrictionDays is 30 in the fixture.
+    expect(await screen.findByLabelText("Bill date")).toHaveAttribute("min", daysAgo(29));
+  });
+
+  it("refuses a typed date that is one day too old", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
+    fireEvent.change(await screen.findByLabelText("Bill date"), {
+      target: { value: daysAgo(30) },
+    });
+    expect(await screen.findByText("Date within last 30 days required")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add expense" })).toBeDisabled();
+  });
+
+  it("accepts the oldest date the source accepts", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
+    fireEvent.change(await screen.findByLabelText("Bill date"), {
+      target: { value: daysAgo(29) },
+    });
+    await waitFor(() =>
+      expect(screen.queryByText("Date within last 30 days required")).not.toBeInTheDocument(),
+    );
+  });
+});

@@ -40,6 +40,10 @@ const line = {
 
 const state = { status: "LEAD_REJECTED" as string };
 
+// Every search payload the screen asks for, so filter assertions are about what
+// reaches the backend rather than what renders.
+const payloads: Record<string, unknown>[] = [];
+
 const claimOf = () => ({
   id: "EC-7",
   createdDate: "2026-08-11T00:00:00Z",
@@ -75,7 +79,10 @@ vi.mock("../useExpense", () => ({
     isError: false,
     isSuccess: true,
   }),
-  useExpenseClaims: () => ({ data: [claimOf()], isLoading: false, isError: false, isSuccess: true }),
+  useExpenseClaims: (payload: Record<string, unknown>) => {
+    payloads.push(payload);
+    return { data: [claimOf()], isLoading: false, isError: false, isSuccess: true };
+  },
   useExpenseTypes: () => ({ data: [{ id: 3, type: "Taxi" }], isLoading: false, isError: false }),
   useExchangeRates: () => ({ data: [{ currencyCode: "USD", exchangeRate: 300 }], isLoading: false, isError: false }),
   useExpenseEmployees: () => ({ data: [], isLoading: false, isError: false }),
@@ -97,6 +104,7 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   resubmitMutate.mockClear();
+  payloads.length = 0;
   state.status = "LEAD_REJECTED";
 });
 
@@ -241,5 +249,49 @@ describe("correcting a line before resubmitting", () => {
     await waitFor(() =>
       expect(screen.queryByText("Edit Discard Confirmation")).not.toBeInTheDocument(),
     );
+  });
+});
+
+// FilterHolder.tsx:175-178,249 and tableSlice.ts:46-51. The port offered only
+// the period, so a claim of a known id or status could not be singled out.
+describe("what the history screen filters on", () => {
+  it("defaults to the latest 100 with no date bounds", async () => {
+    show();
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    const p = payloads.at(-1)!;
+    expect(p.limit).toBe(100);
+    expect(p.startDate).toBeUndefined();
+    expect(p.endDate).toBeUndefined();
+  });
+
+  it("sends no status or id until asked", async () => {
+    show();
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    expect(payloads.at(-1)!.status).toBeUndefined();
+    expect(payloads.at(-1)!.ids).toBeUndefined();
+  });
+
+  it("filters by status", async () => {
+    show();
+    fireEvent.mouseDown(await screen.findByLabelText("Status"));
+    fireEvent.click(await screen.findByRole("option", { name: "Lead Rejected" }));
+    await waitFor(() => expect(payloads.at(-1)!.status).toEqual(["LEAD_REJECTED"]));
+  });
+
+  it("sends a claim id as a one-element list, trimmed", async () => {
+    show();
+    fireEvent.change(await screen.findByLabelText("Filter by claim ID"), {
+      target: { value: " EC-7 " },
+    });
+    await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["EC-7"]));
+  });
+
+  it("keeps the period alongside the other filters", async () => {
+    show();
+    fireEvent.change(await screen.findByLabelText("Filter by claim ID"), {
+      target: { value: "EC-7" },
+    });
+    await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["EC-7"]));
+    expect(payloads.at(-1)!.limit).toBe(100);
   });
 });

@@ -20,10 +20,12 @@ import {
   Box,
   Button,
   FormControl,
+  InputLabel,
   MenuItem,
   Select,
   Skeleton,
   Stack,
+  TextField,
   Table,
   TableBody,
   TableCell,
@@ -38,7 +40,11 @@ import { describeError } from "../../util/financeError";
 import { money, formatNice, startOfYearIso, endOfYearIso } from "../../util/financeFormat";
 import { useExpenseAppData, useExpenseClaims } from "../useExpense";
 import { ExpenseClaimDetailsDialog } from "../ExpenseClaimDetailsDialog";
-import type { ExpenseClaim } from "../expenseTypes";
+import {
+  EXPENSE_FILTERABLE_STATUSES,
+  type ExpenseClaim,
+  type ExpenseClaimStatus,
+} from "../expenseTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function ExpenseHistoryPage() {
@@ -66,12 +72,22 @@ function HistoryBody() {
   const currentYear = new Date().getFullYear();
   const [range, setRange] = useState<Range>(LATEST);
   const [selected, setSelected] = useState<ExpenseClaim | null>(null);
+  // FilterHolder.tsx:175-178,249 — the employee's own view filters by status
+  // and by claim id as well as by period.
+  const [status, setStatus] = useState<ExpenseClaimStatus | "All">("All");
+  const [claimId, setClaimId] = useState("");
 
   const email = appData.data?.userInfo.workEmail ?? undefined;
   const claims = useExpenseClaims(
-    range === LATEST
-      ? { email, limit: 100 }
-      : { email, startDate: startOfYearIso(range), endDate: endOfYearIso(range) },
+    {
+      email,
+      ...(range === LATEST
+        ? { limit: 100 }
+        : { startDate: startOfYearIso(range), endDate: endOfYearIso(range) }),
+      // tableSlice.ts:47,51 — both are omitted rather than sent empty.
+      ids: claimId.trim() ? [claimId.trim()] : undefined,
+      status: status === "All" ? undefined : [status],
+    },
     Boolean(email),
   );
 
@@ -99,6 +115,32 @@ function HistoryBody() {
             ))}
           </Select>
         </FormControl>
+
+        <FormControl size="small">
+          <InputLabel id="expense-status">Status</InputLabel>
+          <Select
+            labelId="expense-status"
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as ExpenseClaimStatus | "All")}
+            sx={{ minWidth: 170 }}
+          >
+            <MenuItem value="All">All</MenuItem>
+            {EXPENSE_FILTERABLE_STATUSES.map((st) => (
+              <MenuItem key={st} value={st}>
+                {expenseStatusMeta(st).label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <TextField
+          size="small"
+          label="Filter by claim ID"
+          value={claimId}
+          onChange={(e) => setClaimId(e.target.value)}
+          sx={{ minWidth: 200 }}
+        />
       </Stack>
 
       {appData.isLoading || claims.isLoading ? (
