@@ -131,6 +131,13 @@ not a redesign.
   asks for; longest wait first; one backend down keeps the other visible; the right dialog
   opens per type.
 - `ExpenseApprovalsPage.test.tsx` — both stages' payloads, isolated by holding one flag.
+- `DecidedTab.test.tsx` — what each role is asked for, that holding both flags asks once
+  rather than twice, who decided where the backend records it and a dash where it does not.
+
+Every mock reports a **disabled** query the way React Query does: `isPending` true (it never
+fetches, so it never resolves) with `isLoading` false. A mock that returned `isPending: false`
+regardless is what let the screens ship waiting on the wrong flag — they passed their tests
+and spun in the browser for anyone holding less than all three roles.
 
 ## 6. Unverified — questions for a live tenant
 

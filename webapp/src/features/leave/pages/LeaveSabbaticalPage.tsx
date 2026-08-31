@@ -243,7 +243,11 @@ function SabbaticalApply() {
     );
   };
 
-  if (userInfo.isPending || appConfig.isPending || history.isPending) {
+  // `isLoading`, not `isPending`: the history query is enabled on
+  // `Boolean(workEmail)`, and React Query leaves a disabled query pending for
+  // good. Waiting on that meant a failed /user-info span forever instead of
+  // falling through to the error below.
+  if (userInfo.isLoading || appConfig.isLoading || history.isLoading) {
     return <Skeleton variant="rectangular" height={420} sx={{ borderRadius: 1.5 }} />;
   }
 

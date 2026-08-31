@@ -77,12 +77,18 @@ export default function DecidedTab() {
   );
   const opdRows = opdDecided.data ?? [];
 
+  // `isLoading`, not `isPending`. React Query leaves a DISABLED query pending
+  // for good — it never fetches, so it never resolves — and every queue here is
+  // disabled for someone lacking that role. Waiting on `isPending` meant the
+  // screen spun forever for anyone holding less than all three, which is most
+  // people. `isLoading` is pending AND fetching, so a disabled query reads as
+  // not loading, which is what it is.
   const loading =
-    expenseAppData.isPending ||
-    opdUserInfo.isPending ||
-    leadDecided.isPending ||
-    financeDecided.isPending ||
-    opdDecided.isPending;
+    expenseAppData.isLoading ||
+    opdUserInfo.isLoading ||
+    leadDecided.isLoading ||
+    financeDecided.isLoading ||
+    opdDecided.isLoading;
 
   if (loading) return <Skeleton variant="rectangular" height={280} sx={{ borderRadius: 1.5 }} />;
 

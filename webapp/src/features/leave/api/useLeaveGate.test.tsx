@@ -17,7 +17,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 
-const userInfo: { data?: unknown; isPending?: boolean } = {};
+// Both flags, as React Query reports them: a query that is fetching is pending
+// AND loading; a DISABLED query is pending but not loading, because it never
+// fetches. The gate has to read the second one, or a caller that switched it
+// off would be told forever that it is mid-flight.
+const userInfo: { data?: unknown; isPending?: boolean; isLoading?: boolean } = {};
 vi.mock("./useLeaveData", () => ({ useLeaveUserInfo: () => userInfo }));
 
 const { useLeaveGate } = await import("./useLeaveGate");
@@ -26,6 +30,7 @@ const { LEAVE_PRIVILEGE } = await import("./leaveTypes");
 function gateFor(data: unknown) {
   userInfo.data = data;
   userInfo.isPending = false;
+  userInfo.isLoading = false;
   return renderHook(() => useLeaveGate()).result.current;
 }
 
@@ -115,6 +120,7 @@ describe("before /user-info has answered", () => {
   it("reports that it is still resolving, and grants nothing", () => {
     userInfo.data = undefined;
     userInfo.isPending = true;
+    userInfo.isLoading = true;
     const gate = renderHook(() => useLeaveGate()).result.current;
     expect(gate.isResolving).toBe(true);
     expect(gate.canSee("leave-reports")).toBe(false);
@@ -190,5 +196,18 @@ describe("which leave entries the rail offers", () => {
     for (const p of [P.EMPLOYEE, P.INTERN, P.LEAD, P.PEOPLE_OPS_TEAM]) {
       expect(gateFor({ privileges: [p] }).canSee("leave-general")).toBe(true);
     }
+  });
+});
+
+// A gate switched off by its caller is not "still resolving" — it was never
+// asked. The rail does this while another perspective is active, and a screen
+// that waited on it would show a skeleton that never resolves.
+describe("when the caller switches the gate off", () => {
+  it("is not reported as resolving", () => {
+    userInfo.data = undefined;
+    userInfo.isPending = true; // disabled queries stay pending for good
+    userInfo.isLoading = false;
+    const gate = renderHook(() => useLeaveGate(false)).result.current;
+    expect(gate.isResolving).toBe(false);
   });
 });

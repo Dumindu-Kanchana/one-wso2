@@ -27,7 +27,7 @@ import type { ReactNode } from "react";
 // The 2024→2027 span crosses a leap year, so counting by eye gets it wrong.
 
 const profile = {
-  workEmail: "me@wso2.com",
+  workEmail: "me@wso2.com" as string | undefined,
   leadEmail: "lead@wso2.com" as string | null,
   employmentStartDate: "2024-01-01",
   location: "Sri Lanka",
@@ -54,6 +54,7 @@ const state = {
   leavesFailed: false,
   configFailed: false,
   userInfoLoading: false,
+  userInfoFailed: false,
 };
 
 // Every filter useLeaves is called with, so a test can assert what the screen
@@ -65,7 +66,8 @@ vi.mock("../api/useLeaveData", () => ({
     data: state.userInfoLoading ? undefined : { ...profile, subordinateCount: state.subordinateCount },
     isPending: state.userInfoLoading,
     isLoading: state.userInfoLoading,
-    isError: false,
+    isError: state.userInfoFailed,
+    error: state.userInfoFailed ? new Error("no profile") : null,
   }),
   useLeaveAppConfig: () => ({
     data: state.configFailed
@@ -76,14 +78,18 @@ vi.mock("../api/useLeaveData", () => ({
     isSuccess: !state.configFailed,
   }),
   useLeaveEmployees: () => ({ data: [], isLoading: false, isError: false }),
-  useLeaves: (filter: Record<string, unknown>) => {
-    leaveFilters.push(filter);
+  useLeaves: (filter: Record<string, unknown>, enabled = true) => {
+    if (enabled) leaveFilters.push(filter);
     return {
-      data: state.leavesFailed ? undefined : { leaves: state.leaves },
-      isPending: false,
+      data: state.leavesFailed || !enabled ? undefined : { leaves: state.leaves },
+      // As React Query reports a DISABLED query: never fetched, so `pending`
+      // forever, while `isLoading` — pending AND fetching — stays false. The
+      // mock used to report `isPending: false` regardless, which hid a screen
+      // that waits on the wrong flag.
+      isPending: !enabled,
       isLoading: false,
-      isError: state.leavesFailed,
-      isSuccess: !state.leavesFailed,
+      isError: state.leavesFailed && enabled,
+      isSuccess: !state.leavesFailed && enabled,
       error: state.leavesFailed ? new Error("boom") : null,
     };
   },
@@ -129,6 +135,8 @@ beforeEach(() => {
   state.leavesFailed = false;
   state.configFailed = false;
   state.userInfoLoading = false;
+  state.userInfoFailed = false;
+  profile.workEmail = "me@wso2.com";
   profile.leadEmail = "lead@wso2.com";
   state.leaves = [];
   state.canSee = true;
@@ -338,6 +346,17 @@ describe("what actually gets submitted", () => {
 // LeaveTabRouting.test.tsx. What remains here is the feature flag, which the
 // screen itself honours.
 describe("when the sabbatical feature is switched off", () => {
+  // The history query is enabled on `Boolean(workEmail)`. When /user-info fails
+  // there is no email, so that query is never fetched — and a loading check
+  // waiting on its `isPending` would spin forever instead of reaching the error
+  // below it.
+  it("shows the error rather than spinning when the profile fails to load", async () => {
+    profile.workEmail = undefined;
+    state.userInfoFailed = true;
+    show();
+    expect(await screen.findByText(/Couldn't load your leave profile/)).toBeInTheDocument();
+  });
+
   it("is replaced wholesale when the feature flag is off", async () => {
     state.featureEnabled = false;
     show();

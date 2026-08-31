@@ -52,7 +52,11 @@ export function usePeopleOpsGate(): PeopleOpsGate {
     // is disabled and merely "not fetching", which `isLoading` reports as a
     // finished check holding no privileges — i.e. a denial flash on every
     // cold load, shown to the very admins who do have access.
-    isResolving: userInfo.isPending,
+    // `isLoading`, not `isPending`: pending AND fetching is what "still
+    // waiting" means, and a query that is not fetching is not waiting. This
+    // one is always enabled, so the two agree today — stated because the gates
+    // beside it take an `enabled` flag, where they do not.
+    isResolving: userInfo.isLoading,
     isError: userInfo.isError,
     // describeError never surfaces a raw response body — see @api/errors.
     errorMessage: userInfo.isError ? describeError(userInfo.error) : undefined,

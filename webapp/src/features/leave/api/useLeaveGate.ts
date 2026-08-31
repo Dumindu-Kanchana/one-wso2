@@ -110,7 +110,11 @@ export function useLeaveGate(enabled = true): LeaveGate {
 
   return {
     canSee,
-    isResolving: userInfo.isPending,
+    // A disabled query never fetches, so it stays `pending` for good —
+    // `isLoading` is pending AND fetching, which is what "still waiting"
+    // actually means. Guarded on `enabled` as well, so a caller that
+    // switched this gate off is never told it is mid-flight.
+    isResolving: enabled && userInfo.isLoading,
     isPeopleOps,
     isLead,
   };

@@ -52,6 +52,7 @@ vi.mock("../expense/useExpense", () => ({
       },
     },
     isPending: false,
+    isLoading: false,
     isError: false,
   }),
   useExpenseClaims: (payload: Record<string, unknown>, enabled = true) => {
@@ -59,7 +60,12 @@ vi.mock("../expense/useExpense", () => ({
     const isLead = Array.isArray(payload.status) && payload.status[0] === "PENDING_LEAD";
     return {
       data: !enabled ? [] : isLead ? data.lead : data.finance,
-      isPending: false,
+      // As React Query reports a DISABLED query: it never fetches, so it stays
+      // `pending` forever while `isLoading` — pending AND fetching — is false.
+      // Hardcoding `isPending: false` here is what let a screen that waits on
+      // the wrong flag pass its tests and spin in the browser.
+      isPending: !enabled,
+      isLoading: false,
       isError: data.expenseFails && enabled,
       error: new Error("expense backend down"),
     };
@@ -67,12 +73,17 @@ vi.mock("../expense/useExpense", () => ({
 }));
 
 vi.mock("../opd/useOpd", () => ({
-  useOpdUserInfo: () => ({ data: { userRoles: flags.opd ? [555] : [444] }, isPending: false }),
+  useOpdUserInfo: () => ({
+    data: { userRoles: flags.opd ? [555] : [444] },
+    isPending: false,
+    isLoading: false,
+  }),
   useOpdClaims: (payload: Record<string, unknown>, enabled = true) => {
     if (enabled) searches.opd.push(payload);
     return {
       data: enabled ? data.opd : [],
-      isPending: false,
+      isPending: !enabled,
+      isLoading: false,
       isError: data.opdFails && enabled,
       error: new Error("opd backend down"),
     };
@@ -168,6 +179,42 @@ describe("what it asks each backend for", () => {
     show();
     expect(searches.expense).toHaveLength(0);
     expect(searches.opd.length).toBeGreaterThan(0);
+  });
+});
+
+// A query this person has no role for is never enabled, and React Query leaves
+// a disabled query `pending` for good. Waiting on that flag means the screen
+// spins forever for anyone holding less than every role — which is most people.
+describe("when a role is missing", () => {
+  it("renders for someone who only approves OPD", async () => {
+    flags.lead = false;
+    flags.finance = false;
+    data.opd = [opdClaim({})];
+    show();
+    expect(await screen.findByText("OPD-1")).toBeInTheDocument();
+  });
+
+  it("renders for someone who only leads expense claims", async () => {
+    flags.finance = false;
+    flags.opd = false;
+    data.lead = [expenseClaim({})];
+    show();
+    expect(await screen.findByText("EXP-1")).toBeInTheDocument();
+  });
+
+  it("renders for someone who only signs off expense claims", async () => {
+    flags.lead = false;
+    flags.opd = false;
+    data.finance = [expenseClaim({})];
+    show();
+    expect(await screen.findByText("EXP-1")).toBeInTheDocument();
+  });
+
+  it("reaches the empty state rather than spinning on a disabled queue", async () => {
+    flags.lead = false;
+    flags.finance = false;
+    show();
+    expect(await screen.findByText("Nothing is waiting on you.")).toBeInTheDocument();
   });
 });
 
