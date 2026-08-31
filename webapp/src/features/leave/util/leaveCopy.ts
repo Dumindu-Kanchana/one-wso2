@@ -56,10 +56,13 @@ export const noLeaveHistoryFor = (year: number) => `No leave history available f
 /**
  * The Apply form's own submit messages — `GeneralLeave.tsx:147,158`.
  *
- * Deliberately not `SnackMessage.submitLeaveMessage`: GeneralLeave hardcodes
- * its own strings and the success one ends in an exclamation mark the shared
- * constant does not have. The sabbatical path goes through the slice and so
- * gets the SnackMessage wording instead.
+ * Deliberately not `SnackMessage.submitLeaveMessage`: GeneralLeave calls the
+ * API directly (`GeneralLeave.tsx:145-147`) and hardcodes its own strings, the
+ * success one ending in an exclamation mark the shared constant does not have.
+ *
+ * The sabbatical path dispatches the `submitLeave` thunk, which raises
+ * `SnackMessage.success.submitLeaveMessage` instead (`leave.ts:150-156`) — so
+ * the same event is worded two ways, and LeaveSabbaticalPage uses that one.
  */
 export const SUBMIT_SUCCESS = "Leave request submitted successfully!";
 export const SUBMIT_FAILED_FALLBACK = "Failed to submit leave request. Please try again.";

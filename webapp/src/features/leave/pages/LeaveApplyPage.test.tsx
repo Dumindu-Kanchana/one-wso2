@@ -186,6 +186,23 @@ describe("the confirmation before posting", () => {
     expect(submitMutate).toHaveBeenCalledTimes(1);
   });
 
+  // The sabbatical form had this call site and not this message, so it went
+  // quiet on success. Pinned on both forms: the source raises it from inside the
+  // submitLeave thunk (leave.ts:150-156), so it is not optional per screen.
+  it("confirms the request was submitted", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Submit Leave/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Submit Leave/ }));
+    await user.click(await screen.findByRole("button", { name: "Yes" }));
+    await waitFor(() => expect(submitMutate).toHaveBeenCalled());
+    // Drive the mutation's own success path, the way React Query would.
+    submitMutate.mock.calls[0][1].onSuccess();
+    const message = await screen.findByText("Leave request submitted successfully!");
+    const alert = message.closest(".MuiAlert-root");
+    expect(alert?.className).toMatch(/AlertSuccess|standardSuccess|filledSuccess/);
+  });
+
   it("posts nothing after No", async () => {
     const user = (await import("@testing-library/user-event")).default.setup();
     show();

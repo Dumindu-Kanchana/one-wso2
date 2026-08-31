@@ -590,3 +590,40 @@ describe("holding the approve button until the team share is known", () => {
     expect(await screen.findByRole("button", { name: "Yes, Reject" })).toBeEnabled();
   });
 });
+
+// leave.ts:150-156 — the source raises this from inside the submitLeave thunk,
+// so a sabbatical is confirmed exactly as general leave is. Asserted on both
+// call sites, because a message that lives at the call site is a message the
+// next call site can forget.
+describe("what the screen says after a successful submit", () => {
+  async function submitAndSucceed() {
+    show();
+    await fillValidRequest();
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Yes" }));
+    await waitFor(() => expect(submitMutate).toHaveBeenCalled());
+    // Drive the mutation's own success path, the way React Query would.
+    submitMutate.mock.calls[0][1].onSuccess();
+  }
+
+  // The thunk's wording, without the exclamation mark the Apply form hardcodes
+  // (leave.ts:150-156 vs GeneralLeave.tsx:147). Same event, two strings, and
+  // that difference is the source's — asserted exactly so it stays that way.
+  it("confirms the request was submitted, as a success and not an error", async () => {
+    await submitAndSucceed();
+    expect(screen.queryByText("Leave request submitted successfully!")).not.toBeInTheDocument();
+    const message = await screen.findByText("Leave request submitted successfully");
+    // MUI stamps the severity into the Alert's class; a success reported
+    // through showError would read as a failure that somehow worked.
+    const alert = message.closest(".MuiAlert-root");
+    expect(alert?.className).toMatch(/AlertSuccess|standardSuccess|filledSuccess/);
+  });
+
+  it("clears the form so a second request cannot be sent by accident", async () => {
+    await submitAndSucceed();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Leave request start date/)).toHaveValue(""),
+    );
+    expect(screen.getByLabelText(/Leave request end date/)).toHaveValue("");
+  });
+})

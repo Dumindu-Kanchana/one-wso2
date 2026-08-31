@@ -40,7 +40,7 @@ import LeaveDateField from "../components/LeaveDateField";
 import { useLeaveAppConfig, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
 import { useSubmitLeave } from "../api/useLeaveMutations";
 import { describeError } from "../util/leaveError";
-import { SABBATICAL } from "../util/leaveCopy";
+import { SABBATICAL, SnackMessage } from "../util/leaveCopy";
 import { formatNice, parseIso, todayIso } from "../util/leaveDates";
 import {
   eligibilityGapDays,
@@ -75,7 +75,7 @@ function SabbaticalApply() {
 
   const userInfo = useLeaveUserInfo();
   const appConfig = useLeaveAppConfig();
-  const { showError } = useNotifications();
+  const { showSuccess, showError } = useNotifications();
   const submit = useSubmitLeave();
 
   const workEmail = userInfo.data?.workEmail ?? undefined;
@@ -219,6 +219,16 @@ function SabbaticalApply() {
       { leaveType: "sabbatical", startDate, endDate, comment: commentWithDate },
       {
         onSuccess: () => {
+          // leave.ts:150-156 — the sabbatical submit goes through the
+          // submitLeave thunk, which raises this on fulfilment. The port says it
+          // at the call site instead, this codebase's convention, and this call
+          // site was not saying it at all.
+          //
+          // The thunk's wording, NOT the Apply form's: GeneralLeave.tsx:147
+          // calls the API directly and hardcodes "…successfully!", while
+          // everything going through the slice gets SnackMessage's "…successfully".
+          // Same event, two strings, and the difference is the source's.
+          showSuccess(SnackMessage.success.submitLeaveMessage);
           // :291-296 — dates, comment and the three boxes clear; the anchor the
           // user typed is left alone.
           setStartDate("");
