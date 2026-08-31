@@ -82,11 +82,17 @@ describe("perspective hues", () => {
     }
   });
 
+  // The test above cannot see this one: CSM's `access` follows its URL being
+  // configured, and no window.config is set here, so it never appears in the
+  // reachable set — but it is tinted the moment a deployment sets the URL.
+  it("colours the app that opens in another tab", () => {
+    expect(perspectiveHue("csm")).toBeDefined();
+  });
+
   it("stays inside the range of hues people can tell apart", () => {
-    // The registry holds eleven perspectives; five are locked placeholders that
-    // will unlock over time. Hue discrimination collapses somewhere around eight,
-    // so this cap is the tripwire: when it fires, the answer is a different
-    // encoding — hue per domain family, or back to monochrome — not more hues.
+    // Hue discrimination collapses somewhere around eight, so this cap is the
+    // tripwire: when it fires, the answer is a different encoding — hue per
+    // domain family, or back to monochrome — not more hues.
     expect(Object.keys(PERSPECTIVE_HUES).length).toBeLessThanOrEqual(8);
   });
 

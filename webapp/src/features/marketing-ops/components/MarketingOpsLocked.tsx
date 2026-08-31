@@ -50,9 +50,8 @@ import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 //
 // "Ask a Marketing Ops admin" is prose rather than a link because there is
 // nobody to link to: no support address, Slack channel or service-desk route is
-// configured anywhere in the app, and the Service Requests perspective is
-// deliberately locked (`access: false` in @constants/perspectives). Inventing an
-// address would be worse than saying it plainly. When a real destination exists
+// configured anywhere in the app. Inventing an address would be worse than
+// saying it plainly. When a real destination exists
 // it becomes the primary button and "Back to Home" moves to secondary.
 //
 // Back to Home goes to /me, which every authenticated employee can reach — it is

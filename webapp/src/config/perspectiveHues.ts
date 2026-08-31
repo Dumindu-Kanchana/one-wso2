@@ -27,20 +27,17 @@
  * the launcher is the one surface with nothing else doing that job.
  *
  * SIZING, and the constraint that will eventually break this: the registry holds
- * eleven perspectives, but several are unbuilt placeholders (Rev Ops, Legal,
- * Service Requests) that render grayscaled and need no hue. CSM is a hue short
- * for the same reason in reverse: it is reached, but in another tab, so nothing
- * here is ever tinted by it. So the hues cover
- * everything reachable today, which sits just inside the limit. As those unlock,
- * adding a hue each takes the set past the point where hues are tellable apart —
- * at which point the answer is a different encoding (hue per domain family, or back
- * to monochrome), not a longer list. perspectiveHues.test.ts caps the palette at
- * eight so that decision is forced rather than drifted into.
+ * five perspectives and every one of them has a hue, so the set is at five of the
+ * eight it can carry. Hue discrimination collapses somewhere past that, and each
+ * new perspective wants one — at which point the answer is a different encoding
+ * (hue per domain family, or back to monochrome), not a longer list.
+ * perspectiveHues.test.ts caps the palette at eight so that decision is forced
+ * rather than drifted into.
  *
  * TREATMENT: the glyph is the hue's dark shade on a wash of the same hue — not a
- * saturated fill with a white glyph. White-on-hue measures 3.05–3.99:1 across these
- * six, which passes WCAG 1.4.11 (3:1 for meaningful icons) with nothing left over
- * for a seventh perspective. The washes below measure 4.53–5.37:1 in light and
+ * saturated fill with a white glyph. White-on-hue measures 3.05–3.99:1 across these,
+ * which passes WCAG 1.4.11 (3:1 for meaningful icons) with nothing left over
+ * for another perspective. The washes below measure 4.53–5.37:1 in light and
  * 3.83–5.01:1 in dark — both comfortably clear of the floor. Those figures are
  * asserted, not annotated: the test recomputes them from these hexes.
  *
@@ -52,7 +49,7 @@
  * reviewed, and asserted — see perspectiveHues.test.ts, which fails if any pair
  * drops below the 3:1 floor.
  *
- * OPEN: five of these six are not brand colours. The WSO2 brand system defines one
+ * OPEN: four of these five are not brand colours. The WSO2 brand system defines one
  * accent, so a palette this wide needs a brand-owner ruling — the same conversation
  * as the 180x72px logo minimum and the contained-button contrast. Until then this is
  * launcher-local and easy to withdraw.
@@ -100,10 +97,15 @@ export const PERSPECTIVE_HUES: Record<string, PerspectiveHue> = {
     light: { bg: "#FBE6EF", fg: "#B02E6B" },
     dark: { bg: "#2C212A", fg: "#E04A8F" },
   },
-  requests: {
-    hue: "#C08A16",
-    light: { bg: "#F6EFDE", fg: "#8A6410" },
-    dark: { bg: "#282520", fg: "#C08A16" },
+  // Violet, chosen for separation rather than taste: 61 degrees from its nearest
+  // neighbour on the wheel (people, at 207) where a 37-degree candidate could
+  // not be told apart from it. Tints computed against the same contrast formula
+  // the test uses — 5.07:1 light, 3.91:1 dark, both clear of the 3.5 headroom
+  // rule with the wash treatment.
+  csm: {
+    hue: "#9B5DE0",
+    light: { bg: "#F1E8FB", fg: "#7C4AB3" },
+    dark: { bg: "#241D2C", fg: "#9B5DE0" },
   },
 };
 

@@ -19,19 +19,16 @@
 
 import { csmUrl, isCsmConfigured, isIsacConfigured, isacUrl } from "@config/apiConfig";
 import {
-  ChartNoAxesCombinedIcon,
   DatabaseIcon,
   HouseIcon,
   LifeBuoyIcon,
   MegaphoneIcon,
   SatelliteDishIcon,
-  ScaleIcon,
   UserRoundIcon,
   UserRoundMinusIcon,
   UsersIcon,
   UsersRoundIcon,
   WalletIcon,
-  ZapIcon,
   type LucideIcon,
 } from "@wso2/oxygen-ui-icons-react";
 import type { Capability, MenuApp } from "@constants/appMenu";
@@ -231,8 +228,6 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     access: isCsmConfigured(),
     externalUrl: csmUrl || undefined,
   },
-  { key: "revops", label: "Rev Ops", icon: ChartNoAxesCombinedIcon, access: false },
-  { key: "legal", label: "Legal", icon: ScaleIcon, access: false },
   // Marketing Ops — UNLOCKED. Ported so far: Utilities (UTM + Asset Name
   // generators and their Marketing Admin panels) and Ad Campaigns → Analytics.
   // Still in Marketing Ops itself: Email Workbench, Events, CRM Upload — those
@@ -258,12 +253,6 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     path: "/marketing-ops",
     sections: MARKETING_OPS_SECTIONS,
   },
-  // Locked until the Service Requests surface has real content — the page was a
-  // static prototype and the persona showed as clickable in the waffle even
-  // though it led nowhere useful. Flip access back to true (and re-add the
-  // /service-requests route in App.tsx) when there is something to land on.
-  { key: "requests", label: "Service Requests", icon: ZapIcon, access: false },
-
   // "Me" is the Home landing: the person's own profile plus everyday apps —
   // Leave, Menu, and the finance claims.
   //
@@ -294,12 +283,12 @@ export function reachablePerspectives(): PerspectiveDef[] {
 /**
  * Every perspective, for the launcher's "Apps" group.
  *
- * There used to be a `group` field splitting these from a "cross" set — Me and
- * Service Requests — rendered under "For you" in both the rail and the
- * launcher. Both of those surfaces are gone (the rail does not duplicate the
- * launcher, and Me is a default favourite), so the field ended up on every
- * entry with nothing reading the distinction. An alias rather than a second
- * exported array, so there is one list to keep in order.
+ * There used to be a `group` field splitting these from a "cross" set rendered
+ * under "For you" in both the rail and the launcher. Both of those surfaces are
+ * gone (the rail does not duplicate the launcher, and Me is a default
+ * favourite), so the field ended up on every entry with nothing reading the
+ * distinction. An alias rather than a second exported array, so there is one
+ * list to keep in order.
  */
 export const FUNCTIONAL_PERSPECTIVES = PERSPECTIVES;
 

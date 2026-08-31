@@ -20,6 +20,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import WaffleOverlay from "@components/waffle/WaffleOverlay";
 import { readFavourites } from "@features/favourites/favouritesStore";
+import { PERSPECTIVES } from "@constants/perspectives";
 
 vi.mock("@hooks/useAsgardeoSub", () => ({
   useAsgardeoSub: () => ({ state: { status: "ready", sub: "user-under-test" }, retry: () => {} }),
@@ -53,13 +54,22 @@ describe("launcher favourites", () => {
     ).toBeInTheDocument();
   });
 
-  it("offers no star on a locked app", () => {
+  it("offers no star on an app that cannot be opened", () => {
     renderLauncher();
-    // Service Requests has access: false — favouriting it would be a shortcut
-    // to a dead end.
+    // Named from the registry rather than hardcoded: the previous version named
+    // a perspective that has since been removed, so it asserted the absence of
+    // something that could not have been there.
+    const unopenable = PERSPECTIVES.find((p) => !p.access);
+    expect(unopenable, "no unopenable perspective left to check").toBeDefined();
     expect(
-      within(panel()).queryByRole("button", { name: /Service Requests to favourites/ }),
+      within(panel()).queryByRole("button", {
+        name: new RegExp(`${unopenable!.label} to favourites`),
+      }),
     ).toBeNull();
+    // And it is still offered as a tile, just not as a favourite.
+    expect(
+      within(panel()).getByRole("button", { name: `${unopenable!.label} — not available yet` }),
+    ).toBeInTheDocument();
   });
 
   it("keeps the star out of the tile button, so the markup stays valid", () => {

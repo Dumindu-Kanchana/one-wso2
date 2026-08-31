@@ -37,8 +37,8 @@ interface WaffleOverlayProps {
   onClose: () => void;
 }
 
-// The app switcher: a panel hanging off the launcher button, functional
-// (persona) apps on top, cross (Me / Service Requests) below. Unbuilt tiles
+// The app switcher: a panel hanging off the launcher button, with favourites
+// above the full set of apps. Unbuilt tiles
 // render grayscaled and don't navigate; a tile for an app that lives in another
 // application opens it in a new tab and says so with a corner badge.
 //
