@@ -76,7 +76,7 @@ export function CcTxnDetailsDialog({
             </Box>
 
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.25 }}>
-              <Detail label="Submitted User" value={txn.employeeEmail} />
+              <Detail label="Submitted User" value={txn.employeeEmail || NOT_PROVIDED} />
               <Detail label="Expense Category" value={txn.expenseCategoryLabel} />
               <Detail label="Expense Type" value={txn.expenseTypeLabel} />
               <Detail label="Job Number" value={txn.travelJobNumber} />
@@ -90,11 +90,25 @@ export function CcTxnDetailsDialog({
 
             {/* :265-340 — who has it been past, and when. */}
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.25 }}>
-              <Detail label="Submitted Date" value={dateOrDash(txn.empPostedDate)} />
-              <Detail label="Lead approver" value={txn.leadEmail} />
-              <Detail label="Lead Approved Date" value={dateOrDash(txn.leadApprovedDate)} />
-              <Detail label="Finance approver" value={txn.financeApproverEmail} />
-              <Detail label="Finance Approved Date" value={dateOrDash(txn.financeApprovedDate)} />
+              <Detail
+                label="Submitted Date"
+                value={txn.empPostedDate ? formatNice(txn.empPostedDate) : "(not submitted)"}
+              />
+              {/* :232 — leadEmail is a comma-separated list of the card's
+                  assigned leads, so only the first is shown; the whole list
+                  would read as though several people had approved it. */}
+              <Detail label="Lead approver" value={txn.leadEmail?.split(",")[0] || NOT_PROVIDED} />
+              <Detail
+                label="Lead Approved Date"
+                value={txn.leadApprovedDate ? formatNice(txn.leadApprovedDate) : NOT_APPROVED}
+              />
+              <Detail label="Finance approver" value={txn.financeApproverEmail || NOT_PROVIDED} />
+              <Detail
+                label="Finance Approved Date"
+                value={
+                  txn.financeApprovedDate ? formatNice(txn.financeApprovedDate) : NOT_APPROVED
+                }
+              />
             </Box>
 
             {(txn.receiptFileName || txn.contractFileName) && (
@@ -127,7 +141,8 @@ export function CcTxnDetailsDialog({
   );
 }
 
-const dateOrDash = (d: string | null) => (d ? formatNice(d) : null);
+const NOT_PROVIDED = "(not provided)";
+const NOT_APPROVED = "(not approved)";
 
 function Detail({ label, value }: { label: string; value: string | null | undefined }) {
   return (

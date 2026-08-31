@@ -94,6 +94,10 @@ function ApproveBody() {
   const financeIds = selected.filter((t) => t.status === "pending_finance").map((t) => t.id);
   const selectedCount = leadIds.length + financeIds.length;
   const approving = leadApprove.isPending || financeApprove.isPending;
+  // An edit saved from this screen is a separate request. Approving before it
+  // lands would book the row as it was before the correction, so the button
+  // waits for it. (The source does not guard this; see the spec.)
+  const busy = approving || saveEdit.isPending;
 
   const toggle = (id: number) =>
     setChecked((prev) => {
@@ -167,7 +171,7 @@ function ApproveBody() {
               variant="contained"
               color="success"
               onClick={handleApprove}
-              disabled={selectedCount === 0 || approving}
+              disabled={selectedCount === 0 || busy}
               sx={{ fontWeight: 600 }}
             >
               {approving ? "Approving…" : `Approve ${selectedCount || ""}`.trim()}

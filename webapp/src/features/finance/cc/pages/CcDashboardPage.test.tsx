@@ -31,6 +31,14 @@ const asked = {
   compliance: [] as { ownedCardsOnly: boolean; enabled: boolean }[],
 };
 
+// buildBreakdown buckets by local calendar month, so the mocked rows have to be
+// stamped the same way. `toISOString()` is UTC and would put both rows outside
+// the six-month window after midnight UTC on the 1st in a negative-offset zone.
+function localMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 vi.mock("../useCc", () => ({
   useCcUserInfo: () => ({
     data: { workEmail: "me@wso2.com", privileges: role.privileges },
@@ -53,8 +61,8 @@ vi.mock("../useCc", () => ({
   },
   useCcSubmittedByCategory: () => ({
     data: [
-      { category: "Travel", txnMonth: new Date().toISOString().slice(0, 7), amount: 300 },
-      { category: "Software", txnMonth: new Date().toISOString().slice(0, 7), amount: 900 },
+      { category: "Travel", txnMonth: localMonth(), amount: 300 },
+      { category: "Software", txnMonth: localMonth(), amount: 900 },
     ],
     isLoading: false,
     isError: false,
@@ -89,6 +97,7 @@ vi.mock("../../components/FinanceShell", () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+const { reportingWindowLabel } = await import("../ccDashboard");
 const { default: CcDashboardPage } = await import("./CcDashboardPage");
 
 const render = () =>
@@ -135,6 +144,26 @@ describe("who sees what", () => {
     await userEvent.click(screen.getByRole("option", { name: "Employee view" }));
     await waitFor(() => expect(asked.summary.at(-1)?.ownedCardsOnly).toBe(true));
     expect(screen.queryByText("Cardholders Details")).not.toBeInTheDocument();
+  });
+});
+
+// index.tsx:128-136 — the header states both windows the screen covers. The
+// port had put the reporting window on the category table instead.
+describe("the header", () => {
+  it("states today and the reporting window", () => {
+    render();
+    // Twice over: once in the header, once on the Pending by Age tile, as
+    // index.tsx:131 and PendingByAgeCard.tsx:45 both carry it.
+    expect(screen.getAllByText(/^As of /)).toHaveLength(2);
+    // Not just the prefix — the label itself, so a broken window still fails.
+    expect(screen.getByText(`Reporting window: ${reportingWindowLabel()}`)).toBeInTheDocument();
+  });
+
+  it("does not repeat the window on the category table", () => {
+    render();
+    const subtitle = screen.getByText(/^Fully submitted amount/);
+    expect(subtitle).not.toHaveTextContent("Reporting window");
+    expect(subtitle.textContent).toMatch(/last 6 months$/);
   });
 });
 

@@ -92,6 +92,9 @@ export function CardMenu({
                       setRenaming(c);
                       setDraftLabel(c.label ?? "");
                     }}
+                    // The tile around it is a role="button" that selects the
+                    // card on Enter/Space, and a keydown here bubbles to it.
+                    onKeyDown={(e) => e.stopPropagation()}
                     sx={{ p: 0.25, color: "text.secondary" }}
                   >
                     <PencilIcon size={13} />

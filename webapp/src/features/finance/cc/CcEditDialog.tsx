@@ -125,8 +125,10 @@ function CcEditForm({
   // :568-575 — a job with no funding sources cannot be charged against, so the
   // source refuses to apply it rather than filling in half the row.
   const jobUnusable = Boolean(jobUnits) && fundingSources.length === 0;
-  // :591-598 — a job can also come back without units, which is worth saying
-  // because it is why Save will not enable.
+  // :591-598 — a job can also come back without units. The source warns and
+  // saves anyway: validateRequiredFields (utils.ts:59-64) asks Travel only for
+  // a job number, comment and expense type, never for the units. So this is a
+  // warning, not a block — Save stays enabled.
   const jobMissingUnits = Boolean(jobUnits) && !(jobUnits?.productUnit && jobUnits?.businessUnit);
   const jobUsable = Boolean(jobUnits) && fundingSources.length > 0;
 
@@ -151,7 +153,8 @@ function CcEditForm({
     receiptFileName,
     contractFileName,
   };
-  // A job with no funding sources is not applied, so it cannot complete the row.
+  // A job with no funding sources is not applied, so it cannot complete the
+  // row. Missing units deliberately do NOT block — see jobMissingUnits above.
   const valid = ccTxnComplete(patched) && !jobUnusable;
 
   return (

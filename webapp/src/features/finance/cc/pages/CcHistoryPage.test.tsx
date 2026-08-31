@@ -47,6 +47,18 @@ const base = {
 const rows = [
   { ...base, id: 1, ccNumber: "1111", txnDescription: "Mine", employeeEmail: "me@wso2.com", leadEmail: "lead-a@wso2.com" },
   { ...base, id: 2, ccNumber: "2222", txnDescription: "Theirs", employeeEmail: "them@wso2.com", leadEmail: "lead-b@wso2.com, lead-a@wso2.com" },
+  // Submitted, not yet approved by anyone, and on a card with no lead set.
+  {
+    ...base,
+    id: 3,
+    ccNumber: "1111",
+    txnDescription: "Waiting",
+    employeeEmail: "me@wso2.com",
+    leadEmail: null,
+    leadApprovedDate: null,
+    financeApproverEmail: null,
+    financeApprovedDate: null,
+  },
 ];
 
 const state = { access: ["lead"] as string[] };
@@ -155,5 +167,34 @@ describe("what became of a transaction", () => {
       expect(await screen.findByText(label)).toBeInTheDocument();
     }
     expect(screen.getByText("Integration")).toBeInTheDocument();
+  });
+});
+
+// :232 — `leadEmail?.split(",")[0]`. The field is the card's comma-separated
+// assigned-lead list, so showing it whole would name several people as having
+// approved one transaction. :230-335 also distinguishes "never happened" from
+// "not recorded", which a bare dash does not.
+describe("the approval trail names one lead", () => {
+  it("shows only the first assigned lead", async () => {
+    show();
+    // Row 2's card carries two leads.
+    fireEvent.click((await screen.findAllByRole("button", { name: "Details" }))[1]);
+
+    const label = await screen.findByText("Lead approver");
+    const value = label.parentElement as HTMLElement;
+    expect(value).toHaveTextContent("lead-b@wso2.com");
+    expect(value).not.toHaveTextContent("lead-a@wso2.com");
+  });
+
+  it("says why a value is missing rather than showing a dash", async () => {
+    show();
+    // Row 3 has been submitted and approved by nobody.
+    fireEvent.click((await screen.findAllByRole("button", { name: "Details" }))[2]);
+
+    const dateLabel = await screen.findByText("Lead Approved Date");
+    expect(dateLabel.parentElement).toHaveTextContent("(not approved)");
+    expect(screen.getByText("Lead approver").parentElement).toHaveTextContent(
+      "(not provided)",
+    );
   });
 });

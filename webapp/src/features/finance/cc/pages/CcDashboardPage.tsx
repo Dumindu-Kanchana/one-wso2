@@ -46,7 +46,11 @@ import {
   useCcTransactionSummary,
   useCcUserInfo,
 } from "../useCc";
-import { ccHasAccess, type CcAgeBucketAmount, type CcCardHolderCompliance } from "../ccTypes";
+import {
+  ccHasAccess,
+  type CcAgeBucketAmount,
+  type CcCardHolderCompliance,
+} from "../ccTypes";
 import {
   CC_BREAKDOWN_MONTHS,
   CC_GRANULARITIES,
@@ -98,7 +102,11 @@ function DashboardBody() {
   const summary = useCcTransactionSummary(dateFrom, ownedCardsOnly);
   const range = useMemo(() => breakdownDateRange(), []);
   const byCategory = useCcSubmittedByCategory(range, ownedCardsOnly);
-  const compliance = useCcCardHolderCompliance(dateFrom, ownedCardsOnly, showCompliance);
+  const compliance = useCcCardHolderCompliance(
+    dateFrom,
+    ownedCardsOnly,
+    showCompliance,
+  );
 
   const breakdown = useMemo(
     () => buildBreakdown(byCategory.data ?? [], granularity),
@@ -106,7 +114,9 @@ function DashboardBody() {
   );
 
   if (userInfo.isLoading) {
-    return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />;
+    return (
+      <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />
+    );
   }
   if (userInfo.isError) {
     return (
@@ -121,33 +131,55 @@ function DashboardBody() {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap", rowGap: 1.5 }}>
-        {isAdminEligible && (
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", sm: "flex-end" }}
+        spacing={1.5}
+      >
+        {/* :128-136 — the header states both windows the screen is showing. */}
+        <Box>
+          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+            As of {asOfDate()}
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+            Reporting window: {reportingWindowLabel()}
+          </Typography>
+        </Box>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{ flexWrap: "wrap", rowGap: 1.5 }}
+        >
+          {isAdminEligible && (
+            <Select
+              size="small"
+              value={viewMode}
+              inputProps={{ "aria-label": "View" }}
+              onChange={(e) =>
+                setViewMode(e.target.value as "admin" | "employee")
+              }
+              sx={{ minWidth: 160 }}
+            >
+              <MenuItem value="admin">Admin view</MenuItem>
+              <MenuItem value="employee">Employee view</MenuItem>
+            </Select>
+          )}
+          {/* Scopes the four cards below; the category table has its own control. */}
           <Select
             size="small"
-            value={viewMode}
-            inputProps={{ "aria-label": "View" }}
-            onChange={(e) => setViewMode(e.target.value as "admin" | "employee")}
+            value={period}
+            inputProps={{ "aria-label": "Period" }}
+            onChange={(e) => setPeriod(e.target.value as CcSummaryPeriod)}
             sx={{ minWidth: 160 }}
           >
-            <MenuItem value="admin">Admin view</MenuItem>
-            <MenuItem value="employee">Employee view</MenuItem>
+            {CC_SUMMARY_PERIODS.map((p) => (
+              <MenuItem key={p.value} value={p.value}>
+                {p.label}
+              </MenuItem>
+            ))}
           </Select>
-        )}
-        {/* Scopes the four cards below; the category table has its own control. */}
-        <Select
-          size="small"
-          value={period}
-          inputProps={{ "aria-label": "Period" }}
-          onChange={(e) => setPeriod(e.target.value as CcSummaryPeriod)}
-          sx={{ minWidth: 160 }}
-        >
-          {CC_SUMMARY_PERIODS.map((p) => (
-            <MenuItem key={p.value} value={p.value}>
-              {p.label}
-            </MenuItem>
-          ))}
-        </Select>
+        </Stack>
       </Stack>
 
       {summary.isError ? (
@@ -175,7 +207,11 @@ function DashboardBody() {
           />
           <Stat
             title="Avg. Days Taken to Submit"
-            value={current?.avgDaysToSubmit != null ? current.avgDaysToSubmit.toFixed(1) : "-"}
+            value={
+              current?.avgDaysToSubmit != null
+                ? current.avgDaysToSubmit.toFixed(1)
+                : "-"
+            }
             unit="days"
             loading={summary.isLoading}
           />
@@ -207,18 +243,38 @@ function Panel({ children }: { children: React.ReactNode }) {
 }
 
 function PanelTitle({ children }: { children: React.ReactNode }) {
-  return <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{children}</Typography>;
+  return (
+    <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{children}</Typography>
+  );
 }
 
-function Note({ children, error }: { children: React.ReactNode; error?: boolean }) {
+function Note({
+  children,
+  error,
+}: {
+  children: React.ReactNode;
+  error?: boolean;
+}) {
   return (
-    <Typography sx={{ fontSize: 13, mt: 3, color: error ? "error.main" : "text.secondary" }}>
+    <Typography
+      sx={{
+        fontSize: 13,
+        mt: 3,
+        color: error ? "error.main" : "text.secondary",
+      }}
+    >
       {children}
     </Typography>
   );
 }
 
-function HeadCell({ children, align }: { children: React.ReactNode; align?: "right" }) {
+function HeadCell({
+  children,
+  align,
+}: {
+  children: React.ReactNode;
+  align?: "right";
+}) {
   return (
     <TableCell
       align={align}
@@ -277,51 +333,88 @@ function Stat({
   onLinkClick?: () => void;
 }) {
   return (
-    <Card variant="outlined" sx={{ p: 2.5, position: "relative", height: "100%" }}>
+    <Card
+      variant="outlined"
+      sx={{ p: 2.5, position: "relative", height: "100%" }}
+    >
       {onLinkClick && (
         <Tooltip title={linkTitle ?? ""}>
           <IconButton
             aria-label={linkTitle}
             onClick={onLinkClick}
             size="small"
-            sx={{ position: "absolute", top: 8, right: 8, color: "text.secondary" }}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              color: "text.secondary",
+            }}
           >
             <ArrowUpRightIcon fontSize="small" />
           </IconButton>
         </Tooltip>
       )}
-      <Typography sx={{ fontSize: 13, fontWeight: 700, color: "text.secondary", pr: 4 }}>
+      <Typography
+        sx={{ fontSize: 13, fontWeight: 700, color: "text.secondary", pr: 4 }}
+      >
         {title}
       </Typography>
       {loading ? (
         <Skeleton width={140} height={44} sx={{ mt: 1.5 }} />
       ) : (
         <Stack direction="row" alignItems="baseline" spacing={1} sx={{ mt: 2 }}>
-          <Typography sx={{ fontSize: 30, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+          <Typography
+            sx={{
+              fontSize: 30,
+              fontWeight: 700,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             {value}
           </Typography>
-          {unit && <Typography sx={{ fontSize: 15, color: "text.secondary" }}>{unit}</Typography>}
+          {unit && (
+            <Typography sx={{ fontSize: 15, color: "text.secondary" }}>
+              {unit}
+            </Typography>
+          )}
         </Stack>
       )}
     </Card>
   );
 }
 
-function PendingByAge({ buckets, loading }: { buckets: CcAgeBucketAmount[]; loading: boolean }) {
+function PendingByAge({
+  buckets,
+  loading,
+}: {
+  buckets: CcAgeBucketAmount[];
+  loading: boolean;
+}) {
   return (
     <Panel>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        spacing={1}
+      >
         <PanelTitle>
           Pending by Age
           <br />
           (Value &amp; Count)
         </PanelTitle>
-        <Typography sx={{ fontSize: 13, color: "text.secondary", whiteSpace: "nowrap" }}>
+        <Typography
+          sx={{ fontSize: 13, color: "text.secondary", whiteSpace: "nowrap" }}
+        >
           As of {asOfDate()}
         </Typography>
       </Stack>
       {loading ? (
-        <Skeleton variant="rectangular" height={110} sx={{ mt: 2, borderRadius: 1 }} />
+        <Skeleton
+          variant="rectangular"
+          height={110}
+          sx={{ mt: 2, borderRadius: 1 }}
+        />
       ) : (
         <Table size="small" sx={{ mt: 2 }}>
           <TableHead>
@@ -351,7 +444,12 @@ function PendingByAge({ buckets, loading }: { buckets: CcAgeBucketAmount[]; load
 function ComplianceTable({
   query,
 }: {
-  query: { data?: CcCardHolderCompliance[]; isLoading: boolean; isError: boolean; error?: unknown };
+  query: {
+    data?: CcCardHolderCompliance[];
+    isLoading: boolean;
+    isError: boolean;
+    error?: unknown;
+  };
 }) {
   const items = query.data ?? [];
   return (
@@ -361,7 +459,8 @@ function ComplianceTable({
         <Note>Loading card holder compliance summary...</Note>
       ) : query.isError ? (
         <Note error>
-          Unable to load the card holder compliance summary — try refreshing the page.
+          Unable to load the card holder compliance summary — try refreshing the
+          page.
         </Note>
       ) : items.length === 0 ? (
         <Note>No pending transactions for any card holder in this range.</Note>
@@ -371,7 +470,9 @@ function ComplianceTable({
             <TableHead>
               <TableRow>
                 <HeadCell>CARD HOLDER</HeadCell>
-                <HeadCell align="right">TOTAL OUTSTANDING ({CURRENCY})</HeadCell>
+                <HeadCell align="right">
+                  TOTAL OUTSTANDING ({CURRENCY})
+                </HeadCell>
                 <HeadCell align="right"># TRANSACTIONS</HeadCell>
                 <HeadCell align="right">AVG. DAYS TO SUBMIT</HeadCell>
                 <HeadCell align="right">0-7D</HeadCell>
@@ -384,10 +485,14 @@ function ComplianceTable({
               {items.map((row) => (
                 <TableRow key={row.employeeEmail} hover>
                   <Cell>{row.cardHolderName || row.employeeEmail}</Cell>
-                  <Cell align="right">{wholeAmount(row.outstandingAmount)}</Cell>
+                  <Cell align="right">
+                    {wholeAmount(row.outstandingAmount)}
+                  </Cell>
                   <Cell align="right">{row.transactionCount}</Cell>
                   <Cell align="right">
-                    {row.avgDaysToSubmit !== null ? row.avgDaysToSubmit.toFixed(1) : "-"}
+                    {row.avgDaysToSubmit !== null
+                      ? row.avgDaysToSubmit.toFixed(1)
+                      : "-"}
                   </Cell>
                   <Cell align="right">{row.bucket0To7}</Cell>
                   <Cell align="right">{row.bucket8To14}</Cell>
@@ -433,8 +538,8 @@ function CategoryTable({
         <Box>
           <PanelTitle>Submitted Expenses by Category</PanelTitle>
           <Typography sx={{ fontSize: 13, color: "text.secondary", mt: 0.25 }}>
-            Fully submitted amount ({CURRENCY}) by category, last {CC_BREAKDOWN_MONTHS} months ·{" "}
-            {reportingWindowLabel()}
+            Fully submitted amount ({CURRENCY}) by category, last{" "}
+            {CC_BREAKDOWN_MONTHS} months
           </Typography>
         </Box>
         <Select
@@ -453,7 +558,11 @@ function CategoryTable({
       </Stack>
 
       {loading ? (
-        <Skeleton variant="rectangular" height={160} sx={{ mt: 2, borderRadius: 1 }} />
+        <Skeleton
+          variant="rectangular"
+          height={160}
+          sx={{ mt: 2, borderRadius: 1 }}
+        />
       ) : error ? (
         <Note error>{error}</Note>
       ) : breakdown.rows.length === 0 ? (

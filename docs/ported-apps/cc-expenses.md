@@ -31,15 +31,18 @@ Access comes from `GET /user-info` as **privilege names**, not numbers
 
 What is still unsubmitted, how long it has been sitting, and what has been claimed.
 
-Four tiles in a 2×2 grid, then two tables. Every figure is USD, and every amount drops
-the cents — the source formats with `formatCurrency(x).split(".")[0]` throughout.
+A header stating both windows the screen covers ("As of" today, and the reporting window
+the category table spans), then four tiles in a 2×2 grid — three stat cards and one table
+— followed by two more tables. Three tables in all. Every figure is USD, and every amount
+drops the cents, as the source's `formatCurrency(x).split(".")[0]` does throughout.
 
 - **Three stat cards** — Total Amount Pending Submission (which links out to New
   Transactions), Total Transactions Pending Submission, and Avg. Days Taken to Submit
   (suffixed "days", "-" when the backend has no figure). All three follow a **period** —
   All time (the default), Last 6 months, Last year. "All time" sends no lower bound at all.
-- **Pending by Age**, the fourth tile: one row per bucket, AGE / COUNT / VALUE, "As of"
-  today's date. The labels come from the response; the port does not invent its own bands.
+- **Pending by Age**, the fourth tile and the first of the three tables: one row per
+  bucket, AGE / COUNT / VALUE, repeating "As of" today's date. The bucket labels come from
+  the response; the port does not invent its own bands.
 - **Cardholders Details** — per card holder, their outstanding total, transaction count,
   average days to submit, and how many of their transactions sit in each ageing band
   (0-7D / 8-14D / 15-30D / 30+D). The last two turn red when they are not empty. Lead and
@@ -129,10 +132,33 @@ and the "As of" date.
 **Attachments.** The port accepts the same types the source does, bmp, gif and svg
 included.
 
-## 5. Test checklist
+**One guard the source does not have.** Approving is held while an edit saved from the
+approve screen is still in flight. The source's `isApproveDisabled`
+(`ApproveTransactionsDataGrid.tsx:189-191`) checks only the selection and the approval
+request, so it can approve a row whose correction has not landed — booking the pre-edit
+version. Invisible when nothing is in flight.
 
-Covered in `cc/*.test.tsx` and `cc/pages/*.test.tsx`. Every fix carries a test that fails
-against the previous behaviour, verified by reverting it.
+## 5. Source behaviour reproduced deliberately, though it looks wrong
+
+Kept because the two apps run side by side during the migration and must agree. Each is
+worth raising with the source's owners rather than diverging here.
+
+- **The reporting window omits the start year.** `formatReportingWindow`
+  (`utils.ts:47-52`) stamps `now.getFullYear()` on both ends, so from January to May the
+  label reads e.g. "Aug - Jan 2026" for a window that begins in August 2025. The port
+  reproduces it exactly.
+- **A travel job with no product or business unit still saves.**
+  `validateRequiredFields` (`utils.ts:59-64`) asks a Travel transaction only for a job
+  number, a comment and an expense type — never the units — so
+  `handleJobNumberChange` (`EditPane.tsx:591-598`) warns and lets the save through with
+  them null. Only a job with **no funding sources** is refused, and that one is refused by
+  never being applied at all. Pinned by a test, so it cannot be "fixed" by accident.
+
+## 6. Test checklist
+
+Covered in `cc/ccDashboard.test.ts`, `cc/ccWireFormat.test.tsx`, `cc/CcEditDialog.test.tsx`,
+`cc/components/CardMenu.test.tsx` and `cc/pages/{CcApprovePage,CcDashboardPage,CcHistoryPage,CcPendingPage}.test.tsx`.
+Every fix carries a test that fails against the previous behaviour, verified by reverting it.
 
 Active-card filter, including case-insensitive status · the window ends tomorrow, not
 today · the seven-day default, and a caller's own window overriding it · travel job
@@ -144,13 +170,20 @@ monthly/quarterly/yearly bucketing, category ranking, out-of-window items droppe
 sees the view switch and the cardholder table, and that a card holder's browser never
 issues the compliance request · the age table's three columns and the cardholder table's
 eight · amounts rendered without cents · the "days" unit · falsy query parameters omitted
-rather than sent as "false".
+rather than sent as "false" · one lead named on the approval trail, not the whole assigned
+list, and the source's "(not provided)" / "(not approved)" wording · reaching rename by
+keyboard does not also switch card · approving waits for an in-flight edit · a job missing
+units warns but still saves.
+
+Date expectations are built with local date fields, matching the helpers under test — a
+UTC ISO string plus a fixed 86,400,000 ms offset names a different calendar day in the
+evening of any negative-offset zone, and the suite would fail there and nowhere else.
 
 One equivalent mutation is knowingly not covered: dropping `isAdminEligible` from
 `ownedCardsOnly` changes nothing observable, because a card holder never gets the toggle
 that could move `viewMode`. The guard mirrors `index.tsx:64` and stays.
 
-## 6. Unverified — questions for a live tenant
+## 7. Unverified — questions for a live tenant
 
 Nothing here is asserted as fact:
 
@@ -159,3 +192,5 @@ Nothing here is asserted as fact:
 - which age-bucket labels the backend actually returns, and whether they are stable
 - whether a travel job with no funding sources occurs in current data, or only in
   half-created records
+- how often a travel job legitimately has funding sources but no units, given the source
+  books those with null units

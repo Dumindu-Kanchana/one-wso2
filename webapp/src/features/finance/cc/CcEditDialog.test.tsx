@@ -168,8 +168,9 @@ describe("a travel job number supplies the units", () => {
   });
 });
 
-// :568-575 and :591-598 — either condition leaves the row uncompletable, and
-// neither is the user's doing, so both are said out loud.
+// :568-575 and :591-598 — two different outcomes, both said out loud. No
+// funding sources means the job is never applied, so the row cannot complete.
+// Missing units is only a warning: the row saves with them null.
 describe("a job that cannot fund the spend", () => {
   it("refuses a job with no funding sources", async () => {
     state.details = { ...jobDetails, fundingSources: [] };
@@ -180,7 +181,7 @@ describe("a job that cannot fund the spend", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("says when the job carries no units", async () => {
+  it("says when the job carries no units, but still lets the row be saved", async () => {
     state.details = { ...jobDetails, businessUnit: "" };
     await categoriseAsTravel();
     expect(
@@ -188,6 +189,10 @@ describe("a job that cannot fund the spend", () => {
         "No Product unit and/or Business unit found for the selected Job number.",
       ),
     ).toBeInTheDocument();
+    // validateRequiredFields (utils.ts:59-64) asks Travel only for a job
+    // number, a comment and an expense type — never for the units. So the
+    // source warns and saves, and blocking here would be a deviation.
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 });
 

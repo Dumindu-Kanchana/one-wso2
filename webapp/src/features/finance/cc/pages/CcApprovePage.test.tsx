@@ -19,6 +19,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("@hooks/useAccessToken", () => ({ useAccessToken: () => async () => "token" }));
 vi.mock("@asgardeo/react", () => ({ useAsgardeo: () => ({ isSignedIn: true }) }));
@@ -78,9 +79,10 @@ vi.mock("../ccTypes", async () => {
 });
 
 const saveEdit = vi.fn();
+const mutations = { savePending: false };
 vi.mock("../useCcMutations", () => ({
   useCcApprove: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useCcSaveEdit: () => ({ mutate: saveEdit, isPending: false }),
+  useCcSaveEdit: () => ({ mutate: saveEdit, isPending: mutations.savePending }),
   useCcAttachment: () => ({
     upload: { mutateAsync: vi.fn(), isPending: false },
     remove: { mutateAsync: vi.fn(), isPending: false },
@@ -96,6 +98,8 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   state.access = ["finance"];
+  mutations.savePending = false;
+  saveEdit.mockClear();
 });
 
 function show() {
@@ -144,5 +148,24 @@ describe("what a lead sees", () => {
     show();
     const boxes = await screen.findAllByRole("checkbox");
     expect(boxes[0]).toBeEnabled();
+  });
+});
+
+// An edit saved from this screen is a separate POST /transactions/save-edit.
+// Approving before it lands books the row as it was before the correction —
+// so the button waits, even though the source's own isApproveDisabled
+// (ApproveTransactionsDataGrid.tsx:189-191) does not check for it.
+describe("an edit still in flight", () => {
+  it("holds the approve button until the save lands", async () => {
+    mutations.savePending = true;
+    show();
+    await userEvent.click(screen.getAllByRole("checkbox")[1]);
+    expect(screen.getByRole("button", { name: /^Approve/ })).toBeDisabled();
+  });
+
+  it("allows approval once nothing is in flight", async () => {
+    show();
+    await userEvent.click(screen.getAllByRole("checkbox")[1]);
+    expect(screen.getByRole("button", { name: /^Approve/ })).toBeEnabled();
   });
 });
