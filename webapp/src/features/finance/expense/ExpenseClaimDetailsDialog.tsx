@@ -35,8 +35,13 @@ import { ReceiptViewer } from "../components/ReceiptViewer";
 import { describeError } from "../util/financeError";
 import { money, formatNice } from "../util/financeFormat";
 import { fetchReceiptObjectUrl, type ReceiptSource } from "../util/financeReceipts";
-import { useExpenseClaimStatus } from "./useExpenseMutations";
-import { nextStatus, type ApproverView, type ExpenseClaim } from "./expenseTypes";
+import {
+  useExpenseClaimStatus,
+  useExpenseReceiptUpload,
+  useResubmitExpenseClaim,
+} from "./useExpenseMutations";
+import { AddExpenseDialog, type DraftLine } from "./ExpenseLineDialog";
+import { nextStatus, type ApproverView, type ExpenseAppData, type ExpenseClaim } from "./expenseTypes";
 
 // Expense claim detail slide-over — read-only for History, or with
 // stage-appropriate Approve/Reject for Lead / Finance approvals.
@@ -44,10 +49,16 @@ export function ExpenseClaimDetailsDialog({
   claim,
   onClose,
   review,
+  appData,
 }: {
   claim: ExpenseClaim | null;
   onClose: () => void;
   review?: ApproverView;
+  /**
+   * App data, needed only to correct a line while resubmitting. Absent in the
+   * approver views, which never resubmit.
+   */
+  appData?: ExpenseAppData;
 }) {
   const getAccessToken = useAccessToken();
   const { showError, showSuccess } = useNotifications();
@@ -55,6 +66,14 @@ export function ExpenseClaimDetailsDialog({
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [receiptLoad, setReceiptLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
+  // ClaimDetails.tsx:120-128 — a rejected claim is reopened for correction and
+  // resubmitted under its own id, so the working copy starts as its lines.
+  const resubmit = useResubmitExpenseClaim();
+  const receiptUpload = useExpenseReceiptUpload();
+  const [lines, setLines] = useState<DraftLine[] | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [confirmingResubmit, setConfirmingResubmit] = useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
 
   // Reset transient state when the target claim changes — the dialog stays
   // mounted, so a typed reason / open reject panel would otherwise carry
@@ -64,7 +83,34 @@ export function ExpenseClaimDetailsDialog({
     setRejecting(false);
     setReason("");
     setReceiptLoad(null);
+    setLines(null);
+    setEditingIndex(null);
+    setConfirmingResubmit(false);
+    setConfirmingDiscard(false);
   }, [claimId]);
+
+  // ClaimDetails.tsx:120-124 — the employee's own view of a claim rejected at
+  // either stage. Not offered to an approver looking at the same claim.
+  const canResubmit =
+    !review &&
+    Boolean(appData) &&
+    (claim?.statusDetails.status === "LEAD_REJECTED" ||
+      claim?.statusDetails.status === "FINANCE_REJECTED");
+  const shownLines: DraftLine[] =
+    lines ??
+    (claim?.transactions ?? []).map((t) => ({
+      date: t.date,
+      amount: t.amount,
+      currency: t.currency,
+      expenseTypeId: t.expenseTypeId,
+      comment: t.comment ?? null,
+      receiptUrl: t.receiptUrl ?? null,
+      travelJobNumber: t.travelJobNumber ?? null,
+      reimbursementAmount: t.reimbursementAmount,
+      reimbursementCurrency: t.reimbursementCurrency,
+      expenseType: t.expenseType,
+    }));
+  const edited = lines !== null;
 
   const meta = expenseStatusMeta(claim?.statusDetails.status);
   const pendingForView =
@@ -127,7 +173,7 @@ export function ExpenseClaimDetailsDialog({
             )}
             <Divider />
             <Stack spacing={1}>
-              {claim.transactions.map((t, i) => (
+              {shownLines.map((t, i) => (
                 <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600 }} noWrap>
@@ -152,6 +198,19 @@ export function ExpenseClaimDetailsDialog({
                   {t.receiptUrl && (
                     <Button size="small" variant="text" onClick={() => openReceipt(t.receiptUrl!)} sx={{ textTransform: "none" }}>
                       Receipt
+                    </Button>
+                  )}
+                  {canResubmit && (
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => {
+                        setLines(shownLines);
+                        setEditingIndex(i);
+                      }}
+                      sx={{ textTransform: "none" }}
+                    >
+                      Edit
                     </Button>
                   )}
                 </Box>
@@ -205,10 +264,131 @@ export function ExpenseClaimDetailsDialog({
             </>
           )
         ) : (
-          <Button size="small" onClick={onClose}>
-            Close
-          </Button>
+          <>
+            <Button
+              size="small"
+              onClick={() => {
+                // ClaimDetails.tsx:174 — unsaved corrections are confirmed away
+                // rather than dropped on a stray click.
+                if (edited) {
+                  setConfirmingDiscard(true);
+                  return;
+                }
+                onClose();
+              }}
+            >
+              Close
+            </Button>
+            {canResubmit && (
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => setConfirmingResubmit(true)}
+                disabled={resubmit.isPending}
+              >
+                {resubmit.isPending ? "Resubmitting…" : "Resubmit"}
+              </Button>
+            )}
+          </>
         )}
+      </DialogActions>
+    </Dialog>
+
+    {/* One corrected line. The same form the New Claim screen uses, as the
+        source reuses ExpenseForm between NewClaim and ClaimDetails. */}
+    {editingIndex !== null && appData && (
+      <AddExpenseDialog
+        appData={appData}
+        editing={shownLines[editingIndex]}
+        restrictionFrom={claim?.createdDate}
+        uploading={receiptUpload.isPending}
+        // A correction often exists *because* the receipt was the problem, so
+        // the replace control has to work here — it is the same form, and it
+        // offers one either way. Uploads go against the claim's owner, which
+        // for a resubmission is the signed-in user.
+        onUpload={(file) =>
+          receiptUpload.mutateAsync({ email: claim?.employeeEmail ?? "", file })
+        }
+        onClose={() => setEditingIndex(null)}
+        onAdd={(line) => {
+          setLines(shownLines.map((it, j) => (j === editingIndex ? line : it)));
+          setEditingIndex(null);
+        }}
+      />
+    )}
+
+    {/* ClaimDetails.tsx:379-390. The wording changes when nothing was altered,
+        because resubmitting an unchanged claim is usually a mistake. */}
+    <Dialog open={confirmingResubmit} onClose={() => setConfirmingResubmit(false)} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Claim Resubmission Confirmation</DialogTitle>
+      <DialogContent dividers>
+        <Typography sx={{ fontSize: 13.5 }}>
+          {edited
+            ? "Are you sure you want to resubmit the claim?"
+            : "You haven't changed any claim items. Are you sure you want to resubmit?"}
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button size="small" onClick={() => setConfirmingResubmit(false)}>
+          Cancel
+        </Button>
+        <Button
+          size="small"
+          color="success"
+          variant="contained"
+          disabled={resubmit.isPending}
+          onClick={() => {
+            if (!claim) return;
+            resubmit.mutate(
+              {
+                id: claim.id,
+                transactions: shownLines.map((l) => ({
+                  date: l.date,
+                  amount: l.amount,
+                  currency: l.currency,
+                  expenseTypeId: l.expenseTypeId,
+                  comment: l.comment,
+                  receiptUrl: l.receiptUrl,
+                  travelJobNumber: l.travelJobNumber ?? null,
+                })),
+              },
+              {
+                onSuccess: () => {
+                  showSuccess("Claim resubmitted successfully");
+                  setConfirmingResubmit(false);
+                  onClose();
+                },
+                onError: (err) => showError(describeError(err)),
+              },
+            );
+          }}
+        >
+          Resubmit
+        </Button>
+      </DialogActions>
+    </Dialog>
+
+    {/* :399-400 */}
+    <Dialog open={confirmingDiscard} onClose={() => setConfirmingDiscard(false)} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Edit Discard Confirmation</DialogTitle>
+      <DialogContent dividers>
+        <Typography sx={{ fontSize: 13.5 }}>Your edit changes will be discarded</Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button size="small" onClick={() => setConfirmingDiscard(false)}>
+          Cancel
+        </Button>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => {
+            setConfirmingDiscard(false);
+            setLines(null);
+            onClose();
+          }}
+        >
+          Confirm
+        </Button>
       </DialogActions>
     </Dialog>
     <ReceiptViewer load={receiptLoad} onClose={() => setReceiptLoad(null)} />

@@ -36,8 +36,22 @@ export interface ExpenseTravelData {
   businessUnit: string | null;
 }
 
+/** `/employees` — used to put a name to the lead a claim is routed to. */
+export interface ExpenseEmployee {
+  firstName: string | null;
+  lastName: string | null;
+  workEmail: string;
+  employeeThumbnail: string | null;
+}
+
 export interface ExpenseAppData {
-  userInfo: { workEmail: string; firstName: string | null; lastName: string | null };
+  userInfo: {
+    workEmail: string;
+    firstName: string | null;
+    lastName: string | null;
+    /** The lead a submitted claim goes to — `appDataSlice.ts:106`. */
+    managerEmail?: string | null;
+  };
   enableLeadView: boolean;
   enableFinanceView: boolean;
   currencyCode: string; // reimbursement / subsidiary currency
@@ -95,6 +109,19 @@ export interface ExpenseClaim {
   createdDate: string;
 }
 
+/**
+ * The statuses a person can filter their own claims by — every one of them,
+ * unlike OPD where a legacy value is hidden (`FilterBox.tsx` has no exclusion
+ * here).
+ */
+export const EXPENSE_FILTERABLE_STATUSES: ExpenseClaimStatus[] = [
+  "PENDING_LEAD",
+  "LEAD_REJECTED",
+  "PENDING_FINANCE",
+  "APPROVED",
+  "FINANCE_REJECTED",
+];
+
 export interface ExpenseClaimSearchPayload {
   ids?: string[] | null;
   email?: string | null;
@@ -104,10 +131,6 @@ export interface ExpenseClaimSearchPayload {
   endDate?: string | null;
   limit?: number | null;
   offset?: number | null;
-}
-
-export interface ExpenseClaimsSearchResponse {
-  body: ExpenseClaim[];
 }
 
 export interface ExpenseClaimPayload {

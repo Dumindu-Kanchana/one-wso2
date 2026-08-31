@@ -15,7 +15,7 @@
 // under the License.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { authedDelete, authedPost } from "@api/http";
+import { authedDelete, authedPost, authedPut } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { expenseServiceUrls } from "@config/apiConfig";
 import { uploadReceipt } from "../util/financeReceipts";
@@ -53,6 +53,25 @@ export function useSubmitExpenseClaim() {
 }
 
 // POST /claim-drafts — autosave the in-progress claim; DELETE clears it.
+/**
+ * PUT /claims/{id}/transactions — resubmit a rejected claim with corrected
+ * lines (`claimDetailsSlice.ts:52-80`). The claim keeps its id and goes back
+ * through review; it is not a new claim.
+ */
+export function useResubmitExpenseClaim() {
+  const getAccessToken = useAccessToken();
+  const qc = useQueryClient();
+  return useMutation<void, Error, { id: string; transactions: ExpenseTransactionPayload[] }>({
+    mutationFn: async ({ id, transactions }) => {
+      const accessToken = await getAccessToken();
+      await authedPut<unknown>(expenseServiceUrls.claimTransactions(id), accessToken, transactions);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["expense-claims"] });
+    },
+  });
+}
+
 export function useExpenseDraftSync() {
   const getAccessToken = useAccessToken();
   const qc = useQueryClient();

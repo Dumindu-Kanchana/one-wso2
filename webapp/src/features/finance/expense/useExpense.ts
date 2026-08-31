@@ -26,7 +26,7 @@ import type {
   ExpenseAppData,
   ExpenseClaim,
   ExpenseClaimSearchPayload,
-  ExpenseClaimsSearchResponse,
+  ExpenseEmployee,
   ExpenseTypeData,
 } from "./expenseTypes";
 
@@ -68,12 +68,16 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      const res = await authedPost<ExpenseClaimsSearchResponse>(
+      // The response IS the array. tableSlice.ts:57 assigns `resp.data` straight
+      // to `Claim[]`, and axios's `data` is the response body — so there is no
+      // `{ body: [...] }` wrapper to unwrap. Unwrapping one yielded undefined
+      // every time, which is why every claim list rendered empty.
+      const res = await authedPost<ExpenseClaim[]>(
         expenseServiceUrls.searchClaims,
         accessToken,
         payload,
       );
-      return res?.body ?? [];
+      return Array.isArray(res) ? res : [];
     },
     staleTime: 60 * 1000,
     retry: financeRetry,
@@ -96,6 +100,27 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
     queryFn: async () => {
       const accessToken = await getAccessToken();
       return authedGet<ExpenseTypeData[]>(expenseServiceUrls.expenseTypes(travelJobNumber), accessToken);
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: financeRetry,
+  });
+  return foldIdentityError(query, subState, retryIdentity);
+}
+
+// GET /employees — to resolve the lead's name for the submit confirmation,
+// the way AppHandler.tsx:28 does. The email is the fallback, as it is there.
+export function useExpenseEmployees(enabled = true) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
+  const configured = isExpenseBackendConfigured();
+  const query = useQuery<ExpenseEmployee[]>({
+    queryKey: ["expense-employees", userSub],
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
+    queryFn: async () => {
+      const accessToken = await getAccessToken();
+      return authedGet<ExpenseEmployee[]>(expenseServiceUrls.employees, accessToken);
     },
     staleTime: 10 * 60 * 1000,
     retry: financeRetry,
