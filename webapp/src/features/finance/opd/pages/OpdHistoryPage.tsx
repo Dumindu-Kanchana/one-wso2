@@ -15,11 +15,18 @@
 // under the License.
 
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
+import { useDebouncedValue } from "@hooks/useDebouncedValue";
 import {
   Alert,
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
+  InputLabel,
   MenuItem,
   Select,
   Skeleton,
@@ -29,6 +36,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from "@wso2/oxygen-ui";
 import { isOpdBackendConfigured } from "@config/apiConfig";
@@ -38,7 +46,13 @@ import { describeError } from "../../util/financeError";
 import { money, formatNice } from "../../util/financeFormat";
 import { useOpdClaims, useOpdUserInfo } from "../useOpd";
 import { OpdClaimDetailsDialog } from "../OpdClaimDetailsDialog";
-import type { OpdClaim } from "../opdTypes";
+import {
+  OPD_FILTERABLE_STATUSES,
+  opdStatusFilter,
+  type OpdClaim,
+  type OpdClaimRange,
+  type OpdClaimStatus,
+} from "../opdTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function OpdHistoryPage() {
@@ -58,12 +72,48 @@ export default function OpdHistoryPage() {
 function HistoryBody() {
   const userInfo = useOpdUserInfo();
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
   const [selected, setSelected] = useState<OpdClaim | null>(null);
+  const [resubmitting, setResubmitting] = useState<OpdClaim | null>(null);
+  const navigate = useNavigate();
+
+  // FilterHolder.tsx — the source filters on a year RANGE, a status and a claim
+  // id, not a single year. A claim from two years ago was unreachable here.
+  const [range, setRange] = useState<OpdClaimRange>("This Year");
+  const [customStart, setCustomStart] = useState(currentYear - 1);
+  const [customEnd, setCustomEnd] = useState(currentYear);
+  const [status, setStatus] = useState<OpdClaimStatus | "All">("All");
+  const [claimId, setClaimId] = useState("");
+  // Debounced before it reaches the query: useOpdClaims keys on the whole
+  // payload, so the raw value would fire a search per keystroke — and on the
+  // finance view that search spans the company. The source batches the same
+  // fields behind an Apply button (FilterHolder.tsx:53,81-82).
+  const claimIdFilter = useDebouncedValue(claimId.trim());
+
+  // :51-65 — This Year and Last Year are single years; Custom spans the two
+  // pickers.
+  const startYear =
+    range === "This Year"
+      ? currentYear
+      : range === "Last Year"
+        ? currentYear - 1
+        : customStart;
+  const endYear =
+    range === "This Year"
+      ? currentYear
+      : range === "Last Year"
+        ? currentYear - 1
+        : customEnd;
 
   const email = userInfo.data?.workEmail ?? undefined;
   const claims = useOpdClaims(
-    { email, startYear: year, endYear: year },
+    {
+      email,
+      startYear,
+      endYear,
+      // :75 — a claim id is sent as a one-element list, and only when given.
+      ids: claimIdFilter ? [claimIdFilter] : undefined,
+      status: opdStatusFilter(status === "All" ? [] : [status]),
+    },
     Boolean(email),
   );
 
@@ -75,36 +125,150 @@ function HistoryBody() {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-        <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>Year</Typography>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.5}
+        sx={{ mb: 2, flexWrap: "wrap", rowGap: 1.5 }}
+      >
         <FormControl size="small">
-          <Select value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 110 }}>
-            {years.map((y) => (
-              <MenuItem key={y} value={y}>
-                {y}
+          <InputLabel id="opd-range">Period</InputLabel>
+          <Select
+            labelId="opd-range"
+            label="Period"
+            value={range}
+            onChange={(e) => setRange(e.target.value as OpdClaimRange)}
+            sx={{ minWidth: 140 }}
+          >
+            {(["This Year", "Last Year", "Custom"] as OpdClaimRange[]).map(
+              (r) => (
+                <MenuItem key={r} value={r}>
+                  {r}
+                </MenuItem>
+              ),
+            )}
+          </Select>
+        </FormControl>
+
+        {range === "Custom" && (
+          <>
+            <FormControl size="small">
+              <InputLabel id="opd-start">Start Year</InputLabel>
+              <Select
+                labelId="opd-start"
+                label="Start Year"
+                value={customStart}
+                onChange={(e) => setCustomStart(Number(e.target.value))}
+                sx={{ minWidth: 110 }}
+              >
+                {/* Each end of the range only offers the valid side of the
+                    other. The source leaves this open (FilterHolder.tsx:207
+                    disables Apply only on a null year), which lets a start
+                    after the end reach the payload and return nothing. */}
+                {years
+                  .filter((y) => y <= customEnd)
+                  .map((y) => (
+                    <MenuItem key={y} value={y}>
+                      {y}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small">
+              <InputLabel id="opd-end">End Year</InputLabel>
+              <Select
+                labelId="opd-end"
+                label="End Year"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(Number(e.target.value))}
+                sx={{ minWidth: 110 }}
+              >
+                {years
+                  .filter((y) => y >= customStart)
+                  .map((y) => (
+                    <MenuItem key={y} value={y}>
+                      {y}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          </>
+        )}
+
+        <FormControl size="small">
+          <InputLabel id="opd-status">Status</InputLabel>
+          <Select
+            labelId="opd-status"
+            label="Status"
+            value={status}
+            onChange={(e) =>
+              setStatus(e.target.value as OpdClaimStatus | "All")
+            }
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="All">All</MenuItem>
+            {/* PENDING_OLD is not offered — "Pending Finance" already covers it
+                through opdStatusFilter (FilterBox.tsx:82-84). */}
+            {OPD_FILTERABLE_STATUSES.map((st) => (
+              <MenuItem key={st} value={st}>
+                {opdStatusMeta(st).label}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
+
+        <TextField
+          size="small"
+          label="Filter by claim ID"
+          value={claimId}
+          onChange={(e) => setClaimId(e.target.value)}
+          sx={{ minWidth: 200 }}
+        />
       </Stack>
 
       {userInfo.isLoading || claims.isLoading ? (
         <Stack spacing={1}>
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} variant="rectangular" height={48} sx={{ borderRadius: 1 }} />
+            <Skeleton
+              key={i}
+              variant="rectangular"
+              height={48}
+              sx={{ borderRadius: 1 }}
+            />
           ))}
         </Stack>
       ) : claims.isError ? (
-        <Alert severity="error">Couldn't load your claims. {describeError(claims.error)}</Alert>
+        <Alert severity="error">
+          Couldn't load your claims. {describeError(claims.error)}
+        </Alert>
       ) : (claims.data?.length ?? 0) === 0 ? (
         <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>
-          No OPD claims on record for {year}.
+          {startYear === endYear
+            ? `No OPD claims on record for ${startYear}.`
+            : `No OPD claims on record for ${startYear}–${endYear}.`}
         </Typography>
       ) : (
-        <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>
+        <Box
+          sx={{
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 1.5,
+            overflow: "hidden",
+          }}
+        >
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ "& th": { fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.04em" } }}>
+              <TableRow
+                sx={{
+                  "& th": {
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "text.secondary",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  },
+                }}
+              >
                 <TableCell>Claim ID</TableCell>
                 <TableCell>Submitted</TableCell>
                 <TableCell align="right">Amount</TableCell>
@@ -117,16 +281,31 @@ function HistoryBody() {
                 const meta = opdStatusMeta(c.statusDetails.status);
                 return (
                   <TableRow key={c.id} hover>
-                    <TableCell sx={{ fontSize: 12.5, fontFamily: "monospace" }}>{c.id}</TableCell>
-                    <TableCell sx={{ fontSize: 12.5 }}>{formatNice(c.createdDate)}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
+                    <TableCell sx={{ fontSize: 12.5, fontFamily: "monospace" }}>
+                      {c.id}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 12.5 }}>
+                      {formatNice(c.createdDate)}
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        fontSize: 12.5,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
                       {money(c.totalAmount)}
                     </TableCell>
                     <TableCell>
                       <StatusChip label={meta.label} color={meta.color} />
                     </TableCell>
                     <TableCell align="right">
-                      <Button size="small" variant="outlined" onClick={() => setSelected(c)} sx={{ textTransform: "none", fontWeight: 600 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setSelected(c)}
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
                         View
                       </Button>
                     </TableCell>
@@ -138,7 +317,53 @@ function HistoryBody() {
         </Box>
       )}
 
-      <OpdClaimDetailsDialog claim={selected} onClose={() => setSelected(null)} />
+      <OpdClaimDetailsDialog
+        claim={selected}
+        onClose={() => setSelected(null)}
+        onResubmit={(c) => setResubmitting(c)}
+      />
+
+      {/* ClaimDetails.tsx:395-407. Resubmitting does not amend the rejected
+          claim — it starts a fresh one from its bills, which replaces whatever
+          draft was already saved, so that is said before it happens. */}
+      <Dialog
+        open={resubmitting !== null}
+        onClose={() => setResubmitting(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>
+          Claim Resubmission Confirmation
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontSize: 13.5 }}>
+            Are you sure you want to resubmit this claim? This will create a new
+            draft claim and <b>your existing draft will be cleared</b>.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setResubmitting(null)}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            color="success"
+            variant="contained"
+            onClick={() => {
+              // :187-192 — the bills are carried over locally and the New Claim
+              // screen persists them as the draft, exactly as the source does.
+              const transactions = resubmitting?.transactions ?? [];
+              setResubmitting(null);
+              setSelected(null);
+              navigate("/me/opd/new", {
+                state: { resubmitTransactions: transactions },
+              });
+            }}
+          >
+            Resubmit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
