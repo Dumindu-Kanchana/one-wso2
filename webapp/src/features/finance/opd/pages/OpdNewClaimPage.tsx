@@ -15,7 +15,7 @@
 // under the License.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   Alert,
   Box,
@@ -142,13 +142,19 @@ function NewClaimBody() {
   // work in progress, and there would be no way to start fresh without first
   // deleting bills you never entered this session.
   const seeded = useRef(false);
+  const navigate = useNavigate();
   useEffect(() => {
     if (seeded.current) return;
     if (carriedOver && carriedOver.length > 0) {
       seeded.current = true;
       setItems(carriedOver);
+      // Consume it. `seeded` only guards this mount, and the router keeps
+      // history state across a Back and across a reload — so leaving it there
+      // means these bills seed again after the claim has been submitted, and
+      // autosave writes them back as a draft for a claim that is already filed.
+      navigate(location.pathname, { replace: true, state: null });
     }
-  }, [carriedOver]);
+  }, [carriedOver, navigate, location.pathname]);
 
   const savedDraft = appData.data?.draft?.transactions ?? [];
   const draftOffered = items.length === 0 && savedDraft.length > 0;

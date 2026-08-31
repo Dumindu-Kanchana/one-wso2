@@ -32,6 +32,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
+import { useDebouncedValue } from "@hooks/useDebouncedValue";
 import { isOpdBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
@@ -73,6 +74,11 @@ function ApprovalsBody() {
   // one employee or one claim id. Without them the only way to find a claim is
   // to scroll the whole company's.
   const [claimId, setClaimId] = useState("");
+  // Debounced before it reaches the query: useOpdClaims keys on the whole
+  // payload, so the raw value would fire a search per keystroke — and on the
+  // finance view that search spans the company. The source batches the same
+  // fields behind an Apply button (FilterHolder.tsx:53,81-82).
+  const claimIdFilter = useDebouncedValue(claimId.trim());
   const [employee, setEmployee] = useState<string | null>(null);
   const employees = useOpdEmployees(isFinance);
 
@@ -82,7 +88,7 @@ function ApprovalsBody() {
       // Pending spans all years; approved/rejected scope to this year.
       startYear: tab === "pending" ? undefined : currentYear,
       endYear: tab === "pending" ? undefined : currentYear,
-      ids: claimId.trim() ? [claimId.trim()] : undefined,
+      ids: claimIdFilter ? [claimIdFilter] : undefined,
       email: employee ?? undefined,
     },
     isFinance,

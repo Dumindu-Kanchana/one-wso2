@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -120,5 +120,45 @@ describe("narrowing the finance queue", () => {
     fireEvent.change(screen.getByLabelText("Filter by claim ID"), { target: { value: "C-42" } });
     await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["C-42"]));
     expect(payloads.at(-1)!.status).toEqual(["PENDING", "PENDING_OLD"]);
+  });
+});
+
+// Raised on PR #29. useOpdClaims keys on the whole payload, so an undebounced
+// claim-id field mints a key per keystroke and fires a company-wide search for
+// every prefix — seven of eight matching nothing. The source batches the same
+// fields behind an Apply button (FilterHolder.tsx:53,81-82,333-334).
+describe("typing a claim id does not search on every keystroke", () => {
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+  afterEach(() => vi.useRealTimers());
+
+  // The payload is rebuilt on every render, so counting calls proves nothing.
+  // What drives a fetch is the query KEY changing, so count distinct ones.
+  const distinctIds = () => new Set(payloads.map((p) => JSON.stringify(p.ids)));
+
+  it("asks for nothing new while the field is still being typed", async () => {
+    show();
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+
+    const field = screen.getByLabelText("Filter by claim ID");
+    for (const value of ["C", "C-", "C-4", "C-42"]) {
+      fireEvent.change(field, { target: { value } });
+    }
+    // Four keystrokes, still one query key — no prefix search went out.
+    expect(distinctIds()).toEqual(new Set([JSON.stringify(undefined)]));
+  });
+
+  it("searches once the typing settles", async () => {
+    show();
+    await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
+    const field = screen.getByLabelText("Filter by claim ID");
+    for (const value of ["C", "C-", "C-4", "C-42"]) {
+      fireEvent.change(field, { target: { value } });
+    }
+    await vi.advanceTimersByTimeAsync(400);
+    await waitFor(() => expect(payloads.at(-1)!.ids).toEqual(["C-42"]));
+    // Two keys in total: the unfiltered one, and the settled search.
+    expect(distinctIds()).toEqual(
+      new Set([JSON.stringify(undefined), JSON.stringify(["C-42"])]),
+    );
   });
 });

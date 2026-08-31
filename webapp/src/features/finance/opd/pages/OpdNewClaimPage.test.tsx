@@ -20,6 +20,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
+
+// The page consumes router state and clears it; the test needs to see both.
+const navigate = vi.fn();
+vi.mock("react-router", async () => {
+  const actual = await vi.importActual<typeof import("react-router")>("react-router");
+  return { ...actual, useNavigate: () => navigate, useLocation: () => location };
+});
+const location = { pathname: "/me/opd/new", state: null as unknown, key: "k", search: "", hash: "" };
 import type { ReactNode } from "react";
 
 // First tests for any of the three finance ports. The audit against
@@ -74,6 +82,8 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   submitMutate.mockClear();
+  navigate.mockClear();
+  location.state = null;
   draftRemove.mockClear();
   state.lastYearClaimSummary = null;
   state.draft = null;
@@ -417,5 +427,34 @@ describe("bills from further back than last year", () => {
     for (const name of ["This Year", "Last Year"]) {
       expect(screen.getByRole("tab", { name })).toHaveAttribute("aria-selected", "false");
     }
+  });
+});
+
+// Raised on PR #29. `seeded` only guards one mount, and the router keeps history
+// state across a Back and across a reload — so bills carried over from a
+// resubmit would seed again after the claim was filed, and autosave would write
+// them back as a draft for a claim that no longer needs one.
+describe("bills carried over from a resubmit", () => {
+  const carried = [
+    { date: `${CURRENT_YEAR}-04-02`, amount: 700, comment: "Carried", receiptUrl: "r.pdf" },
+  ];
+
+  it("seeds the claim", async () => {
+    location.state = { resubmitTransactions: carried };
+    show();
+    expect(await screen.findByText("Carried")).toBeInTheDocument();
+  });
+
+  it("clears the router state as it consumes them", async () => {
+    location.state = { resubmitTransactions: carried };
+    show();
+    await screen.findByText("Carried");
+    expect(navigate).toHaveBeenCalledWith("/me/opd/new", { replace: true, state: null });
+  });
+
+  it("does not navigate when there is nothing carried over", async () => {
+    show();
+    await screen.findByText(/No bills yet/);
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

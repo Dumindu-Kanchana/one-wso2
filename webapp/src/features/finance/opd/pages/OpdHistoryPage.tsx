@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { useDebouncedValue } from "@hooks/useDebouncedValue";
 import {
   Alert,
   Box,
@@ -82,6 +83,11 @@ function HistoryBody() {
   const [customEnd, setCustomEnd] = useState(currentYear);
   const [status, setStatus] = useState<OpdClaimStatus | "All">("All");
   const [claimId, setClaimId] = useState("");
+  // Debounced before it reaches the query: useOpdClaims keys on the whole
+  // payload, so the raw value would fire a search per keystroke — and on the
+  // finance view that search spans the company. The source batches the same
+  // fields behind an Apply button (FilterHolder.tsx:53,81-82).
+  const claimIdFilter = useDebouncedValue(claimId.trim());
 
   // :51-65 — This Year and Last Year are single years; Custom spans the two
   // pickers.
@@ -105,7 +111,7 @@ function HistoryBody() {
       startYear,
       endYear,
       // :75 — a claim id is sent as a one-element list, and only when given.
-      ids: claimId.trim() ? [claimId.trim()] : undefined,
+      ids: claimIdFilter ? [claimIdFilter] : undefined,
       status: opdStatusFilter(status === "All" ? [] : [status]),
     },
     Boolean(email),
