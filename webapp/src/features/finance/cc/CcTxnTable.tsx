@@ -42,6 +42,7 @@ export function CcTxnTable({
   showCard,
   selection,
   edit,
+  onOpen,
 }: {
   txns: CcTransaction[];
   showUser?: boolean;
@@ -57,6 +58,8 @@ export function CcTxnTable({
    * still with the lead.
    */
   edit?: { canEdit: (t: CcTransaction) => boolean; onEdit: (t: CcTransaction) => void };
+  /** Opens a row's full detail. Rendered in the same trailing action column. */
+  onOpen?: (t: CcTransaction) => void;
 }) {
   const getAccessToken = useAccessToken();
   const [load, setLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
@@ -90,7 +93,7 @@ export function CcTxnTable({
             <TableCell align="right">Amount</TableCell>
             <TableCell>Files</TableCell>
             <TableCell>Status</TableCell>
-            {edit && <TableCell align="right" />}
+            {(edit || onOpen) && <TableCell align="right" />}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -137,9 +140,19 @@ export function CcTxnTable({
                 <TableCell>
                   <StatusChip label={meta.label} color={meta.color} />
                 </TableCell>
-              {edit && (
+              {(edit || onOpen) && (
                 <TableCell align="right">
-                  {edit.canEdit(t) && (
+                  {onOpen && (
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => onOpen(t)}
+                      sx={{ textTransform: "none", fontWeight: 600 }}
+                    >
+                      Details
+                    </Button>
+                  )}
+                  {edit?.canEdit(t) && (
                     <Button
                       size="small"
                       variant="outlined"

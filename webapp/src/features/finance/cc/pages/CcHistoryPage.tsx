@@ -19,6 +19,7 @@ import {
   Alert,
   Box,
   FormControl,
+  InputLabel,
   MenuItem,
   Select,
   Skeleton,
@@ -30,9 +31,13 @@ import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { daysAgoIso } from "../../util/financeFormat";
 import { CcTxnTable } from "../CcTxnTable";
+import { CcTxnDetailsDialog } from "../CcTxnDetailsDialog";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
-import { ccHasAccess, type CcTxnStatus } from "../ccTypes";
+import { type CcTransaction, ccHasAccess, type CcTxnStatus } from "../ccTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
+
+// FILTER_ALL in submission-history/index.tsx.
+const ALL = "all";
 
 const PERIODS = [
   { days: 7, label: "Last 7 days" },
@@ -67,17 +72,48 @@ function HistoryBody() {
   const userInfo = useCcUserInfo();
   const [days, setDays] = useState(30);
   const [status, setStatus] = useState<CcTxnStatus | "all">("submitted");
+  // submission-history/index.tsx:74-76 — a lead or finance also narrows by
+  // person, by card and by lead. Without them the only way to find one
+  // person's spend is to read the whole table.
+  const [user, setUser] = useState(ALL);
+  const [card, setCard] = useState(ALL);
+  const [lead, setLead] = useState(ALL);
+  const [selected, setSelected] = useState<CcTransaction | null>(null);
 
   const txns = useCcTransactions({ dateFrom: daysAgoIso(days), includeInactive: true });
   const email = userInfo.data?.workEmail;
   const canSeeOthers = ccHasAccess(userInfo.data, "lead") || ccHasAccess(userInfo.data, "finance");
 
+  const all = useMemo(() => txns.data ?? [], [txns.data]);
+
+  // :98-113 — the option lists come from what is actually on screen, so they
+  // never offer a person or card with nothing to show.
+  const users = useMemo(
+    () => [...new Set(all.map((t) => t.employeeEmail))].sort(),
+    [all],
+  );
+  const cards = useMemo(() => [...new Set(all.map((t) => t.ccNumber))].sort(), [all]);
+  const leads = useMemo(
+    () =>
+      [...new Set(all.flatMap((t) => (t.leadEmail ?? "").split(",").map((l) => l.trim())))]
+        .filter(Boolean)
+        .sort(),
+    [all],
+  );
+
   const rows = useMemo(() => {
-    let list = txns.data ?? [];
+    let list = all;
     if (!canSeeOthers) list = list.filter((t) => t.employeeEmail === email);
     if (status !== "all") list = list.filter((t) => t.status === status);
+    if (user !== ALL) list = list.filter((t) => t.employeeEmail === user);
+    if (card !== ALL) list = list.filter((t) => t.ccNumber === card);
+    // :152 — a card can carry several leads, so match within the list.
+    if (lead !== ALL)
+      list = list.filter((t) =>
+        (t.leadEmail ?? "").split(",").map((l) => l.trim()).includes(lead),
+      );
     return list;
-  }, [txns.data, status, canSeeOthers, email]);
+  }, [all, status, canSeeOthers, email, user, card, lead]);
 
   return (
     <Box>
@@ -100,6 +136,16 @@ function HistoryBody() {
             ))}
           </Select>
         </FormControl>
+
+        {/* :175-178,218-249 — offered only to someone who can see other
+            people's spend; for everyone else the list is already their own. */}
+        {canSeeOthers && (
+          <>
+            <PickOne label="User" value={user} onChange={setUser} options={users} />
+            <PickOne label="Card" value={card} onChange={setCard} options={cards} />
+            <PickOne label="Lead" value={lead} onChange={setLead} options={leads} />
+          </>
+        )}
       </Stack>
 
       {userInfo.isLoading || txns.isLoading ? (
@@ -111,8 +157,45 @@ function HistoryBody() {
           No transactions match this filter.
         </Typography>
       ) : (
-        <CcTxnTable txns={rows} showCard showUser={canSeeOthers} />
+        <CcTxnTable txns={rows} showCard showUser={canSeeOthers} onOpen={setSelected} />
       )}
+
+      <CcTxnDetailsDialog txn={selected} onClose={() => setSelected(null)} />
     </Box>
   );
 }
+
+/** One "All / …" narrowing select, built from what is on screen. */
+function PickOne({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  const labelId = `cc-history-${label.toLowerCase()}`;
+  return (
+    <FormControl size="small">
+      <InputLabel id={labelId}>{label}</InputLabel>
+      <Select
+        labelId={labelId}
+        label={label}
+        value={value}
+        onChange={(e) => onChange(String(e.target.value))}
+        sx={{ minWidth: 170 }}
+      >
+        <MenuItem value="all">All</MenuItem>
+        {options.map((o) => (
+          <MenuItem key={o} value={o}>
+            {o}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+}
+
