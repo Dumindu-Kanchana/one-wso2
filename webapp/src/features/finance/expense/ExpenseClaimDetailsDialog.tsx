@@ -295,6 +295,7 @@ export function ExpenseClaimDetailsDialog({
       <AddExpenseDialog
         appData={appData}
         editing={shownLines[editingIndex]}
+        restrictionFrom={claim?.createdDate}
         uploading={false}
         onUpload={async () => {
           throw new Error("not supported here");

@@ -45,8 +45,8 @@ the backend and are not sent.
   date is midnight — so midnight of N days ago is never after it, and the oldest date
   accepted is **N−1 days ago**: "within the last N days", counting today as the first. The
   rule is checked on the typed value, not only set as the picker's `min`.
-  On a resubmission the source measures it from the claim's `createdDate` instead of today
-  — **not ported**; the port measures from today in both cases.
+  On a resubmission it counts back from the claim's own `createdDate` instead of today, so
+  correcting an old rejected claim does not fail a rule its lines already satisfied.
 - **Draft.** Lines autosave to `/claim-drafts`. A saved draft is **offered** via "Restore
   Draft", not loaded automatically; adding a new line while one is held warns first.
 - **Editing.** A line can be corrected in place, or removed. This matters more here than

@@ -295,3 +295,29 @@ describe("what the history screen filters on", () => {
     expect(payloads.at(-1)!.limit).toBe(100);
   });
 });
+
+// ExpenseForm.tsx:137-139 — while resubmitting, the past-date limit counts back
+// from the claim's own createdDate, not today. Otherwise correcting an old
+// rejected claim fails a rule its lines already satisfied when first filed.
+describe("the date limit while resubmitting", () => {
+  it("counts back from the claim's creation date", async () => {
+    show();
+    await open();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    // createdDate is 2026-08-11 and pastDateRestrictionDays is 30, so the
+    // oldest date allowed is 29 days before that.
+    expect(await screen.findByLabelText("Bill date")).toHaveAttribute("min", "2026-07-13");
+  });
+
+  it("still accepts the line the claim was filed with", async () => {
+    show();
+    await open();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    // The existing line is dated 2026-08-10 — inside the window measured from
+    // the claim, and outside one measured from today.
+    await waitFor(() =>
+      expect(screen.queryByText(/Date within last 30 days required/)).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Save expense" })).toBeEnabled();
+  });
+});

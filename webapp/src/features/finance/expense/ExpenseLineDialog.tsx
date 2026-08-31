@@ -57,6 +57,7 @@ export interface DraftLine extends ExpenseTransactionPayload {
 export function AddExpenseDialog({
   appData,
   editing,
+  restrictionFrom,
   uploading,
   onUpload,
   onClose,
@@ -65,6 +66,13 @@ export function AddExpenseDialog({
   appData: ExpenseAppData;
   /** The line being corrected, if any — otherwise a new one is being added. */
   editing: DraftLine | undefined;
+  /**
+   * Date the past-date limit counts back from. ExpenseForm.tsx:137-139 measures
+   * a resubmission from the claim's own createdDate, so correcting an old claim
+   * does not fail a rule its lines already satisfied when first filed. Defaults
+   * to today for a new claim.
+   */
+  restrictionFrom?: string;
   uploading: boolean;
   onUpload: (file: File) => Promise<string>;
   onClose: () => void;
@@ -78,7 +86,13 @@ export function AddExpenseDialog({
   // accepts is N-1 days ago. "Within the last N days" counting today as the
   // first. An inclusive min at N days ago allowed one day more.
   const restrictionDays = appData.pastDateRestrictionDays;
-  const minDate = restrictionDays != null ? daysAgoIso(restrictionDays - 1) : undefined;
+  const minDate = useMemo(() => {
+    if (restrictionDays == null) return undefined;
+    const from = restrictionFrom ? new Date(restrictionFrom) : new Date();
+    if (Number.isNaN(from.getTime())) return daysAgoIso(restrictionDays - 1);
+    from.setDate(from.getDate() - (restrictionDays - 1));
+    return from.toISOString().slice(0, 10);
+  }, [restrictionDays, restrictionFrom]);
 
   // Seeded from the line being edited, so the dialog opens on its values.
   // ExpenseForm.tsx:81-97 does the same via initialFormData.
