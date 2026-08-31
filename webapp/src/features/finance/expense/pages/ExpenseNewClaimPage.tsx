@@ -33,7 +33,7 @@ import {
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
-import { CheckIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
+import { CheckIcon, PencilIcon, XIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { isExpenseBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
@@ -79,6 +79,9 @@ function NewClaimBody() {
 
   const [items, setItems] = useState<DraftLine[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // ClaimItemCard gets AccessMode.EDIT_DELETE (NewClaim.tsx:139) — a line can
+  // be corrected in place, not just removed and retyped.
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [confirmingSubmit, setConfirmingSubmit] = useState(false);
   const [confirmingDraftLoss, setConfirmingDraftLoss] = useState(false);
 
@@ -257,6 +260,17 @@ function NewClaimBody() {
                 </Box>
                 <IconButton
                   size="small"
+                  aria-label="Edit expense"
+                  onClick={() => {
+                    setEditingIndex(i);
+                    setDialogOpen(true);
+                  }}
+                  sx={{ color: "text.secondary", "&:hover": { color: "primary.main" } }}
+                >
+                  <PencilIcon size={14} />
+                </IconButton>
+                <IconButton
+                  size="small"
                   aria-label="Remove expense"
                   onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
                   sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
@@ -325,12 +339,21 @@ function NewClaimBody() {
       {dialogOpen && appData.data && (
         <AddExpenseDialog
           appData={appData.data}
+          editing={editingIndex != null ? items[editingIndex] : undefined}
           uploading={upload.isPending}
           onUpload={(file) => upload.mutateAsync({ email, file })}
-          onClose={() => setDialogOpen(false)}
-          onAdd={(line) => {
-            setItems((prev) => [...prev, line]);
+          onClose={() => {
             setDialogOpen(false);
+            setEditingIndex(null);
+          }}
+          onAdd={(line) => {
+            setItems((prev) =>
+              editingIndex != null
+                ? prev.map((it, j) => (j === editingIndex ? line : it))
+                : [...prev, line],
+            );
+            setDialogOpen(false);
+            setEditingIndex(null);
           }}
         />
       )}
@@ -340,12 +363,15 @@ function NewClaimBody() {
 
 function AddExpenseDialog({
   appData,
+  editing,
   uploading,
   onUpload,
   onClose,
   onAdd,
 }: {
   appData: ExpenseAppData;
+  /** The line being corrected, if any — otherwise a new one is being added. */
+  editing: DraftLine | undefined;
   uploading: boolean;
   onUpload: (file: File) => Promise<string>;
   onClose: () => void;
@@ -355,14 +381,16 @@ function AddExpenseDialog({
   const reimbursementCurrency = appData.currencyCode;
   const minDate = appData.pastDateRestrictionDays != null ? daysAgoIso(appData.pastDateRestrictionDays) : undefined;
 
-  const [date, setDate] = useState(todayIso());
-  const [currency, setCurrency] = useState(reimbursementCurrency);
-  const [amount, setAmount] = useState("");
-  const [jobNumber, setJobNumber] = useState(NO_JOB);
-  const [expenseTypeId, setExpenseTypeId] = useState<number | "">("");
-  const [comment, setComment] = useState("");
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
-  const [fileName, setFileName] = useState("");
+  // Seeded from the line being edited, so the dialog opens on its values.
+  // ExpenseForm.tsx:81-97 does the same via initialFormData.
+  const [date, setDate] = useState(editing?.date.substring(0, 10) ?? todayIso());
+  const [currency, setCurrency] = useState(editing?.currency ?? reimbursementCurrency);
+  const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
+  const [jobNumber, setJobNumber] = useState(editing?.travelJobNumber ?? NO_JOB);
+  const [expenseTypeId, setExpenseTypeId] = useState<number | "">(editing?.expenseTypeId ?? "");
+  const [comment, setComment] = useState(editing?.comment ?? "");
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(editing?.receiptUrl ?? null);
+  const [fileName, setFileName] = useState(editing?.receiptUrl ?? "");
   const fileInput = useRef<HTMLInputElement>(null);
 
   const rates = useExchangeRates(reimbursementCurrency, date);
@@ -417,7 +445,7 @@ function AddExpenseDialog({
 
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Add an expense</DialogTitle>
+      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>{editing ? "Edit expense" : "Add an expense"}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 0.5 }}>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
@@ -575,7 +603,7 @@ function AddExpenseDialog({
             })
           }
         >
-          Add expense
+          {editing ? "Save expense" : "Add expense"}
         </Button>
       </DialogActions>
     </Dialog>

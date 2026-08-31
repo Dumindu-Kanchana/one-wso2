@@ -202,3 +202,46 @@ describe("submitting is confirmed", () => {
     await waitFor(() => expect(submitMutate).toHaveBeenCalled());
   });
 });
+
+// NewClaim.tsx:139 passes AccessMode.EDIT_DELETE — a line can be corrected in
+// place. The port could only remove and retype it, which on this form means
+// re-picking the job number, expense type, currency and receipt.
+describe("correcting a line", () => {
+  it("opens the line's values for editing", async () => {
+    state.draft = { transactions: [draftLine] };
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit expense" }));
+
+    expect(await screen.findByText("Edit expense")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("40")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Airport transfer")).toBeInTheDocument();
+  });
+
+  it("replaces the line rather than adding another", async () => {
+    state.draft = { transactions: [draftLine] };
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit expense" }));
+    fireEvent.change(await screen.findByDisplayValue("40"), { target: { value: "50" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save expense" }));
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "Remove expense" })).toHaveLength(1),
+    );
+    // 50 USD at the mocked rate of 300 = 15,000 reimbursed.
+    expect(
+      screen.getByRole("button", { name: "Submit claim (Rs. 15,000.00)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("adds a second line when not editing", async () => {
+    state.draft = { transactions: [draftLine] };
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
+    expect(await screen.findByText("Add an expense")).toBeInTheDocument();
+    // A fresh line starts empty rather than carrying the edited one's values.
+    expect(screen.queryByDisplayValue("Airport transfer")).not.toBeInTheDocument();
+  });
+});
