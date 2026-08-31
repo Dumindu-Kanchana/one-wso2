@@ -70,7 +70,8 @@ export default function CcHistoryPage() {
 
 function HistoryBody() {
   const userInfo = useCcUserInfo();
-  const [days, setDays] = useState(30);
+  // submission-history/index.tsx:73 opens on 7 days.
+  const [days, setDays] = useState(7);
   const [status, setStatus] = useState<CcTxnStatus | "all">("submitted");
   // submission-history/index.tsx:74-76 — a lead or finance also narrows by
   // person, by card and by lead. Without them the only way to find one

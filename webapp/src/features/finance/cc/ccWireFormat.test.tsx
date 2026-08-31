@@ -118,6 +118,25 @@ describe("the transaction window", () => {
     expect(url).not.toContain(`dateTo=${today}`);
   });
 
+  // utils.ts:21-33 — fetchTransactions defaults to `range || 7`, and New /
+  // Pending / Approve all call it with no range. The port opened on 30 days,
+  // so those screens listed three weeks of transactions the source hides.
+  it("looks back seven days by default", async () => {
+    renderHook(() => useCcTransactions(), { wrapper });
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    const sevenBack = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+    expect(requests[0].url).toContain(`dateFrom=${sevenBack}`);
+  });
+
+  it("honours a caller's own window over the default", async () => {
+    renderHook(() => useCcTransactions({ dateFrom: "2026-01-01", dateTo: "2026-02-01" }), {
+      wrapper,
+    });
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    expect(requests[0].url).toContain("dateFrom=2026-01-01");
+    expect(requests[0].url).toContain("dateTo=2026-02-01");
+  });
+
   it("sends all three parameters the backend requires", async () => {
     renderHook(() => useCcTransactions(), { wrapper });
     await waitFor(() => expect(requests.length).toBeGreaterThan(0));

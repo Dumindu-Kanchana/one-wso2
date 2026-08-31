@@ -79,10 +79,12 @@ export function useCreditCards(includeInactive = false) {
 }
 
 // GET /transactions?dateFrom&dateTo&includeInactive — scoped server-side by
-// the caller's privileges + email. The backend REQUIRES dateFrom/dateTo, so
-// callers that don't care about a window (New / Pending / Approve, which
-// filter by status) get a wide default spanning the last ~3 years.
-const DEFAULT_WINDOW_DAYS = 365 * 3;
+// the caller's privileges + email. The backend REQUIRES dateFrom/dateTo.
+//
+// utils.ts:21-33 — fetchTransactions defaults to `range || 7`, and New /
+// Pending / Approve all call it with no range. Those screens work off recent
+// statement activity; History is where an older window is chosen explicitly.
+const DEFAULT_WINDOW_DAYS = 7;
 
 export function useCcTransactions(
   opts: { dateFrom?: string; dateTo?: string; includeInactive?: boolean } = {},
