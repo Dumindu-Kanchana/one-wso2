@@ -286,3 +286,43 @@ describe("how far back a bill date may go", () => {
     );
   });
 });
+
+// Raised on PR #30. The source's picker sets maxDate={new Date()}
+// (CustomDatePicker.tsx:73), so a bill is never dated in the future. The port's
+// native input carries `max`, but the attribute takes no part in `valid` — and
+// the field is typeable, so a future date reached the claim.
+describe("a bill cannot be dated in the future", () => {
+  const inDays = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+
+  it("refuses a typed future date", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
+    fireEvent.change(await screen.findByLabelText("Bill date"), {
+      target: { value: inDays(3) },
+    });
+    expect(await screen.findByText("Bill date cannot be in the future")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add expense" })).toBeDisabled();
+  });
+
+  it("accepts today", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
+    fireEvent.change(await screen.findByLabelText("Bill date"), {
+      target: { value: inDays(0) },
+    });
+    await waitFor(() =>
+      expect(screen.queryByText("Bill date cannot be in the future")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("refuses an empty date", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
+    fireEvent.change(await screen.findByLabelText("Bill date"), { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "Add expense" })).toBeDisabled();
+  });
+});

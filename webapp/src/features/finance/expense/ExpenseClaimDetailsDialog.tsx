@@ -35,7 +35,11 @@ import { ReceiptViewer } from "../components/ReceiptViewer";
 import { describeError } from "../util/financeError";
 import { money, formatNice } from "../util/financeFormat";
 import { fetchReceiptObjectUrl, type ReceiptSource } from "../util/financeReceipts";
-import { useExpenseClaimStatus, useResubmitExpenseClaim } from "./useExpenseMutations";
+import {
+  useExpenseClaimStatus,
+  useExpenseReceiptUpload,
+  useResubmitExpenseClaim,
+} from "./useExpenseMutations";
 import { AddExpenseDialog, type DraftLine } from "./ExpenseLineDialog";
 import { nextStatus, type ApproverView, type ExpenseAppData, type ExpenseClaim } from "./expenseTypes";
 
@@ -65,6 +69,7 @@ export function ExpenseClaimDetailsDialog({
   // ClaimDetails.tsx:120-128 — a rejected claim is reopened for correction and
   // resubmitted under its own id, so the working copy starts as its lines.
   const resubmit = useResubmitExpenseClaim();
+  const receiptUpload = useExpenseReceiptUpload();
   const [lines, setLines] = useState<DraftLine[] | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [confirmingResubmit, setConfirmingResubmit] = useState(false);
@@ -296,10 +301,14 @@ export function ExpenseClaimDetailsDialog({
         appData={appData}
         editing={shownLines[editingIndex]}
         restrictionFrom={claim?.createdDate}
-        uploading={false}
-        onUpload={async () => {
-          throw new Error("not supported here");
-        }}
+        uploading={receiptUpload.isPending}
+        // A correction often exists *because* the receipt was the problem, so
+        // the replace control has to work here — it is the same form, and it
+        // offers one either way. Uploads go against the claim's owner, which
+        // for a resubmission is the signed-in user.
+        onUpload={(file) =>
+          receiptUpload.mutateAsync({ email: claim?.employeeEmail ?? "", file })
+        }
         onClose={() => setEditingIndex(null)}
         onAdd={(line) => {
           setLines(shownLines.map((it, j) => (j === editingIndex ? line : it)));

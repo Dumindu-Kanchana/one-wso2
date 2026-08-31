@@ -89,10 +89,12 @@ vi.mock("../useExpense", () => ({
 }));
 
 const resubmitMutate = vi.fn();
+const uploadReceipt =
+  vi.fn<(args: { email: string; file: File }) => Promise<string>>(async () => "replacement.pdf");
 vi.mock("../useExpenseMutations", () => ({
   useExpenseClaimStatus: () => ({ mutate: vi.fn(), isPending: false }),
   useResubmitExpenseClaim: () => ({ mutate: resubmitMutate, isPending: false }),
-  useExpenseReceiptUpload: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useExpenseReceiptUpload: () => ({ mutateAsync: uploadReceipt, isPending: false }),
 }));
 
 vi.mock("../../components/FinanceShell", () => ({
@@ -104,6 +106,7 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   resubmitMutate.mockClear();
+  uploadReceipt.mockClear();
   payloads.length = 0;
   state.status = "LEAD_REJECTED";
 });
@@ -319,5 +322,30 @@ describe("the date limit while resubmitting", () => {
       expect(screen.queryByText(/Date within last 30 days required/)).not.toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: "Save expense" })).toBeEnabled();
+  });
+});
+
+// Raised on PR #30. The correction form is the same dialog as New Claim, so it
+// offers "Replace file" either way — and a claim is often rejected *because* of
+// the receipt. The handler used to throw, so the control was live and broken.
+describe("replacing a receipt while correcting a claim", () => {
+  it("uploads against the claim's owner and keeps the new file", async () => {
+    show();
+    await open();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["x"], "new-receipt.pdf", { type: "application/pdf" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => expect(uploadReceipt).toHaveBeenCalled());
+    expect(uploadReceipt.mock.calls[0][0]).toMatchObject({ email: "me@wso2.com" });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Save expense" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Resubmit" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Resubmit" }).at(-1)!);
+
+    await waitFor(() => expect(resubmitMutate).toHaveBeenCalled());
+    expect(resubmitMutate.mock.calls[0][0].transactions[0].receiptUrl).toBe("replacement.pdf");
   });
 });

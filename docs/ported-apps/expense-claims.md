@@ -115,14 +115,17 @@ shorter snackbars without the source's "…contact Internal Apps Team" tail.
 
 ## 6. Test checklist
 
-In `expense/pages/*.test.tsx`. Every fix carries a test that fails against the previous
+In `expense/**/*.test.tsx` — the three page suites plus `expenseWireFormat.test.tsx`,
+which sits a level up because it exercises the query functions rather than a screen.
+Every fix carries a test that fails against the previous
 behaviour, verified by reverting it: draft offered rather than loaded (and its reimbursement
 total survives the round trip) · draft-deletion warning · submit confirmation naming the
 lead, falling back to the address, and omitting the parenthetical when there is none ·
 in-place line edit replaces rather than appends · resubmission offered on both rejected
 statuses and on neither approved one · the claim's **own id** and the **trimmed** payload on
 the wire · corrections reaching the request · the discard confirmation · the past-date
-boundary at N-1 days and the typed-date refusal · the status, claim-ID and employee filters
+boundary at both ends — N-1 days back and no future date — checked on the typed value ·
+the status, claim-ID and employee filters
 as request payloads, including that a lead stays scoped to their own reports through them,
 and that a lead's Approved tab spans all three later statuses.
 

@@ -106,9 +106,13 @@ export function AddExpenseDialog({
   const [fileName, setFileName] = useState(editing?.receiptUrl ?? "");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // The picker's `min` steers, but the field is typeable, so the rule is
-  // checked rather than implied.
-  const dateWithinLimit = minDate == null || date >= minDate;
+  // The picker's `min`/`max` steer, but the field is typeable and neither
+  // attribute takes part in `valid` — so both ends are checked here. The source
+  // sets maxDate={new Date()} (CustomDatePicker.tsx:73): a bill cannot be dated
+  // in the future.
+  const today = todayIso();
+  const dateWithinLimit =
+    date.length > 0 && date <= today && (minDate == null || date >= minDate);
 
   const rates = useExchangeRates(reimbursementCurrency, date);
   const expenseTypes = useExpenseTypes(jobNumber === NO_JOB ? undefined : jobNumber);
@@ -177,11 +181,15 @@ export function AddExpenseDialog({
                 onChange={(e) => setDate(e.target.value)}
                 error={!dateWithinLimit}
                 helperText={
-                  dateWithinLimit ? undefined : `Date within last ${restrictionDays} days required`
+                  dateWithinLimit
+                    ? undefined
+                    : date > today
+                      ? "Bill date cannot be in the future"
+                      : `Date within last ${restrictionDays} days required`
                 }
                 // aria-label on the input: the caption above is a plain
                 // Typography, so without it the field has no accessible name.
-                inputProps={{ min: minDate, max: todayIso(), "aria-label": "Bill date" }}
+                inputProps={{ min: minDate, max: today, "aria-label": "Bill date" }}
               />
             </Box>
             <Box>
