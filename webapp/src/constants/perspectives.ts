@@ -17,7 +17,7 @@
 // Central perspective registry. The waffle switcher and left rail both read
 // from this — one edit here changes every entry point.
 
-import { isIsacConfigured, isacUrl } from "@config/apiConfig";
+import { csmUrl, isCsmConfigured, isIsacConfigured, isacUrl } from "@config/apiConfig";
 import {
   ChartNoAxesCombinedIcon,
   DatabaseIcon,
@@ -188,6 +188,14 @@ export interface PerspectiveDef {
    * these, because the gate's own message is the right answer there.
    */
   externallyGated?: boolean;
+  /**
+   * Set when the perspective is a separate application this webapp only points
+   * at. Its launcher tile opens the URL in a new tab instead of routing, and it
+   * carries no `path` — so `reachablePerspectives` excludes it, and it can be
+   * neither a landing choice nor a favourite. Both would be shortcuts to
+   * somewhere this app cannot take you.
+   */
+  externalUrl?: string;
   sections?: PerspectiveSection[];
 }
 
@@ -213,7 +221,16 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     access: true,
     path: "/finance",
   },
-  { key: "csm", label: "CSM", icon: LifeBuoyIcon, access: false },
+  // A separate application, opened in a new tab. `access` follows the URL being
+  // configured: without one the tile stays in its unbuilt state rather than
+  // becoming a link to nowhere.
+  {
+    key: "csm",
+    label: "CSM",
+    icon: LifeBuoyIcon,
+    access: isCsmConfigured(),
+    externalUrl: csmUrl || undefined,
+  },
   { key: "revops", label: "Rev Ops", icon: ChartNoAxesCombinedIcon, access: false },
   { key: "legal", label: "Legal", icon: ScaleIcon, access: false },
   // Marketing Ops — UNLOCKED. Ported so far: Utilities (UTM + Asset Name

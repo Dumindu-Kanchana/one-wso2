@@ -83,6 +83,7 @@ declare global {
       // Nothing here calls it as an API. Optional — when absent, the rail
       // item is omitted rather than rendered as a dead link.
       ONE_WSO2_MARKETINGOPS_ISAC_URL?: string;
+      ONE_WSO2_CSM_URL?: string;
       // Base URL of the Pardot UI, used to deep-link to an email template
       // after Email Workbench pushes it. Not an API — a link target.
       // Optional; defaults to https://pi.pardot.com, which is correct for

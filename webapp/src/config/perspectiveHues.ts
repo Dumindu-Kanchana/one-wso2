@@ -27,8 +27,10 @@
  * the launcher is the one surface with nothing else doing that job.
  *
  * SIZING, and the constraint that will eventually break this: the registry holds
- * eleven perspectives, but five are locked placeholders (CSM, Rev Ops, Legal,
- * Service Requests) that render grayscaled and need no hue. So the hues cover
+ * eleven perspectives, but several are unbuilt placeholders (Rev Ops, Legal,
+ * Service Requests) that render grayscaled and need no hue. CSM is a hue short
+ * for the same reason in reverse: it is reached, but in another tab, so nothing
+ * here is ever tinted by it. So the hues cover
  * everything reachable today, which sits just inside the limit. As those unlock,
  * adding a hue each takes the set past the point where hues are tellable apart —
  * at which point the answer is a different encoding (hue per domain family, or back
