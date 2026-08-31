@@ -258,6 +258,9 @@ export function isCcBackendConfigured(): boolean {
 export const ccServiceUrls = {
   userInfo: `${ccBackendUrl}/user-info`,
   creditCards: `${ccBackendUrl}/credit-cards`,
+  // PATCH — rename a card. creditCard.ts:94-96.
+  creditCardLabel: (id: number, label: string) =>
+    `${ccBackendUrl}/credit-cards/${id}?label=${encodeURIComponent(label)}`,
   transactions: (query = "") => `${ccBackendUrl}/transactions${query}`,
   saveDraft: `${ccBackendUrl}/transactions/save-draft`,
   employeeSubmit: `${ccBackendUrl}/transactions/employee-submit`,

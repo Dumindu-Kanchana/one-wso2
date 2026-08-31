@@ -65,7 +65,12 @@ export function useCreditCards(includeInactive = false) {
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      return authedGet<CcCreditCard[]>(ccServiceUrls.creditCards, accessToken);
+      const cards = await authedGet<CcCreditCard[]>(ccServiceUrls.creditCards, accessToken);
+      // creditCard.ts:57-62 keeps only active cards unless asked otherwise.
+      // The flag was already in the cache key here but never applied, so a
+      // closed card still appeared in the picker.
+      if (includeInactive) return cards;
+      return (cards ?? []).filter((c) => (c.status ?? "").toUpperCase() === "ACTIVE");
     },
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,

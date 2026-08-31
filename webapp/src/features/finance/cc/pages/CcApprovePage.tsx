@@ -21,7 +21,8 @@ import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { CcTxnTable } from "../CcTxnTable";
-import { useCcApprove } from "../useCcMutations";
+import { useCcApprove, useCcSaveEdit } from "../useCcMutations";
+import { CcEditDialog } from "../CcEditDialog";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcTransaction } from "../ccTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
@@ -53,6 +54,8 @@ function ApproveBody() {
   // AND finance-approve — the previous single pinned stage left dual-role
   // users unable to action pending_lead rows at all. The stage per row is
   // derived from its status at submit time.
+  const [editing, setEditing] = useState<CcTransaction | null>(null);
+  const saveEdit = useCcSaveEdit();
   const leadApprove = useCcApprove("lead");
   const financeApprove = useCcApprove("finance");
 
@@ -142,7 +145,23 @@ function ApproveBody() {
         </Typography>
       ) : (
         <Stack spacing={2}>
-          <CcTxnTable txns={rows} showUser showCard selection={{ checked, onToggle: toggle, isSelectable }} />
+          <CcTxnTable
+            txns={rows}
+            showUser
+            showCard
+            selection={{ checked, onToggle: toggle, isSelectable }}
+            // ApproveTransactionsDataGrid.tsx:372 — enableEdit is finance-only,
+            // and EditPane.tsx:659-665 locks the fields while a row is still
+            // with the lead, so finance corrects only what has reached them.
+            edit={
+              isFinance
+                ? {
+                    canEdit: (t) => t.status === "pending_finance",
+                    onEdit: (t) => setEditing(t),
+                  }
+                : undefined
+            }
+          />
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button
               variant="contained"
@@ -156,6 +175,18 @@ function ApproveBody() {
           </Box>
         </Stack>
       )}
+
+      <CcEditDialog
+        txn={editing}
+        onClose={() => setEditing(null)}
+        onSave={(patched) => {
+          setEditing(null);
+          saveEdit.mutate([patched], {
+            onSuccess: () => showSuccess("Transaction updated"),
+            onError: (err) => showError(describeError(err)),
+          });
+        }}
+      />
     </Box>
   );
 }

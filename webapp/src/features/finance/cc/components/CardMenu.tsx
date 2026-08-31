@@ -14,7 +14,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Badge, Box, Stack, Typography } from "@wso2/oxygen-ui";
+import { useState } from "react";
+import {
+  Badge,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from "@wso2/oxygen-ui";
+import { PencilIcon } from "@wso2/oxygen-ui-icons-react";
 import type { CcCreditCard } from "../ccTypes";
 
 // Horizontal credit-card picker. Each card shows its (masked) number, label
@@ -24,13 +38,23 @@ export function CardMenu({
   active,
   onSelect,
   badge,
+  onRename,
 }: {
   cards: CcCreditCard[];
   active: string | null;
   onSelect: (ccNumber: string) => void;
   badge?: "countNew" | "countPendingLead" | "countPendingFinance";
+  /**
+   * Lets a card be renamed in place — CardMenu.tsx:67-75 in the source, where
+   * the label is the only thing distinguishing two cards with similar numbers.
+   */
+  onRename?: (card: CcCreditCard, label: string) => void;
 }) {
+  const [renaming, setRenaming] = useState<CcCreditCard | null>(null);
+  const [draftLabel, setDraftLabel] = useState("");
+
   return (
+    <>
     <Stack direction="row" spacing={1.25} sx={{ overflowX: "auto", pb: 0.5 }}>
       {cards.map((c) => {
         const selected = c.ccNumber === active;
@@ -59,6 +83,20 @@ export function CardMenu({
               <Typography sx={{ fontSize: 12.5, fontWeight: 700, fontFamily: "monospace", flex: 1 }} noWrap>
                 •••• {c.ccNumber.slice(-4)}
               </Typography>
+                {onRename && (
+                  <IconButton
+                    size="small"
+                    aria-label={`Rename card ending ${c.ccNumber.slice(-4)}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenaming(c);
+                      setDraftLabel(c.label ?? "");
+                    }}
+                    sx={{ p: 0.25, color: "text.secondary" }}
+                  >
+                    <PencilIcon size={13} />
+                  </IconButton>
+                )}
               {badge && count > 0 && (
                 <Badge badgeContent={count} color="primary" sx={{ "& .MuiBadge-badge": { fontSize: 10, height: 16, minWidth: 16 } }} />
               )}
@@ -71,5 +109,36 @@ export function CardMenu({
         );
       })}
     </Stack>
+
+    <Dialog open={renaming !== null} onClose={() => setRenaming(null)} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Rename card</DialogTitle>
+      <DialogContent dividers>
+        <TextField
+          size="small"
+          fullWidth
+          autoFocus
+          value={draftLabel}
+          onChange={(e) => setDraftLabel(e.target.value)}
+          placeholder="e.g. Travel card"
+          inputProps={{ "aria-label": "Card label" }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button size="small" onClick={() => setRenaming(null)}>
+          Cancel
+        </Button>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => {
+            if (renaming) onRename?.(renaming, draftLabel.trim());
+            setRenaming(null);
+          }}
+        >
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 }

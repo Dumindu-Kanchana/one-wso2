@@ -53,6 +53,13 @@ const withFinance = { ...base, id: 2, status: "pending_finance" };
 const state = { access: ["finance"] as string[] };
 
 vi.mock("../useCc", () => ({
+  useCcMenus: () => ({
+    expenseTypes: { data: { categories: [], types: {} }, isLoading: false },
+    subRegions: { data: { subRegions: [] }, isLoading: false },
+    units: { data: { productUnits: [], businessUnits: [] }, isLoading: false },
+    jobNumbers: { data: { jobNumbers: [] }, isLoading: false },
+  }),
+  useCcJobNumberDetails: () => ({ data: undefined, isLoading: false, isError: false }),
   useCcUserInfo: () => ({
     data: { workEmail: "lead@wso2.com", accessLevels: state.access },
     isLoading: false,
@@ -70,8 +77,10 @@ vi.mock("../ccTypes", async () => {
   return { ...actual, ccHasAccess: (_u: unknown, lvl: string) => state.access.includes(lvl) };
 });
 
+const saveEdit = vi.fn();
 vi.mock("../useCcMutations", () => ({
   useCcApprove: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCcSaveEdit: () => ({ mutate: saveEdit, isPending: false }),
   useCcAttachment: () => ({
     upload: { mutateAsync: vi.fn(), isPending: false },
     remove: { mutateAsync: vi.fn(), isPending: false },

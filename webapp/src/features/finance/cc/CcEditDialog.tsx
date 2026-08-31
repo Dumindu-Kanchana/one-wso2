@@ -39,7 +39,7 @@ import { CheckIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { describeError } from "../util/financeError";
 import { money, formatNice } from "../util/financeFormat";
-import { RECEIPT_ACCEPT, CC_ATTACHMENT_MAX_BYTES, maxSizeLabel } from "../util/financeReceipts";
+import { CC_ATTACHMENT_ACCEPT, CC_ATTACHMENT_MAX_BYTES, maxSizeLabel } from "../util/financeReceipts";
 import { useCcJobNumberDetails, useCcMenus } from "./useCc";
 import { useCcAttachment } from "./useCcMutations";
 import { CcFundingSource,
@@ -387,7 +387,7 @@ function AttachmentField({
   return (
     <Box>
       <FieldLabel>{label}</FieldLabel>
-      <input ref={input} type="file" accept={RECEIPT_ACCEPT} onChange={handle} style={{ display: "none" }} />
+      <input ref={input} type="file" accept={CC_ATTACHMENT_ACCEPT} onChange={handle} style={{ display: "none" }} />
       <Stack direction="row" alignItems="center" spacing={1}>
         <Button
           size="small"

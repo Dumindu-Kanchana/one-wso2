@@ -35,7 +35,7 @@ import { describeError } from "../../util/financeError";
 import { money, formatNice } from "../../util/financeFormat";
 import { CardMenu } from "../components/CardMenu";
 import { CcEditDialog } from "../CcEditDialog";
-import { useCcEmployeeSubmit } from "../useCcMutations";
+import { useCcCardLabel, useCcEmployeeSubmit } from "../useCcMutations";
 import { useCcTransactions, useCcUserInfo, useCreditCards } from "../useCc";
 import { ccTxnComplete, type CcTransaction } from "../ccTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
@@ -59,6 +59,7 @@ function NewTxnBody() {
   const cards = useCreditCards();
   const txns = useCcTransactions();
   const submit = useCcEmployeeSubmit();
+  const renameCard = useCcCardLabel();
   const { showSuccess, showError } = useNotifications();
 
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
@@ -127,7 +128,21 @@ function NewTxnBody() {
 
   return (
     <Box>
-      <CardMenu cards={ownCards} active={activeCard} onSelect={setSelectedCard} badge="countNew" />
+      <CardMenu
+        cards={ownCards}
+        active={activeCard}
+        onSelect={setSelectedCard}
+        badge="countNew"
+        onRename={(card, label) =>
+          renameCard.mutate(
+            { id: card.id, label },
+            {
+              onSuccess: () => showSuccess("Successfully updated the label"),
+              onError: (err) => showError(describeError(err)),
+            },
+          )
+        }
+      />
 
       {txns.isLoading ? (
         <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5, mt: 2 }} />

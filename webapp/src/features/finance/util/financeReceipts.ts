@@ -24,6 +24,13 @@ import { fetchWithReauth, HttpError } from "@api/http";
 
 export const RECEIPT_ACCEPT = "application/pdf,image/jpeg,image/png";
 
+/**
+ * cc-expenses accepts more image formats than the claim apps —
+ * AttachmentButton.tsx:170-177 lists bmp, gif and svg alongside the rest.
+ */
+export const CC_ATTACHMENT_ACCEPT =
+  "application/pdf,image/jpeg,image/png,image/bmp,image/gif,image/svg+xml";
+
 // The backends enforce different max upload sizes, so the client limit must
 // match per app — a shared 10 MB constant let the expense page accept a 6 MB
 // file the expense backend then rejected.
