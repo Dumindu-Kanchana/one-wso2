@@ -272,6 +272,10 @@ export const ccServiceUrls = {
   subRegions: `${ccBackendUrl}/configurations/sub-regions`,
   productAndBusinessUnits: `${ccBackendUrl}/configurations/product-and-business-units`,
   jobNumbers: `${ccBackendUrl}/travels/job-numbers`,
+  // One travel job's engagement details, its product/business unit and the
+  // funding sources it is charged against — userMenus.ts:244-252.
+  jobNumberDetails: (jobNumber: string) =>
+    `${ccBackendUrl}/travels/${encodeURIComponent(jobNumber)}`,
   // GET base64 attachment / DELETE it.
   attachment: (id: number, attachmentType: string) =>
     `${ccBackendUrl}/transactions/${id}/attachments?attachmentType=${encodeURIComponent(attachmentType)}`,

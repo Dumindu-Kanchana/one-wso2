@@ -26,6 +26,7 @@ import type {
   CcCreditCard,
   CcEmployee,
   CcExpenseTypeList,
+  CcJobNumberDetails,
   CcJobNumberList,
   CcProductAndBusinessUnitList,
   CcSubRegionList,
@@ -158,4 +159,29 @@ export function useCcMenus() {
     units: foldIdentityError(units, subState, retryIdentity),
     jobNumbers: foldIdentityError(jobNumbers, subState, retryIdentity),
   };
+}
+
+/**
+ * GET /travels/{jobNumber} — a travel job's engagement details, its units and
+ * the funding sources it is charged against. Only fires once a job is chosen.
+ *
+ * EditPane.tsx:560-600 treats this as the authority for a travel transaction's
+ * product and business unit: it copies them onto the row rather than asking
+ * the user to pick them.
+ */
+export function useCcJobNumberDetails(jobNumber: string | undefined) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isCcBackendConfigured();
+  return useQuery<CcJobNumberDetails>({
+    queryKey: ["cc-job-number-details", jobNumber ?? null],
+    enabled: isSignedIn && configured && Boolean(jobNumber),
+    queryFn: async () =>
+      authedGet<CcJobNumberDetails>(
+        ccServiceUrls.jobNumberDetails(jobNumber!),
+        await getAccessToken(),
+      ),
+    staleTime: 10 * 60 * 1000,
+    retry: financeRetry,
+  });
 }

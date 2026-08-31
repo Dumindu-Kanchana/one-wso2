@@ -14,8 +14,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -25,6 +26,11 @@ import {
   FormControl,
   MenuItem,
   Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   Stack,
   TextField,
   Typography,
@@ -34,9 +40,9 @@ import { useNotifications } from "@context/notifications/NotificationsContext";
 import { describeError } from "../util/financeError";
 import { money, formatNice } from "../util/financeFormat";
 import { RECEIPT_ACCEPT, CC_ATTACHMENT_MAX_BYTES, maxSizeLabel } from "../util/financeReceipts";
-import { useCcMenus } from "./useCc";
+import { useCcJobNumberDetails, useCcMenus } from "./useCc";
 import { useCcAttachment } from "./useCcMutations";
-import {
+import { CcFundingSource,
   CC_MARKETING_CATEGORY,
   CC_TRAVEL_CATEGORY,
   ccTxnComplete,
@@ -106,7 +112,23 @@ function CcEditForm({
   }, [productUnits, businessUnits, txn.productUnit, txn.businessUnit, unitIndex]);
 
   const isTravel = category === CC_TRAVEL_CATEGORY;
-  const isMarketing = category === CC_MARKETING_CATEGORY;
+  // EditPane.tsx:364 matches with startsWith, so a sub-category such as
+  // "Marketing - Digital" still needs a sub-region.
+  const isMarketing = category?.startsWith(CC_MARKETING_CATEGORY) ?? false;
+
+  // EditPane.tsx:560-600 — the job number decides a travel transaction's units.
+  // Fetched only while Travel is selected; the row keeps its stored units until
+  // the details arrive, so a slow lookup never blanks them.
+  const jobDetails = useCcJobNumberDetails(isTravel && jobNumber ? jobNumber : undefined);
+  const jobUnits = isTravel ? jobDetails.data : undefined;
+  const fundingSources = jobUnits?.fundingSources ?? [];
+  // :568-575 — a job with no funding sources cannot be charged against, so the
+  // source refuses to apply it rather than filling in half the row.
+  const jobUnusable = Boolean(jobUnits) && fundingSources.length === 0;
+  // :591-598 — a job can also come back without units, which is worth saying
+  // because it is why Save will not enable.
+  const jobMissingUnits = Boolean(jobUnits) && !(jobUnits?.productUnit && jobUnits?.businessUnit);
+  const jobUsable = Boolean(jobUnits) && fundingSources.length > 0;
 
   const patched: CcTransaction = {
     ...txn,
@@ -115,12 +137,22 @@ function CcEditForm({
     txnComment: comment || null,
     travelJobNumber: isTravel ? jobNumber || null : null,
     subRegion: isMarketing ? subRegion || null : null,
-    productUnit: isTravel ? txn.productUnit : unitIndex === "" ? null : productUnits[unitIndex] ?? null,
-    businessUnit: isTravel ? txn.businessUnit : unitIndex === "" ? null : businessUnits[unitIndex] ?? null,
+    // :577-590 — for travel the job's own units win; the user never picks them.
+    productUnit: isTravel
+      ? (jobUsable ? jobUnits?.productUnit ?? null : txn.productUnit)
+      : unitIndex === ""
+        ? null
+        : productUnits[unitIndex] ?? null,
+    businessUnit: isTravel
+      ? (jobUsable ? jobUnits?.businessUnit ?? null : txn.businessUnit)
+      : unitIndex === ""
+        ? null
+        : businessUnits[unitIndex] ?? null,
     receiptFileName,
     contractFileName,
   };
-  const valid = ccTxnComplete(patched);
+  // A job with no funding sources is not applied, so it cannot complete the row.
+  const valid = ccTxnComplete(patched) && !jobUnusable;
 
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
@@ -181,6 +213,30 @@ function CcEditForm({
                   </MenuItem>
                 ))}
               </Select>
+            {/* EditPane.tsx:568-598 warns on both, because either one leaves
+                the row uncompletable and neither is the user's fault. */}
+            {jobUnusable && (
+              <Alert severity="warning" sx={{ mt: 1, fontSize: 12.5 }}>
+                No funding sources found for the selected Job number.
+              </Alert>
+            )}
+            {!jobUnusable && jobMissingUnits && (
+              <Alert severity="warning" sx={{ mt: 1, fontSize: 12.5 }}>
+                No Product unit and/or Business unit found for the selected Job number.
+              </Alert>
+            )}
+            {jobUsable && jobUnits && (
+              <Box sx={{ mt: 1 }}>
+                {/* :629-641 — the engagement a travel spend is charged to. */}
+                <Typography sx={{ fontSize: 11.5, color: "text.secondary" }}>
+                  {jobUnits.engagementCode} · {jobUnits.engagementType} · {jobUnits.country}
+                </Typography>
+                <Typography sx={{ fontSize: 11.5, color: "text.secondary" }}>
+                  Units from this job: {jobUnits.productUnit} — {jobUnits.businessUnit}
+                </Typography>
+                <FundingSources sources={fundingSources} totalAmount={txn.txnAmount} />
+              </Box>
+            )}
             </Field>
           ) : (
             <Field label="Product unit">
@@ -225,6 +281,8 @@ function CcEditForm({
               onChange={(e) => setComment(e.target.value.slice(0, COMMENT_MAX))}
               placeholder="Short note for this transaction"
               helperText={`${comment.length}/${COMMENT_MAX}`}
+              // The caption above is a plain Typography, so name the input.
+              inputProps={{ "aria-label": "Comment" }}
             />
           </Box>
 
@@ -263,19 +321,34 @@ function CcEditForm({
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  // The visible caption is a plain Typography, so without this the control has
+  // no accessible name at all — a screen reader reads "combo box" and nothing
+  // else. MUI names a Select through aria-labelledby, so the caption gets an id
+  // and the control is pointed at it. Done here, so every field gets one.
+  const labelId = React.useId();
+  // Only the first element child is the control; a field may render helper
+  // content after it (the travel job number carries its warnings inside).
+  const items = React.Children.toArray(children);
+  const controlIndex = items.findIndex((c) => React.isValidElement(c));
+  const named = items.map((child, i) =>
+    i === controlIndex && React.isValidElement(child)
+      ? React.cloneElement(child as React.ReactElement<{ labelId?: string }>, { labelId })
+      : child,
+  );
   return (
     <Box>
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel id={labelId}>{label}</FieldLabel>
       <FormControl size="small" fullWidth>
-        {children}
+        {named}
       </FormControl>
     </Box>
   );
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ children, id }: { children: React.ReactNode; id?: string }) {
   return (
     <Typography
+      id={id}
       sx={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", color: "text.disabled", fontWeight: 600, mb: 0.75 }}
     >
       {children}
@@ -338,4 +411,51 @@ function AttachmentField({
 
 function Placeholder() {
   return <span style={{ opacity: 0.6 }}>Select…</span>;
+}
+
+/**
+ * The shares a travel job is funded from, and what this transaction costs each
+ * of them — `FundingSourceTable.tsx`, whose Amount column is
+ * `(percentage / 100) * txnAmount`.
+ */
+function FundingSources({
+  sources,
+  totalAmount,
+}: {
+  sources: CcFundingSource[];
+  totalAmount: number;
+}) {
+  return (
+    <Box sx={{ mt: 1, border: 1, borderColor: "divider", borderRadius: 1, overflowX: "auto" }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            {["Region", "Sub Region", "Business Unit", "Product Unit", "Percentage", "Amount"].map(
+              (h) => (
+                <TableCell key={h} sx={{ fontSize: 10.5, fontWeight: 700, color: "text.disabled" }}>
+                  {h}
+                </TableCell>
+              ),
+            )}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {sources.map((f, i) => (
+            <TableRow key={i}>
+              <TableCell sx={{ fontSize: 11.5 }}>{f.region}</TableCell>
+              <TableCell sx={{ fontSize: 11.5 }}>{f.subRegion}</TableCell>
+              <TableCell sx={{ fontSize: 11.5 }}>{f.businessUnit}</TableCell>
+              <TableCell sx={{ fontSize: 11.5 }}>{f.productUnit}</TableCell>
+              <TableCell sx={{ fontSize: 11.5, fontVariantNumeric: "tabular-nums" }}>
+                {f.percentage}%
+              </TableCell>
+              <TableCell sx={{ fontSize: 11.5, fontVariantNumeric: "tabular-nums" }}>
+                {money((f.percentage / 100) * totalAmount, "USD")}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
 }
