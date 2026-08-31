@@ -28,6 +28,16 @@ const CURRENCY_PREFIX: Record<string, string> = {
   GBP: "£",
 };
 
+// The cc dashboard drops the cents throughout — `formatCurrency(x).split(".")[0]`
+// in utils.ts:44-49 — and names the currency in the column header instead of
+// prefixing every figure.
+export function wholeAmount(amount: number | null | undefined): string {
+  const n = typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).split(
+    ".",
+  )[0];
+}
+
 export function money(amount: number | null | undefined, currency = "LKR"): string {
   const n = typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
   const prefix = CURRENCY_PREFIX[currency] ?? currency;
@@ -93,5 +103,17 @@ export function endOfYearIso(year: number): string {
 export function daysAgoIso(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
+  return toIso(d);
+}
+
+/**
+ * The exclusive-safe upper bound for a transaction window — `utils.ts:21-33`
+ * in cc-expenses, which sets the end of today and then advances a day before
+ * formatting. Asking up to *today* can drop transactions dated today, which is
+ * why the source deliberately asks up to tomorrow.
+ */
+export function tomorrowIso(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
   return toIso(d);
 }

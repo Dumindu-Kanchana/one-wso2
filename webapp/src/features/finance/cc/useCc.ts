@@ -21,12 +21,16 @@ import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls, isCcBackendConfigured } from "@config/apiConfig";
 import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { financeRetry } from "../util/financeError";
-import { daysAgoIso, todayIso } from "../util/financeFormat";
+import { daysAgoIso, tomorrowIso } from "../util/financeFormat";
 import type {
   CcCreditCard,
   CcEmployee,
   CcExpenseTypeList,
+  CcCardHolderCompliance,
+  CcCategoryMonthAmount,
+  CcJobNumberDetails,
   CcJobNumberList,
+  CcTransactionSummary,
   CcProductAndBusinessUnitList,
   CcSubRegionList,
   CcTransaction,
@@ -64,7 +68,12 @@ export function useCreditCards(includeInactive = false) {
     enabled: isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      return authedGet<CcCreditCard[]>(ccServiceUrls.creditCards, accessToken);
+      const cards = await authedGet<CcCreditCard[]>(ccServiceUrls.creditCards, accessToken);
+      // creditCard.ts:57-62 keeps only active cards unless asked otherwise.
+      // The flag was already in the cache key here but never applied, so a
+      // closed card still appeared in the picker.
+      if (includeInactive) return cards;
+      return (cards ?? []).filter((c) => (c.status ?? "").toUpperCase() === "ACTIVE");
     },
     staleTime: 5 * 60 * 1000,
     retry: financeRetry,
@@ -73,10 +82,12 @@ export function useCreditCards(includeInactive = false) {
 }
 
 // GET /transactions?dateFrom&dateTo&includeInactive — scoped server-side by
-// the caller's privileges + email. The backend REQUIRES dateFrom/dateTo, so
-// callers that don't care about a window (New / Pending / Approve, which
-// filter by status) get a wide default spanning the last ~3 years.
-const DEFAULT_WINDOW_DAYS = 365 * 3;
+// the caller's privileges + email. The backend REQUIRES dateFrom/dateTo.
+//
+// utils.ts:21-33 — fetchTransactions defaults to `range || 7`, and New /
+// Pending / Approve all call it with no range. Those screens work off recent
+// statement activity; History is where an older window is chosen explicitly.
+const DEFAULT_WINDOW_DAYS = 7;
 
 export function useCcTransactions(
   opts: { dateFrom?: string; dateTo?: string; includeInactive?: boolean } = {},
@@ -87,7 +98,9 @@ export function useCcTransactions(
   const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isCcBackendConfigured();
   const dateFrom = opts.dateFrom ?? daysAgoIso(DEFAULT_WINDOW_DAYS);
-  const dateTo = opts.dateTo ?? todayIso();
+  // utils.ts:21-33 advances the end of the window by a day before formatting.
+  // Asking up to today can drop transactions dated today; the source never does.
+  const dateTo = opts.dateTo ?? tomorrowIso();
   const includeInactive = opts.includeInactive ?? false;
   const query = useQuery<CcTransaction[]>({
     queryKey: ["cc-transactions", userSub, dateFrom, dateTo, includeInactive],
@@ -159,3 +172,111 @@ export function useCcMenus() {
     jobNumbers: foldIdentityError(jobNumbers, subState, retryIdentity),
   };
 }
+
+/**
+ * GET /travels/{jobNumber} — a travel job's engagement details, its units and
+ * the funding sources it is charged against. Only fires once a job is chosen.
+ *
+ * EditPane.tsx:560-600 treats this as the authority for a travel transaction's
+ * product and business unit: it copies them onto the row rather than asking
+ * the user to pick them.
+ */
+export function useCcJobNumberDetails(jobNumber: string | undefined) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isCcBackendConfigured();
+  return useQuery<CcJobNumberDetails>({
+    queryKey: ["cc-job-number-details", jobNumber ?? null],
+    enabled: isSignedIn && configured && Boolean(jobNumber),
+    queryFn: async () =>
+      authedGet<CcJobNumberDetails>(
+        ccServiceUrls.jobNumberDetails(jobNumber!),
+        await getAccessToken(),
+      ),
+    staleTime: 10 * 60 * 1000,
+    retry: financeRetry,
+  });
+}
+
+// ---- dashboard ------------------------------------------------------------
+//
+// Three analytics endpoints, each scoped by `ownedCardsOnly` — dashboard
+// /index.tsx:64 sets it when a lead or finance switches to the employee view,
+// so they can see their own spend rather than everyone's.
+
+function dashboardQuery<T>(
+  key: unknown[],
+  url: string,
+  enabled: boolean,
+  getAccessToken: () => Promise<string>,
+) {
+  return {
+    queryKey: key,
+    enabled,
+    queryFn: async () => authedGet<T>(url, await getAccessToken()),
+    staleTime: 5 * 60 * 1000,
+    retry: financeRetry,
+  };
+}
+
+// transactionSummary.ts:54 spreads each parameter only when it is truthy, so a
+// false `ownedCardsOnly` is left off the query string rather than sent as
+// "false". Same for an absent `dateFrom` on the "All time" period.
+const scoped = (base: string, params: Record<string, string | boolean | undefined>) => {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== false && v !== "") p.set(k, String(v));
+  }
+  const q = p.toString();
+  return q ? `${base}?${q}` : base;
+};
+
+export function useCcTransactionSummary(dateFrom: string | undefined, ownedCardsOnly: boolean) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isCcBackendConfigured();
+  return useQuery<CcTransactionSummary>(
+    dashboardQuery<CcTransactionSummary>(
+      ["cc-txn-summary", dateFrom ?? null, ownedCardsOnly],
+      scoped(ccServiceUrls.transactionSummary, { dateFrom, ownedCardsOnly }),
+      isSignedIn && configured,
+      getAccessToken,
+    ),
+  );
+}
+
+export function useCcSubmittedByCategory(
+  range: { dateFrom: string; dateTo: string },
+  ownedCardsOnly: boolean,
+) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isCcBackendConfigured();
+  return useQuery<CcCategoryMonthAmount[]>(
+    dashboardQuery<CcCategoryMonthAmount[]>(
+      ["cc-submitted-by-category", range.dateFrom, range.dateTo, ownedCardsOnly],
+      scoped(ccServiceUrls.submittedByCategory, { ...range, ownedCardsOnly }),
+      isSignedIn && configured,
+      getAccessToken,
+    ),
+  );
+}
+
+export function useCcCardHolderCompliance(
+  dateFrom: string | undefined,
+  ownedCardsOnly: boolean,
+  enabled: boolean,
+) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const configured = isCcBackendConfigured();
+  return useQuery<CcCardHolderCompliance[]>(
+    dashboardQuery<CcCardHolderCompliance[]>(
+      ["cc-cardholder-compliance", dateFrom ?? null, ownedCardsOnly],
+      scoped(ccServiceUrls.cardHolderCompliance, { dateFrom, ownedCardsOnly }),
+      enabled && isSignedIn && configured,
+      getAccessToken,
+    ),
+  );
+}
+

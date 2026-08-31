@@ -15,7 +15,7 @@
 // under the License.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { authedDelete, authedPost, fetchWithReauth, HttpError } from "@api/http";
+import { authedDelete, authedPatch, authedPost, fetchWithReauth, HttpError } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
 import { fileExtension, putBinaryFile } from "../util/financeReceipts";
@@ -72,6 +72,26 @@ export function useCcApprove(stage: "lead" | "finance") {
 
 // Attachment upload (PUT raw bytes) + delete for a transaction's receipt or
 // contract. Returns the stored file name from the upload.
+/**
+ * PATCH /credit-cards/{id}?label= — rename a card. creditCard.ts:89-107; the
+ * source's own success wording is "Successfully updated the label".
+ */
+export function useCcCardLabel() {
+  const getAccessToken = useAccessToken();
+  const qc = useQueryClient();
+  return useMutation<void, Error, { id: number; label: string }>({
+    mutationFn: async ({ id, label }) => {
+      const accessToken = await getAccessToken();
+      // The label rides in the query string, as the source sends it; there is
+      // no body.
+      await authedPatch<unknown>(ccServiceUrls.creditCardLabel(id, label), accessToken, {});
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["cc-cards"] });
+    },
+  });
+}
+
 export function useCcAttachment() {
   const getAccessToken = useAccessToken();
   const qc = useQueryClient();

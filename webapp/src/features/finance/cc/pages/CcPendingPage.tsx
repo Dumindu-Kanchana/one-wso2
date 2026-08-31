@@ -14,13 +14,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Alert, Skeleton, Typography } from "@wso2/oxygen-ui";
 import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { CcTxnTable } from "../CcTxnTable";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
+import { useCcSaveEdit } from "../useCcMutations";
+import { CcEditDialog } from "../CcEditDialog";
+import type { CcTransaction } from "../ccTypes";
+import { useNotifications } from "@context/notifications/NotificationsContext";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 export default function CcPendingPage() {
@@ -41,6 +45,9 @@ function PendingBody() {
   const userInfo = useCcUserInfo();
   const txns = useCcTransactions();
   const email = userInfo.data?.workEmail;
+  const saveEdit = useCcSaveEdit();
+  const { showSuccess, showError } = useNotifications();
+  const [editing, setEditing] = useState<CcTransaction | null>(null);
 
   const rows = useMemo(
     () =>
@@ -69,5 +76,29 @@ function PendingBody() {
       </Typography>
     );
   }
-  return <CcTxnTable txns={rows} showCard />;
+  return (
+    <>
+      <CcTxnTable
+        txns={rows}
+        showCard
+        // PendingTransactionsDataGrid.tsx:232-237 — a submission can still be
+        // corrected while it sits with the lead; once finance has it, it cannot.
+        edit={{
+          canEdit: (t) => t.status === "pending_lead",
+          onEdit: (t) => setEditing(t),
+        }}
+      />
+      <CcEditDialog
+        txn={editing}
+        onClose={() => setEditing(null)}
+        onSave={(patched) => {
+          setEditing(null);
+          saveEdit.mutate([patched], {
+            onSuccess: () => showSuccess("Transaction updated"),
+            onError: (err) => showError(describeError(err)),
+          });
+        }}
+      />
+    </>
+  );
 }

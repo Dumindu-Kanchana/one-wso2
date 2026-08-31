@@ -97,6 +97,34 @@ export interface CcProductAndBusinessUnitList {
   businessUnits: string[];
 }
 
+/** One share of a travel job's funding — `userMenus.ts:44-50`. */
+export interface CcFundingSource {
+  region: string;
+  subRegion: string;
+  businessUnit: string;
+  productUnit: string;
+  percentage: number;
+}
+
+/**
+ * A travel job's details — `userMenus.ts:53-65`. The units here are the
+ * authority for a travel transaction: EditPane.tsx:577-590 copies them onto
+ * the row rather than asking the user to pick them.
+ */
+export interface CcJobNumberDetails {
+  engagementCode: string;
+  engagementType: string;
+  customerName: string;
+  city: string;
+  country: string;
+  globalPod: string;
+  startDate: string;
+  endDate: string;
+  productUnit: string;
+  businessUnit: string;
+  fundingSources: CcFundingSource[];
+}
+
 export interface CcJobNumberList {
   jobNumbers: string[];
 }
@@ -137,6 +165,53 @@ export function ccHasAccess(user: CcEmployee | undefined, level: CcAccessLevel):
 export function ccTxnComplete(t: CcTransaction): boolean {
   if (!t.expenseTypeLabel || !t.txnComment) return false;
   if (t.expenseCategoryLabel === CC_TRAVEL_CATEGORY) return Boolean(t.travelJobNumber);
-  if (t.expenseCategoryLabel === CC_MARKETING_CATEGORY) return Boolean(t.subRegion && t.productUnit);
+  // EditPane.tsx:364 matches with startsWith, so a sub-category such as
+  // "Marketing - Digital" still needs a sub-region. Matching the exact string
+  // let every sub-category skip the rule.
+  if (t.expenseCategoryLabel?.startsWith(CC_MARKETING_CATEGORY))
+    return Boolean(t.subRegion && t.productUnit);
   return Boolean(t.productUnit);
 }
+
+// ---- dashboard ------------------------------------------------------------
+
+/** transactionSummary.ts:16-20. */
+export interface CcPendingSnapshot {
+  count: number;
+  amount: number;
+  avgDaysToSubmit: number | null;
+}
+
+/** :22-26 — one ageing bucket of unsubmitted spend. */
+export interface CcAgeBucketAmount {
+  label: string;
+  count: number;
+  amount: number;
+}
+
+export interface CcTransactionSummary {
+  current: CcPendingSnapshot | null;
+  ageBuckets: Record<string, CcAgeBucketAmount>;
+}
+
+/** submittedExpensesByCategory.ts:22-26. `txnMonth` is "YYYY-MM". */
+export interface CcCategoryMonthAmount {
+  category: string;
+  txnMonth: string;
+  amount: number;
+}
+
+/** cardHolderCompliance.ts:16-25. */
+export interface CcCardHolderCompliance {
+  employeeEmail: string;
+  cardHolderName: string;
+  transactionCount: number;
+  outstandingAmount: number;
+  avgDaysToSubmit: number | null;
+  // How many of their unsubmitted transactions fall in each ageing band.
+  bucket0To7: number;
+  bucket8To14: number;
+  bucket15To30: number;
+  bucket30Plus: number;
+}
+

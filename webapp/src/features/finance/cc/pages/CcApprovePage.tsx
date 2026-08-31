@@ -21,7 +21,8 @@ import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { CcTxnTable } from "../CcTxnTable";
-import { useCcApprove } from "../useCcMutations";
+import { useCcApprove, useCcSaveEdit } from "../useCcMutations";
+import { CcEditDialog } from "../CcEditDialog";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcTransaction } from "../ccTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
@@ -53,6 +54,8 @@ function ApproveBody() {
   // AND finance-approve — the previous single pinned stage left dual-role
   // users unable to action pending_lead rows at all. The stage per row is
   // derived from its status at submit time.
+  const [editing, setEditing] = useState<CcTransaction | null>(null);
+  const saveEdit = useCcSaveEdit();
   const leadApprove = useCcApprove("lead");
   const financeApprove = useCcApprove("finance");
 
@@ -66,9 +69,16 @@ function ApproveBody() {
     (isLead && t.status === "pending_lead" && isUserLeadOf(t)) ||
     (isFinance && t.status === "pending_finance");
 
+  // approve-submissions/index.tsx:122-126 — finance's queue spans BOTH stages.
+  // A row still with the lead is shown but not actionable (isRowSelectable,
+  // ApproveTransactionsDataGrid.tsx:157-166), so finance can see what is
+  // waiting upstream instead of it being invisible until the lead acts.
+  const isVisible = (t: CcTransaction) =>
+    isSelectable(t) || (isFinance && t.status === "pending_lead");
+
   const rows = useMemo(
-    () => (txns.data ?? []).filter(isSelectable),
-    // isSelectable closes over isLead/isFinance/email
+    () => (txns.data ?? []).filter(isVisible),
+    // isVisible closes over isLead/isFinance/email
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [txns.data, isLead, isFinance, email],
   );
@@ -76,13 +86,18 @@ function ApproveBody() {
   // Split the checked, still-selectable rows by stage — each goes to its own
   // approve endpoint.
   const selected = useMemo(
-    () => rows.filter((t) => checked.has(t.id)),
-    [rows, checked],
+    () => rows.filter((t) => checked.has(t.id) && isSelectable(t)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, checked, isLead, isFinance, email],
   );
   const leadIds = selected.filter((t) => t.status === "pending_lead").map((t) => t.id);
   const financeIds = selected.filter((t) => t.status === "pending_finance").map((t) => t.id);
   const selectedCount = leadIds.length + financeIds.length;
   const approving = leadApprove.isPending || financeApprove.isPending;
+  // An edit saved from this screen is a separate request. Approving before it
+  // lands would book the row as it was before the correction, so the button
+  // waits for it. (The source does not guard this; see the spec.)
+  const busy = approving || saveEdit.isPending;
 
   const toggle = (id: number) =>
     setChecked((prev) => {
@@ -134,13 +149,29 @@ function ApproveBody() {
         </Typography>
       ) : (
         <Stack spacing={2}>
-          <CcTxnTable txns={rows} showUser showCard selection={{ checked, onToggle: toggle, isSelectable }} />
+          <CcTxnTable
+            txns={rows}
+            showUser
+            showCard
+            selection={{ checked, onToggle: toggle, isSelectable }}
+            // ApproveTransactionsDataGrid.tsx:372 — enableEdit is finance-only,
+            // and EditPane.tsx:659-665 locks the fields while a row is still
+            // with the lead, so finance corrects only what has reached them.
+            edit={
+              isFinance
+                ? {
+                    canEdit: (t) => t.status === "pending_finance",
+                    onEdit: (t) => setEditing(t),
+                  }
+                : undefined
+            }
+          />
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button
               variant="contained"
               color="success"
               onClick={handleApprove}
-              disabled={selectedCount === 0 || approving}
+              disabled={selectedCount === 0 || busy}
               sx={{ fontWeight: 600 }}
             >
               {approving ? "Approving…" : `Approve ${selectedCount || ""}`.trim()}
@@ -148,6 +179,18 @@ function ApproveBody() {
           </Box>
         </Stack>
       )}
+
+      <CcEditDialog
+        txn={editing}
+        onClose={() => setEditing(null)}
+        onSave={(patched) => {
+          setEditing(null);
+          saveEdit.mutate([patched], {
+            onSuccess: () => showSuccess("Transaction updated"),
+            onError: (err) => showError(describeError(err)),
+          });
+        }}
+      />
     </Box>
   );
 }

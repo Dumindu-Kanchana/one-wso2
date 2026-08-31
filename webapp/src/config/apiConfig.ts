@@ -258,6 +258,9 @@ export function isCcBackendConfigured(): boolean {
 export const ccServiceUrls = {
   userInfo: `${ccBackendUrl}/user-info`,
   creditCards: `${ccBackendUrl}/credit-cards`,
+  // PATCH — rename a card. creditCard.ts:94-96.
+  creditCardLabel: (id: number, label: string) =>
+    `${ccBackendUrl}/credit-cards/${id}?label=${encodeURIComponent(label)}`,
   transactions: (query = "") => `${ccBackendUrl}/transactions${query}`,
   saveDraft: `${ccBackendUrl}/transactions/save-draft`,
   employeeSubmit: `${ccBackendUrl}/transactions/employee-submit`,
@@ -268,10 +271,18 @@ export const ccServiceUrls = {
     `${ccBackendUrl}/transactions/process-statement?bankCode=${encodeURIComponent(bankCode)}&statementFileName=${encodeURIComponent(fileName)}`,
   uploadTransactions: (bankCode: string, fileName: string) =>
     `${ccBackendUrl}/transactions?bankCode=${encodeURIComponent(bankCode)}&statementFileName=${encodeURIComponent(fileName)}`,
+  // Dashboard analytics — config.ts:52-54.
+  transactionSummary: `${ccBackendUrl}/transactions/new-transaction-summary`,
+  submittedByCategory: `${ccBackendUrl}/transactions/submitted-transaction-summary`,
+  cardHolderCompliance: `${ccBackendUrl}/transactions/card-holder-compliance-summary`,
   expenseTypes: `${ccBackendUrl}/configurations/expense-types`,
   subRegions: `${ccBackendUrl}/configurations/sub-regions`,
   productAndBusinessUnits: `${ccBackendUrl}/configurations/product-and-business-units`,
   jobNumbers: `${ccBackendUrl}/travels/job-numbers`,
+  // One travel job's engagement details, its product/business unit and the
+  // funding sources it is charged against — userMenus.ts:244-252.
+  jobNumberDetails: (jobNumber: string) =>
+    `${ccBackendUrl}/travels/${encodeURIComponent(jobNumber)}`,
   // GET base64 attachment / DELETE it.
   attachment: (id: number, attachmentType: string) =>
     `${ccBackendUrl}/transactions/${id}/attachments?attachmentType=${encodeURIComponent(attachmentType)}`,
