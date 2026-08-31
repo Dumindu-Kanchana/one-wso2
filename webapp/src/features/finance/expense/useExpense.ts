@@ -27,6 +27,7 @@ import type {
   ExpenseClaim,
   ExpenseClaimSearchPayload,
   ExpenseClaimsSearchResponse,
+  ExpenseEmployee,
   ExpenseTypeData,
 } from "./expenseTypes";
 
@@ -96,6 +97,27 @@ export function useExpenseTypes(travelJobNumber: string | undefined, enabled = t
     queryFn: async () => {
       const accessToken = await getAccessToken();
       return authedGet<ExpenseTypeData[]>(expenseServiceUrls.expenseTypes(travelJobNumber), accessToken);
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: financeRetry,
+  });
+  return foldIdentityError(query, subState, retryIdentity);
+}
+
+// GET /employees — to resolve the lead's name for the submit confirmation,
+// the way AppHandler.tsx:28 does. The email is the fallback, as it is there.
+export function useExpenseEmployees(enabled = true) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
+  const configured = isExpenseBackendConfigured();
+  const query = useQuery<ExpenseEmployee[]>({
+    queryKey: ["expense-employees", userSub],
+    enabled: enabled && isSignedIn && configured && Boolean(userSub),
+    queryFn: async () => {
+      const accessToken = await getAccessToken();
+      return authedGet<ExpenseEmployee[]>(expenseServiceUrls.employees, accessToken);
     },
     staleTime: 10 * 60 * 1000,
     retry: financeRetry,

@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -42,7 +42,7 @@ import { describeError } from "../../util/financeError";
 import { money, todayIso, formatNice, daysAgoIso } from "../../util/financeFormat";
 import { RECEIPT_ACCEPT, EXPENSE_RECEIPT_MAX_BYTES, maxSizeLabel } from "../../util/financeReceipts";
 import { useDraftAutosave } from "../../util/useDraftAutosave";
-import { useExchangeRates, useExpenseAppData, useExpenseTypes } from "../useExpense";
+import { useExchangeRates, useExpenseAppData, useExpenseEmployees, useExpenseTypes } from "../useExpense";
 import { useExpenseDraftSync, useExpenseReceiptUpload, useSubmitExpenseClaim } from "../useExpenseMutations";
 import type { ExpenseAppData, ExpenseTransactionPayload } from "../expenseTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
@@ -79,8 +79,21 @@ function NewClaimBody() {
 
   const [items, setItems] = useState<DraftLine[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
+  const [confirmingDraftLoss, setConfirmingDraftLoss] = useState(false);
 
   const email = appData.data?.userInfo.workEmail ?? "";
+  const employees = useExpenseEmployees();
+  const leadEmail = appData.data?.userInfo.managerEmail ?? null;
+  // AppHandler.tsx:28 resolves the lead's name from /employees and falls back
+  // to the address; NewClaim.tsx:240-242 omits the parenthetical when neither
+  // is known, rather than printing an empty one.
+  const leadLabel = useMemo(() => {
+    if (!leadEmail) return null;
+    const match = (employees.data ?? []).find((e) => e.workEmail === leadEmail);
+    const name = match && [match.firstName, match.lastName].filter(Boolean).join(" ").trim();
+    return name || leadEmail;
+  }, [employees.data, leadEmail]);
   const reimbursementCurrency = appData.data?.currencyCode ?? "LKR";
   const total = useMemo(() => items.reduce((s, it) => s + it.reimbursementAmount, 0), [items]);
 
@@ -95,20 +108,18 @@ function NewClaimBody() {
     travelJobNumber: line.travelJobNumber ?? null,
   });
 
-  // Seed the working list from a server draft once app-data arrives.
-  const seeded = useRef(false);
-  useEffect(() => {
-    if (seeded.current) return;
-    if (!appData.isSuccess) return;
-    seeded.current = true;
+  // NewClaim.tsx:200-216 puts the saved draft behind an explicit "Restore
+  // Draft" choice beside "Create Claim". Restoring it silently makes a stale
+  // draft look like work in progress, and leaves no way to start fresh without
+  // first deleting lines you never entered this session.
+  const savedDraft = useMemo(() => {
     const drafted = appData.data?.draft?.transactions ?? [];
-    if (drafted.length > 0) {
-      setItems(
-        // We send drafts as the trimmed payload (no derived fields), so don't
-        // assume the echoed draft carries reimbursementAmount / currency /
-        // expenseType — recompute them if absent, or the restored total is
-        // NaN and renders as "Rs. 0.00".
-        drafted.map((t) => {
+    return (
+      // We send drafts as the trimmed payload (no derived fields), so don't
+      // assume the echoed draft carries reimbursementAmount / currency /
+      // expenseType — recompute them if absent, or the restored total is
+      // NaN and renders as "Rs. 0.00".
+      drafted.map((t) => {
           const rate = Number.isFinite(t.currencyConversionRate) ? t.currencyConversionRate : 1;
           const reimbursementAmount = Number.isFinite(t.reimbursementAmount)
             ? t.reimbursementAmount
@@ -125,10 +136,11 @@ function NewClaimBody() {
             reimbursementCurrency: t.reimbursementCurrency ?? reimbursementCurrency,
             expenseType: t.expenseType ?? "",
           };
-        }),
-      );
-    }
-  }, [appData.isSuccess, appData.data]);
+      })
+    );
+  }, [appData.data, reimbursementCurrency]);
+
+  const draftOffered = items.length === 0 && savedDraft.length > 0;
 
   const draftState = useDraftAutosave(JSON.stringify(items), appData.isSuccess, async () => {
     if (items.length > 0) await draft.save.mutateAsync(items.map(toPayload));
@@ -147,8 +159,16 @@ function NewClaimBody() {
     return <Alert severity="error">Couldn't load your expense profile. {describeError(appData.error)}</Alert>;
   }
 
+  // NewClaim.tsx:64-69. No year checks here — unlike OPD an expense claim is
+  // not filed against a single year's balance.
+  const handleRestoreDraft = () => {
+    setItems(savedDraft);
+    showSuccess("Draft restored successfully");
+  };
+
   const handleSubmit = () => {
     if (items.length === 0) return;
+    setConfirmingSubmit(false);
     submit.mutate(
       { transactions: items.map(toPayload) },
       {
@@ -171,15 +191,45 @@ function NewClaimBody() {
           <FieldLabel>Expenses in this claim</FieldLabel>
           <DraftStatusChip state={draftState} />
           <Box sx={{ flex: 1 }} />
-          <Button size="small" variant="outlined" onClick={() => setDialogOpen(true)} sx={{ fontWeight: 600, textTransform: "none" }}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              // :187-193 — starting a new line discards the saved draft.
+              if (draftOffered) {
+                setConfirmingDraftLoss(true);
+                return;
+              }
+              setDialogOpen(true);
+            }}
+            sx={{ fontWeight: 600, textTransform: "none" }}
+          >
             + Add expense
           </Button>
         </Stack>
 
         {items.length === 0 ? (
-          <Typography sx={{ fontSize: 13, color: "text.secondary", py: 2, textAlign: "center" }}>
-            No expenses yet. Add your first line to start the claim.
-          </Typography>
+          <Stack alignItems="center" spacing={1.25} sx={{ py: 2 }}>
+            <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+              No expenses yet. Add your first line to start the claim.
+            </Typography>
+            {draftOffered && (
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>
+                  You have a saved draft.
+                </Typography>
+                <Button
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  onClick={handleRestoreDraft}
+                  sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                  Restore Draft
+                </Button>
+              </Stack>
+            )}
+          </Stack>
         ) : (
           <Stack spacing={1}>
             {items.map((it, i) => (
@@ -222,10 +272,55 @@ function NewClaimBody() {
       {submit.isError && <Alert severity="error">{describeError(submit.error)}</Alert>}
 
       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-        <Button variant="contained" onClick={handleSubmit} disabled={items.length === 0 || submit.isPending} sx={{ fontWeight: 600 }}>
+        <Button variant="contained" onClick={() => setConfirmingSubmit(true)} disabled={items.length === 0 || submit.isPending} sx={{ fontWeight: 600 }}>
           {submit.isPending ? "Submitting…" : `Submit claim (${money(total, reimbursementCurrency)})`}
         </Button>
       </Box>
+
+      {/* NewClaim.tsx:225-248 — a claim leaves for review, so it is confirmed
+          rather than sent on one click, and the message says who gets it. */}
+      <Dialog open={confirmingSubmit} onClose={() => setConfirmingSubmit(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Claim Submission Confirmation</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontSize: 13.5 }}>
+            Are you sure you want to submit this claim? Once submitted, it will be sent to your lead
+            {leadLabel && <b>{` (${leadLabel})`}</b>} for review.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setConfirmingSubmit(false)}>
+            Cancel
+          </Button>
+          <Button size="small" variant="contained" onClick={handleSubmit} disabled={submit.isPending}>
+            {submit.isPending ? "Submitting…" : "Submit"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* :263-270 — the saved draft goes the moment a new line is added. */}
+      <Dialog open={confirmingDraftLoss} onClose={() => setConfirmingDraftLoss(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700 }}>Draft Deletion Warning</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontSize: 13.5 }}>
+            Adding a new claim will delete your draft. Are you sure you want to proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setConfirmingDraftLoss(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => {
+              setConfirmingDraftLoss(false);
+              setDialogOpen(true);
+            }}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {dialogOpen && appData.data && (
         <AddExpenseDialog

@@ -36,8 +36,22 @@ export interface ExpenseTravelData {
   businessUnit: string | null;
 }
 
+/** `/employees` — used to put a name to the lead a claim is routed to. */
+export interface ExpenseEmployee {
+  firstName: string | null;
+  lastName: string | null;
+  workEmail: string;
+  employeeThumbnail: string | null;
+}
+
 export interface ExpenseAppData {
-  userInfo: { workEmail: string; firstName: string | null; lastName: string | null };
+  userInfo: {
+    workEmail: string;
+    firstName: string | null;
+    lastName: string | null;
+    /** The lead a submitted claim goes to — `appDataSlice.ts:106`. */
+    managerEmail?: string | null;
+  };
   enableLeadView: boolean;
   enableFinanceView: boolean;
   currencyCode: string; // reimbursement / subsidiary currency
