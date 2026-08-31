@@ -295,3 +295,62 @@ describe("who can read the comment", () => {
     ).toBeInTheDocument();
   });
 });
+
+// The Notify picker windows its options with react-window
+// (VirtualizedListbox), which renders only the visible rows and positions each
+// one absolutely. react-window passes that position as a `style` prop, cloned
+// onto whatever the option renderer returned.
+//
+// EmployeeOption is a component, not an <li>, so the clone lands on the
+// component's props — and unless it forwards `style` to the element it renders,
+// the positioning is silently dropped. Every row then falls into normal flow
+// inside a container sized for 36px rows, so the list collapses and the
+// overflow paints outside the popup.
+describe("the notify picker's option rows", () => {
+  async function openNotify() {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+    await user.click(screen.getByPlaceholderText("Add people to notify (optional)"));
+    await user.type(screen.getByPlaceholderText("Add people to notify (optional)"), "@wso2.com");
+  }
+
+  it("positions each row where react-window put it", async () => {
+    await openNotify();
+    const options = await screen.findAllByRole("option");
+    expect(options.length).toBeGreaterThan(0);
+    for (const option of options) {
+      expect(option.style.position).toBe("absolute");
+      expect(option.style.top).not.toBe("");
+    }
+  });
+
+  // Measured in a headless browser against the real MUI option styles: the two
+  // lines and the padding come to 51.94px, so a row needs a 52px slot. It was
+  // 36 — one line's worth — and every row overflowed by 16px.
+  it("gives each row a slot as tall as the row really is", async () => {
+    await openNotify();
+    const options = await screen.findAllByRole("option");
+    for (const option of options) {
+      expect(option.style.height).toBe("52px");
+    }
+  });
+
+  // Consecutive rows must not overlap, which is what a slot shorter than the
+  // row produces.
+  it("stacks the rows without overlapping them", async () => {
+    await openNotify();
+    const tops = (await screen.findAllByRole("option")).map((o) => parseFloat(o.style.top));
+    expect(tops.length).toBeGreaterThan(1);
+    for (let i = 1; i < tops.length; i++) {
+      expect(tops[i] - tops[i - 1]).toBe(52);
+    }
+  });
+
+  it("keeps the row's own layout while doing so", async () => {
+    await openNotify();
+    const [first] = await screen.findAllByRole("option");
+    // The photo-and-name row still lays out as a flex row.
+    expect(first.style.display).toBe("flex");
+    expect(first.style.alignItems).toBe("center");
+  });
+});
