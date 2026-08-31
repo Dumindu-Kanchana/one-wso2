@@ -58,7 +58,7 @@ type ClaimYear = "current" | "last";
 export default function OpdNewClaimPage() {
   return (
     <FinanceShell
-      eyebrow={FINANCE_EYEBROW.opd}
+      eyebrow={FINANCE_EYEBROW.claims}
       title="New OPD claim"
       subtitle="Add each outpatient bill as a line — bill date, amount, a short description and its receipt — then submit the whole claim to finance. Your remaining OPD balance is shown as you go."
       configured={isOpdBackendConfigured()}

@@ -130,8 +130,8 @@ describe("what stayed behind", () => {
   });
 
   it("leaves the per-user views open", () => {
-    expect(gate().canSee("opd-new")).toBe(true);
-    expect(gate().canSee("expense-history")).toBe(true);
+    expect(gate().canSee("claims")).toBe(true);
+    expect(gate().canSee("cc-history")).toBe(true);
   });
 
   // The three approval ids are gone from the registry, so their cases were dead

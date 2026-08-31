@@ -40,7 +40,7 @@ export default function RoutedTabs({
   ariaLabel,
 }: {
   basePath: string;
-  tabs: RoutedTabDef[];
+  tabs: readonly RoutedTabDef[];
   ariaLabel: string;
 }) {
   const { pathname } = useLocation();

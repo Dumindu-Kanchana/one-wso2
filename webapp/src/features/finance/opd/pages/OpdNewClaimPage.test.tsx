@@ -27,7 +27,7 @@ vi.mock("react-router", async () => {
   const actual = await vi.importActual<typeof import("react-router")>("react-router");
   return { ...actual, useNavigate: () => navigate, useLocation: () => location };
 });
-const location = { pathname: "/me/opd/new", state: null as unknown, key: "k", search: "", hash: "" };
+const location = { pathname: "/me/claims/opd/new", state: null as unknown, key: "k", search: "", hash: "" };
 import type { ReactNode } from "react";
 import { localIsoDateOffset } from "@utils/localDate";
 
@@ -454,7 +454,7 @@ describe("bills carried over from a resubmit", () => {
     location.state = { resubmitTransactions: carried };
     show();
     await screen.findByText("Carried");
-    expect(navigate).toHaveBeenCalledWith("/me/opd/new", { replace: true, state: null });
+    expect(navigate).toHaveBeenCalledWith("/me/claims/opd/new", { replace: true, state: null });
   });
 
   it("does not navigate when there is nothing carried over", async () => {

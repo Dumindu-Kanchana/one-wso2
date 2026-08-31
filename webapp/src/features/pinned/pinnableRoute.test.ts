@@ -28,13 +28,13 @@ describe("pinnableRoute", () => {
   });
 
   it("qualifies an app item with its app so global pins stay unambiguous", () => {
-    // "History" alone appears under OPD, Credit Card, and Expense Claims.
-    expect(pinnableRoute("/me/opd/history").label).toBe("OPD Claims · Claim History");
-    expect(pinnableRoute("/me/expense/history").label).toBe(
-      "Expense Claims · Claim History",
-    );
-    expect(pinnableRoute("/me/opd/history").label).not.toBe(
-      pinnableRoute("/me/expense/history").label,
+    // A bare item label is not unique across the rail — "History" is a Credit
+    // Card item and "Claims" is an app in its own right — so a pin carries the
+    // app it came from.
+    expect(pinnableRoute("/me/cc/history").label).toBe("Credit Card Expenses · History");
+    expect(pinnableRoute("/me/claims").label).toBe("Claims · Claims");
+    expect(pinnableRoute("/me/cc/history").label).not.toBe(
+      pinnableRoute("/me/claims").label,
     );
   });
 
@@ -51,7 +51,9 @@ describe("pinnableRoute", () => {
   // pin reads as a bare id with nothing to say where it came from.
   it("qualifies a detail route by the route it sits under", () => {
     expect(pinnableRoute("/me/my-team/E123").label).toBe("My Team · E123");
-    expect(pinnableRoute("/me/opd/history/CLM-9").label).toBe("OPD Claims · Claim History · CLM-9");
+    expect(pinnableRoute("/me/cc/history/TXN-9").label).toBe(
+      "Credit Card Expenses · History · TXN-9",
+    );
   });
 
   it("labels a leaf section that is a route", () => {
@@ -82,13 +84,13 @@ describe("pinnableRoute", () => {
   // Without normalizing, the registry lookup missed: the label degraded to a
   // guess and the id/href differed, so the same page pinned twice.
   it("resolves a route with a trailing slash to its canonical entry", () => {
-    expect(pinnableRoute("/me/opd/history/")).toMatchObject({
+    expect(pinnableRoute("/me/cc/history/")).toMatchObject({
       kind: "page",
-      id: "/me/opd/history",
-      label: "OPD Claims · Claim History",
-      href: "/me/opd/history",
+      id: "/me/cc/history",
+      label: "Credit Card Expenses · History",
+      href: "/me/cc/history",
     });
-    expect(pinnableRoute("/me/opd/history/")).toEqual(pinnableRoute("/me/opd/history"));
+    expect(pinnableRoute("/me/cc/history/")).toEqual(pinnableRoute("/me/cc/history"));
   });
 
   it("keeps the root path intact when normalizing", () => {

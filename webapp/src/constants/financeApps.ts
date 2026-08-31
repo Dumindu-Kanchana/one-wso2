@@ -27,21 +27,24 @@
 // Each app's own backend still enforces its real role scheme; these
 // capability gates just decide what shows in the rail.
 
-import { CreditCardIcon, ReceiptTextIcon, StethoscopeIcon } from "@wso2/oxygen-ui-icons-react";
+import { CreditCardIcon, ReceiptTextIcon } from "@wso2/oxygen-ui-icons-react";
 import type { MenuApp } from "@constants/appMenu";
 
 export const FINANCE_APPS: readonly MenuApp[] = [
   {
     // Approving moved to Finance → Claim approval: it is work done for other
-    // people, and this menu is for what you do for yourself. Same for expense
-    // claims below.
-    key: "opd",
-    name: "OPD Claims",
-    icon: StethoscopeIcon,
-    purpose: "Outpatient (OPD) medical expense claims — submit and track reimbursements.",
+    // people, and this menu is for what you do for yourself.
+    //
+    // One app where there were two. Expense and OPD claims are both things you
+    // file for yourself and track, and their histories are the same shape, so
+    // they are one entry with a tab each rather than four entries between them.
+    // The forms differ enough that adding a claim asks which type first.
+    key: "claims",
+    name: "Claims",
+    icon: ReceiptTextIcon,
+    purpose: "Expense and OPD claims — file one and track what you have filed.",
     items: [
-      { id: "opd-new", label: "New Claim", desc: "Submit an OPD medical expense claim.", path: "/me/opd/new" },
-      { id: "opd-history", label: "Claim History", desc: "Your submitted OPD claims and their status.", path: "/me/opd/history" },
+      { id: "claims", label: "Claims", desc: "Expense and OPD claims you have filed.", path: "/me/claims" },
     ],
   },
   {
@@ -56,16 +59,6 @@ export const FINANCE_APPS: readonly MenuApp[] = [
       { id: "cc-approve", label: "Approve Submissions", desc: "Review and approve your team's submitted card transactions.", requires: ["lead", "admin"], path: "/me/cc/approve" },
       { id: "cc-history", label: "History", desc: "Your submitted past card transactions.", path: "/me/cc/history" },
       { id: "cc-settings", label: "Statement ingestion", desc: "Upload and reconcile bank statements (finance).", requires: ["admin"], path: "/me/cc/settings" },
-    ],
-  },
-  {
-    key: "expense",
-    name: "Expense Claims",
-    icon: ReceiptTextIcon,
-    purpose: "Submit and track out-of-pocket expense claims and reimbursements.",
-    items: [
-      { id: "expense-new", label: "New Claim", desc: "Submit an expense claim / reimbursement.", path: "/me/expense/new" },
-      { id: "expense-history", label: "Claim History", desc: "Your submitted expense claims and their status.", path: "/me/expense/history" },
     ],
   },
 ];
@@ -91,7 +84,8 @@ function eyebrowFor(key: string): { icon: MenuApp["icon"]; label: string } {
 }
 
 export const FINANCE_EYEBROW = {
-  opd: eyebrowFor("opd"),
+  // Both claim forms wear the Claims eyebrow: they are two ways into one app
+  // now, and their own titles say which type is being filed.
+  claims: eyebrowFor("claims"),
   cc: eyebrowFor("cc"),
-  expense: eyebrowFor("expense"),
 } as const;

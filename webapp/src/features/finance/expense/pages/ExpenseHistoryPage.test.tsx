@@ -98,6 +98,13 @@ vi.mock("../useExpenseMutations", () => ({
   useExpenseReceiptUpload: () => ({ mutateAsync: uploadReceipt, isPending: false }),
 }));
 
+// The tab reports its own backend's connectivity now, rather than leaving it to
+// a shared frame — Claims spans two backends and either may be missing.
+vi.mock("@config/apiConfig", async () => {
+  const actual = await vi.importActual<typeof import("@config/apiConfig")>("@config/apiConfig");
+  return { ...actual, isExpenseBackendConfigured: () => true };
+});
+
 vi.mock("../../components/FinanceShell", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));

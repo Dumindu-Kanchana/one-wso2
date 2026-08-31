@@ -47,7 +47,7 @@ import { FINANCE_EYEBROW } from "@constants/financeApps";
 export default function ExpenseNewClaimPage() {
   return (
     <FinanceShell
-      eyebrow={FINANCE_EYEBROW.expense}
+      eyebrow={FINANCE_EYEBROW.claims}
       title="New expense claim"
       subtitle="Add each out-of-pocket expense as a line — date, amount and currency, expense type and its receipt — then submit the claim to your lead. Amounts are converted to your reimbursement currency automatically."
       configured={isExpenseBackendConfigured()}

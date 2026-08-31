@@ -5,7 +5,7 @@ Ported from `digiops-finance/apps/opd-claims/webapp` (7,021 lines) into
 had no specification and no tests, and its DTOs were mirrored from the *backend*
 rather than from the running app, which is where the gaps below came from.
 
-Routes: `/me/opd/new`, `/me/opd/history`. Approving moved to
+Routes: `/me/claims/opd` (a tab of Claims) and `/me/claims/opd/new`. Approving moved to
 `/finance/claim-approval/opd` — see `claim-approval.md`. Backend is
 `ONE_WSO2_OPD_BACKEND_URL`.
 
@@ -27,7 +27,7 @@ and claim-history, `View.FINANCE` gets finance-approvals.
 
 ## 2. Screens
 
-### 2.1 New claim — `/me/opd/new`
+### 2.1 New claim — `/me/claims/opd/new`
 
 Bills are added one at a time and submitted together.
 
@@ -50,7 +50,7 @@ Bills are added one at a time and submitted together.
 
 Limits: description 100 characters; receipt 10 MB; JPG, PNG or PDF.
 
-### 2.2 Claim history — `/me/opd/history`
+### 2.2 Claim history — `/me/claims/opd`
 
 The employee's own claims, filtered by **period** (This Year / Last Year / Custom, the
 last spanning a start and end year), **status** and **claim ID**. Opening one shows its bills, receipts and,

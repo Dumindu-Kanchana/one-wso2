@@ -75,8 +75,9 @@ const SabbaticalReportTab = lazy(
 );
 
 import SabbaticalApplyTab from "@features/leave/pages/LeaveSabbaticalPage";
+import ClaimsPage, { ClaimsIndex } from "@features/finance/claims/ClaimsPage";
 import OpdNewClaimPage from "@features/finance/opd/pages/OpdNewClaimPage";
-import OpdHistoryPage from "@features/finance/opd/pages/OpdHistoryPage";
+import OpdClaimsTab from "@features/finance/opd/pages/OpdHistoryPage";
 import OpdApprovalsTab from "@features/finance/opd/pages/OpdApprovalsPage";
 import CcDashboardPage from "@features/finance/cc/pages/CcDashboardPage";
 import CcNewTransactionsPage from "@features/finance/cc/pages/CcNewTransactionsPage";
@@ -85,7 +86,7 @@ import CcApprovePage from "@features/finance/cc/pages/CcApprovePage";
 import CcHistoryPage from "@features/finance/cc/pages/CcHistoryPage";
 import CcSettingsPage from "@features/finance/cc/pages/CcSettingsPage";
 import ExpenseNewClaimPage from "@features/finance/expense/pages/ExpenseNewClaimPage";
-import ExpenseHistoryPage from "@features/finance/expense/pages/ExpenseHistoryPage";
+import ExpenseClaimsTab from "@features/finance/expense/pages/ExpenseHistoryPage";
 import ClaimApprovalPage, {
   ClaimApprovalIndex,
   ClaimApprovalTabRoute,
@@ -200,16 +201,24 @@ export default function App() {
               lead/finance-approver subset of items approves others'). The
               Finance perspective itself is now just a skeleton tile (see
               FinancePage) — these apps don't live there anymore. */}
-          <Route path="me/opd/new" element={<OpdNewClaimPage />} />
-          <Route path="me/opd/history" element={<OpdHistoryPage />} />
+          {/* Me → Claims: the two things you file for yourself, one entry with
+              a tab each. The forms keep routes of their own — both are long,
+              both hold a draft, and both are worth linking to directly — and
+              are reached through the Add claim menu, because no single form
+              could take both types. See features/finance/claims. */}
+          <Route path="me/claims" element={<ClaimsPage />}>
+            <Route index element={<ClaimsIndex />} />
+            <Route path="expense" element={<ExpenseClaimsTab />} />
+            <Route path="opd" element={<OpdClaimsTab />} />
+          </Route>
+          <Route path="me/claims/expense/new" element={<ExpenseNewClaimPage />} />
+          <Route path="me/claims/opd/new" element={<OpdNewClaimPage />} />
           <Route path="me/cc/dashboard" element={<CcDashboardPage />} />
           <Route path="me/cc/new" element={<CcNewTransactionsPage />} />
           <Route path="me/cc/pending" element={<CcPendingPage />} />
           <Route path="me/cc/approve" element={<CcApprovePage />} />
           <Route path="me/cc/history" element={<CcHistoryPage />} />
           <Route path="me/cc/settings" element={<CcSettingsPage />} />
-          <Route path="me/expense/new" element={<ExpenseNewClaimPage />} />
-          <Route path="me/expense/history" element={<ExpenseHistoryPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
           {/* People Ops reports. Admin-only, but enforced by the backend and
               explained by PeopleOpsShell — there is no route-level guard, so
