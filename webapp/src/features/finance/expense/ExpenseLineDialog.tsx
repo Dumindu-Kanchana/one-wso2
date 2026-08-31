@@ -33,7 +33,7 @@ import {
 import { CheckIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { describeError } from "../util/financeError";
-import { money, todayIso, daysAgoIso } from "../util/financeFormat";
+import { money, todayIso, daysAgoIso, toIso } from "../util/financeFormat";
 import { RECEIPT_ACCEPT, EXPENSE_RECEIPT_MAX_BYTES, maxSizeLabel } from "../util/financeReceipts";
 import { useExchangeRates, useExpenseTypes } from "./useExpense";
 import type { ExpenseAppData, ExpenseTransactionPayload } from "./expenseTypes";
@@ -91,7 +91,11 @@ export function AddExpenseDialog({
     const from = restrictionFrom ? new Date(restrictionFrom) : new Date();
     if (Number.isNaN(from.getTime())) return daysAgoIso(restrictionDays - 1);
     from.setDate(from.getDate() - (restrictionDays - 1));
-    return from.toISOString().slice(0, 10);
+    // `setDate` moved a LOCAL field, so the date has to be read back from local
+    // fields too. `toISOString()` is UTC and names the day before between
+    // midnight UTC and local midnight, which loosened the bound by a day — and
+    // disagreed with the `daysAgoIso` fallback two lines up.
+    return toIso(from);
   }, [restrictionDays, restrictionFrom]);
 
   // Seeded from the line being edited, so the dialog opens on its values.

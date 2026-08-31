@@ -20,6 +20,20 @@
 // Everything else a suite needs is mocked per-file — notably `window.config`,
 // which `@config/apiConfig` and `@config/authConfig` read at module load and
 // which does not exist under jsdom.
+// Run the suite in a timezone that is hostile to the commonest date bug in
+// this codebase: reading a calendar date out of `toISOString()` (UTC) while the
+// code under test builds it from local fields, or the reverse. The two agree
+// for most of the day and disagree near midnight, so on a UTC runner such a bug
+// passes CI and fails only for whoever is in the wrong place at the wrong hour.
+//
+// America/Los_Angeles is a negative offset that also observes DST, so both the
+// offset and the transition are exercised. Individual suites that care about a
+// specific instant freeze the clock as well — the offset alone is not enough,
+// because the mismatch only exists between 00:00 UTC and local midnight.
+//
+// Override with `TZ=... npm test` to reproduce something zone-specific.
+if (!process.env.TZ) process.env.TZ = "America/Los_Angeles";
+
 import "@testing-library/jest-dom/vitest";
 
 // Guarantee a working `localStorage`, whatever Node the suite runs on.

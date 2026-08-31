@@ -67,6 +67,7 @@ import { employeeDetailPath } from "./reportRoutes";
 import { pageView } from "./reportPaging";
 import { baselineFiltersFor } from "./reportBaseline";
 import ErrorNotice from "@components/error-notice/ErrorNotice";
+import { localIsoDate } from "@utils/localDate";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
@@ -251,8 +252,9 @@ export default function EmployeeReportTable({
       { filters: appliedFilters, columns: selectedColumns },
       {
         onSuccess: (csv) => {
-          const today = new Date().toISOString().slice(0, 10);
-          saveCsv(csv, `${downloadFilenamePrefix}_${today}.csv`);
+          // The filename dates the export for whoever downloads it, so it has
+          // to be their calendar day, not the UTC one.
+          saveCsv(csv, `${downloadFilenamePrefix}_${localIsoDate()}.csv`);
         },
         onError: (err) => setDownloadError(describeError(err)),
       },

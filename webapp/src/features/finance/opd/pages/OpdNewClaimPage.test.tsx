@@ -29,6 +29,7 @@ vi.mock("react-router", async () => {
 });
 const location = { pathname: "/me/opd/new", state: null as unknown, key: "k", search: "", hash: "" };
 import type { ReactNode } from "react";
+import { localIsoDateOffset } from "@utils/localDate";
 
 // First tests for any of the three finance ports. The audit against
 // digiops-finance/apps/opd-claims found five behaviours that were dropped in
@@ -36,7 +37,11 @@ import type { ReactNode } from "react";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const LAST_YEAR = CURRENT_YEAR - 1;
-const TODAY = new Date().toISOString().slice(0, 10);
+// The field's `max` comes from `todayIso()` (financeFormat.ts:55), which reads
+// local date fields. `toISOString()` is UTC and names a different day between
+// midnight UTC and local midnight, so the expectation is built the same way the
+// code under test builds it.
+const TODAY = localIsoDateOffset(0);
 
 const state = {
   lastYearClaimSummary: null as { totalClaimedAmount: number; totalRemaining: number; totalClaimLimit: number } | null,

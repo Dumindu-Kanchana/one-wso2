@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import userEvent from "@testing-library/user-event";
+import { localIsoMonth } from "@utils/localDate";
 
 vi.mock("@hooks/useAccessToken", () => ({ useAccessToken: () => async () => "token" }));
 vi.mock("@asgardeo/react", () => ({ useAsgardeo: () => ({ isSignedIn: true }) }));
@@ -30,14 +31,6 @@ const asked = {
   summary: [] as { dateFrom: string | undefined; ownedCardsOnly: boolean }[],
   compliance: [] as { ownedCardsOnly: boolean; enabled: boolean }[],
 };
-
-// buildBreakdown buckets by local calendar month, so the mocked rows have to be
-// stamped the same way. `toISOString()` is UTC and would put both rows outside
-// the six-month window after midnight UTC on the 1st in a negative-offset zone.
-function localMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 vi.mock("../useCc", () => ({
   useCcUserInfo: () => ({
@@ -61,8 +54,8 @@ vi.mock("../useCc", () => ({
   },
   useCcSubmittedByCategory: () => ({
     data: [
-      { category: "Travel", txnMonth: localMonth(), amount: 300 },
-      { category: "Software", txnMonth: localMonth(), amount: 900 },
+      { category: "Travel", txnMonth: localIsoMonth(), amount: 300 },
+      { category: "Software", txnMonth: localIsoMonth(), amount: 900 },
     ],
     isLoading: false,
     isError: false,

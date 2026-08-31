@@ -16,10 +16,11 @@
  * under the License.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { localIsoDateOffset } from "@utils/localDate";
 
 vi.mock("@hooks/useAccessToken", () => ({ useAccessToken: () => async () => "token" }));
 vi.mock("@asgardeo/react", () => ({ useAsgardeo: () => ({ isSignedIn: true }) }));
@@ -251,12 +252,32 @@ describe("correcting a line", () => {
 // days ago is never after it. The oldest date accepted is N-1 days ago:
 // "within the last N days" counting today as the first. The port's inclusive
 // min allowed one day more, and did not check the typed value at all.
+// The clock is frozen just after midnight UTC, which is the previous evening
+// in the suite's timezone. That is exactly the window where a calendar date
+// read from `toISOString()` and one read from local fields name different days,
+// and it is the only window in which this class of bug shows itself.
+describe("the date bound near midnight UTC", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-31T02:00:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("bounds the picker by the local calendar day, not the UTC one", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
+    const field = await screen.findByLabelText("Bill date");
+    // 30-day restriction, so the oldest accepted date is 29 days back from the
+    // local day (30 Aug here), not from the UTC one (31 Aug).
+    expect(field).toHaveAttribute("min", localIsoDateOffset(-29));
+    expect(field).toHaveAttribute("max", localIsoDateOffset(0));
+  });
+});
+
 describe("how far back a bill date may go", () => {
-  const daysAgo = (n: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() - n);
-    return d.toISOString().slice(0, 10);
-  };
+  const daysAgo = (n: number) => localIsoDateOffset(-n);
 
   it("bounds the picker at N-1 days, not N", async () => {
     show();
@@ -292,11 +313,7 @@ describe("how far back a bill date may go", () => {
 // native input carries `max`, but the attribute takes no part in `valid` — and
 // the field is typeable, so a future date reached the claim.
 describe("a bill cannot be dated in the future", () => {
-  const inDays = (n: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
-  };
+  const inDays = (n: number) => localIsoDateOffset(n);
 
   it("refuses a typed future date", async () => {
     show();

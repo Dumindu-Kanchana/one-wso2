@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { localIsoDateOffset } from "@utils/localDate";
 
 vi.mock("@hooks/useAccessToken", () => ({ useAccessToken: () => async () => "token" }));
 vi.mock("@asgardeo/react", () => ({ useAsgardeo: () => ({ isSignedIn: true }) }));
@@ -307,9 +308,18 @@ describe("the date limit while resubmitting", () => {
     show();
     await open();
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-    // createdDate is 2026-08-11 and pastDateRestrictionDays is 30, so the
-    // oldest date allowed is 29 days before that.
-    expect(await screen.findByLabelText("Bill date")).toHaveAttribute("min", "2026-07-13");
+    // createdDate is 2026-08-11T00:00:00Z and pastDateRestrictionDays is 30, so
+    // the oldest date allowed is 29 days before it.
+    //
+    // Which calendar day that is depends on the viewer's timezone, and that is
+    // the source's behaviour, not an accident of this port: ExpenseForm.tsx:138
+    // compares with dayjs, which parses the timestamp into LOCAL time and
+    // subtracts local days. From UTC midnight the bound lands at 17:00 the
+    // previous day in Los Angeles and 05:30 the same day in Colombo, so the
+    // oldest accepted bill date is 12 July there and 13 July here. Computed the
+    // same way rather than hardcoded, so this holds wherever it runs.
+    const expected = localIsoDateOffset(-29, new Date("2026-08-11T00:00:00Z"));
+    expect(await screen.findByLabelText("Bill date")).toHaveAttribute("min", expected);
   });
 
   it("still accepts the line the claim was filed with", async () => {
