@@ -26,6 +26,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Skeleton,
   Stack,
   Switch,
@@ -38,11 +39,12 @@ import { useNotifications } from "@context/notifications/NotificationsContext";
 import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
 import { EmployeeOption } from "../components/EmployeeOption";
 import { employeeDisplayName } from "../util/employeeName";
+import EmployeeAvatar from "@features/my/my-team/components/EmployeeAvatar";
 import LeaveShell from "../components/LeaveShell";
 import LeaveBalanceSummary from "../components/LeaveBalanceSummary";
+import LeaveDateField from "../components/LeaveDateField";
 import {
   LEAVE_TYPE_ICON,
-  LEAVE_TYPE_LABEL,
   LEAVE_TYPE_POLICY_KEY,
   LEAVE_TYPE_TOOLTIP,
   defaultLeaveTypeForLocation,
@@ -66,6 +68,10 @@ import {
   SUBMIT_CONFIRMATION,
   VALIDATION_MESSAGE,
   leaveTypeLabel,
+  GENERIC_LABEL,
+  PUBLIC_COMMENT_LABEL,
+  PUBLIC_COMMENT_NOTE,
+  SUBMIT_SUCCESS,
 } from "../util/leaveCopy";
 
 type Portion = "full" | "first" | "second";
@@ -120,6 +126,16 @@ function ApplyForm() {
   const hasQuotaTracking = quotaTrackedTypes.length > 0;
   const entitlementQuery = useLeaveEntitlement(userInfo.data?.workEmail ?? undefined, hasQuotaTracking);
   const entitlement = entitlementQuery.data?.[0];
+  // France asks a second time for the calendar year and reads the RTT row from
+  // that response — LeaveBalanceSummary.tsx:94-100,145. The congés-payés leave
+  // year is not the calendar year, so the default record's RTT figures belong
+  // to a different window.
+  const rttQuery = useLeaveEntitlement(
+    userInfo.data?.workEmail ?? undefined,
+    location === "France",
+    [new Date().getFullYear()],
+  );
+  const rttEntitlement = rttQuery.data?.[0];
 
   const days = calendarDaysInclusive(startDate, endDate);
   const rangeValid = days > 0;
@@ -161,7 +177,9 @@ function ApplyForm() {
     const seq = ++seqRef.current;
     setValidating(true);
     const timer = window.setTimeout(() => {
-      validateAsync({ startDate, endDate, periodType, isMorningLeave, leaveType })
+      // No leaveType: the source's LeaveValidationRequest (types.ts:128-133)
+      // carries only these four fields — this call counts working days.
+      validateAsync({ startDate, endDate, periodType, isMorningLeave })
         .then((res) => {
           if (seq !== seqRef.current) return; // superseded by a newer request
           setWorkingDays(res.workingDays);
@@ -280,7 +298,9 @@ function ApplyForm() {
       const projected = consumed + (workingDays ?? 0);
       if (entitled > 0 && projected > entitled) {
         showWarning(
-          `This request will exceed your ${LEAVE_TYPE_LABEL[leaveType]} entitlement (${projected}/${entitled} days)`,
+          // GeneralLeave.tsx:75-81 uses its own map here, not the location
+          // labels — and it points `annual` at the Casual label.
+          `This request will exceed your ${GENERIC_LABEL[leaveType]} entitlement (${projected}/${entitled} days)`,
         );
       }
     }
@@ -292,12 +312,12 @@ function ApplyForm() {
       isMorningLeave,
       leaveType,
       emailRecipients,
-      comment: comment.trim() || null,
+      comment,
       isPublicComment: isPublic,
     };
     submit.mutate(payload, {
       onSuccess: () => {
-        showSuccess("Leave request submitted");
+        showSuccess(SUBMIT_SUCCESS);
         // Reset to a clean single-day request.
         setComment("");
         setRecipients([]);
@@ -346,8 +366,8 @@ function ApplyForm() {
       <Card variant="outlined" sx={{ p: 2 }}>
         <FieldLabel>Dates</FieldLabel>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr auto auto" }, gap: 1.5, alignItems: "end" }}>
-          <DateField label="Start" value={startDate} min={yearStart} onChange={setStartDate} />
-          <DateField label="End" value={endDate} min={startDate} onChange={setEndDate} />
+          <LeaveDateField label="Start" value={startDate} min={yearStart} onChange={setStartDate} />
+          <LeaveDateField label="End" value={endDate} min={startDate} onChange={setEndDate} />
           {/* A half-day is 0.5 days selected, not 1 — LeaveDateSelection.tsx:207-210
               substitutes the working-day figure whenever a half is chosen. */}
           <Stat
@@ -387,7 +407,7 @@ function ApplyForm() {
                 startIcon={<TypeIcon size={14} />}
                 sx={{ fontSize: 12, fontWeight: 600, borderRadius: 1.25, textTransform: "none" }}
               >
-                {LEAVE_TYPE_LABEL[t]}
+                {leaveTypeLabel(location, t)}
               </Button>
             );
             const tooltip = LEAVE_TYPE_TOOLTIP[t];
@@ -412,6 +432,8 @@ function ApplyForm() {
             <LeaveBalanceSummary
               types={quotaTrackedTypes}
               entitlement={entitlement}
+              rttEntitlement={rttEntitlement}
+              location={location}
               isLoading={entitlementQuery.isLoading}
             />
           </Box>
@@ -485,15 +507,25 @@ function ApplyForm() {
               );
             });
           }}
+          // The chip carries the person's name and photo, not their address —
+          // NotifyPeople.tsx:211-226. A cached recipient we have no employee
+          // record for keeps its address, which is all the source has for one
+          // too (it seeds displayName from the email).
           renderTags={(value, getTagProps) =>
             value.map((option, index) => {
               const isFixed = mandatory.includes(option);
               const { onDelete, ...tagProps } = getTagProps({ index });
+              const employee = byEmail.get(option);
               return (
                 <Chip
                   {...tagProps}
                   key={option}
-                  label={option}
+                  label={employee ? employeeDisplayName(employee) : option}
+                  avatar={
+                    employee ? (
+                      <EmployeeAvatar employee={employee} size={24} />
+                    ) : undefined
+                  }
                   size="small"
                   onDelete={isFixed ? undefined : onDelete}
                 />
@@ -519,18 +551,35 @@ function ApplyForm() {
             onChange={(e) => setComment(e.target.value)}
             placeholder="Add a comment (optional)…"
           />
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
-            <Switch size="small" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
-            <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>
-              Public comment (visible to everyone notified)
-            </Typography>
-          </Stack>
+          {/* FormControlLabel, not a loose Switch beside a Typography — the
+              source pairs them (AdditionalComment.tsx:52-65) and that is what
+              gives the control an accessible name. */}
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={
+              <Switch
+                size="small"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+              />
+            }
+            label={
+              <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>
+                {PUBLIC_COMMENT_LABEL}
+              </Typography>
+            }
+          />
         </Box>
       </Card>
 
       {submit.isError && <Alert severity="error">{describeError(submit.error)}</Alert>}
 
-      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 2 }}>
+        {/* Who can read the comment — GeneralLeave.tsx:345-349 puts this next
+            to Submit, where it is read just before sending. */}
+        <Typography sx={{ fontSize: 11, color: "text.disabled", textAlign: "right" }}>
+          {isPublic ? PUBLIC_COMMENT_NOTE.public : PUBLIC_COMMENT_NOTE.private}
+        </Typography>
         <Button
           variant="contained"
           onClick={handleSubmit}
@@ -539,7 +588,7 @@ function ApplyForm() {
             disabled={!canSubmit && !explainableBlock}
           sx={{ fontWeight: 600 }}
         >
-          {submit.isPending ? "Submitting…" : "Submit leave"}
+          {submit.isPending ? "Submitting…" : validating ? "Validating…" : "Submit Leave"}
         </Button>
       </Box>
     
@@ -573,35 +622,6 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
     >
       {children}
     </Typography>
-  );
-}
-
-function DateField({
-  label,
-  value,
-  min,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  min?: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <Box>
-      <Typography sx={{ fontSize: 11, color: "text.secondary", mb: 0.375 }}>{label}</Typography>
-      <TextField
-        type="date"
-        size="small"
-        fullWidth
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        // On the input, not the wrapper. The visible text above is a plain
-        // Typography, so without this the field has no accessible name at all —
-        // the source's DatePicker carries one via its `label` prop.
-        inputProps={{ min, "aria-label": label }}
-      />
-    </Box>
   );
 }
 

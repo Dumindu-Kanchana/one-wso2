@@ -119,3 +119,35 @@ describe("before /user-info has answered", () => {
     expect(gate.isPeopleOps).toBe(false);
   });
 });
+
+// route.ts:110 — `/history` allows [EMPLOYEE, INTERN, LEAD] and deliberately
+// omits PEOPLE_OPS_TEAM. My History is the signed-in user's own leave, so an
+// account that only holds the People Ops privilege has nothing to show there.
+// Apply (route.ts:58) does list them, so only history is narrowed.
+describe("who can see My History", () => {
+  it("an employee can", () => {
+    expect(gateFor({ privileges: [P.EMPLOYEE] }).canSee("leave-history")).toBe(true);
+  });
+
+  it("an intern can", () => {
+    expect(gateFor({ privileges: [P.INTERN] }).canSee("leave-history")).toBe(true);
+  });
+
+  it("a lead can", () => {
+    expect(gateFor({ privileges: [P.LEAD] }).canSee("leave-history")).toBe(true);
+  });
+
+  it("a People-Ops-only account cannot", () => {
+    expect(gateFor({ privileges: [P.PEOPLE_OPS_TEAM] }).canSee("leave-history")).toBe(false);
+  });
+
+  it("but People Ops who are also an employee can", () => {
+    expect(
+      gateFor({ privileges: [P.EMPLOYEE, P.PEOPLE_OPS_TEAM] }).canSee("leave-history"),
+    ).toBe(true);
+  });
+
+  it("Apply stays open to a People-Ops-only account", () => {
+    expect(gateFor({ privileges: [P.PEOPLE_OPS_TEAM] }).canSee("leave-apply")).toBe(true);
+  });
+});

@@ -79,10 +79,16 @@ export function useLeaveGate(enabled = true): LeaveGate {
       // resolved against have no word for "intern".
       case "leave-sabbatical":
         return (isEmployee || isLead) && !isIntern;
+      // route.ts:110 — `allowRoles: [EMPLOYEE, INTERN, LEAD]`. PEOPLE_OPS_TEAM
+      // is deliberately absent: My History is the signed-in user's own leave,
+      // and a People-Ops-only account has none. Apply (route.ts:58) *does*
+      // list them, so only history is narrowed.
+      case "leave-history":
+        return isEmployee || isIntern || isLead;
       default:
-        // Apply and My History are per-user and stay open. Anything else that
-        // declares a restriction and is not named above fails closed, so the
-        // menu cannot drift ahead of this mapping.
+        // Apply is per-user and stays open. Anything else that declares a
+        // restriction and is not named above fails closed, so the menu cannot
+        // drift ahead of this mapping.
         return !RESTRICTED_IDS.has(itemId);
     }
   };

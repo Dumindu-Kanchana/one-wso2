@@ -27,6 +27,43 @@ import type { LeaveType } from "../api/leaveTypes";
 // Nothing here is invented. A string that the source does not have is a
 // question, not something to write.
 
+/**
+ * The caption beside Submit, telling the user who will read their comment —
+ * `GeneralLeave.tsx:345-349`. The port had dropped it, so nothing on screen
+ * explained what the Public comment switch actually changes.
+ */
+export const PUBLIC_COMMENT_NOTE = {
+  public: "Your comment will be visible to all email recipients.",
+  private: "Your comment will be visible to all email recipients except the WSO2 Vacation Group.",
+} as const;
+
+/** The Public comment switch — `AdditionalComment.tsx:62`. */
+export const PUBLIC_COMMENT_LABEL = "Public comment";
+
+/** `LeaveCard.tsx:50-57`. */
+export const CANCEL_CONFIRMATION = {
+  title: "Do you want to cancel this leave?",
+  body: (args: { leaveLabel: string; startDate: string; endDate: string }) =>
+    `This will cancel your ${args.leaveLabel} (${args.startDate} \u2013 ${args.endDate}). ` +
+    `This action cannot be undone.`,
+  confirm: "Yes, Cancel",
+  dismiss: "No, Keep It",
+} as const;
+
+/** `LeaveHistory.tsx:151`. */
+export const noLeaveHistoryFor = (year: number) => `No leave history available for ${year}.`;
+
+/**
+ * The Apply form's own submit messages — `GeneralLeave.tsx:147,158`.
+ *
+ * Deliberately not `SnackMessage.submitLeaveMessage`: GeneralLeave hardcodes
+ * its own strings and the success one ends in an exclamation mark the shared
+ * constant does not have. The sabbatical path goes through the slice and so
+ * gets the SnackMessage wording instead.
+ */
+export const SUBMIT_SUCCESS = "Leave request submitted successfully!";
+export const SUBMIT_FAILED_FALLBACK = "Failed to submit leave request. Please try again.";
+
 /** `config/constant.ts:17-43`. */
 export const SnackMessage = {
   success: {
@@ -194,3 +231,122 @@ export const GENERIC_LABEL: Record<LeaveType, string> = {
   conges_payes: LEAVE_LABEL.CONGES_PAYES,
   rtt: LEAVE_LABEL.RTT,
 };
+
+// ---------------------------------------------------------------------------
+// Sabbatical
+// ---------------------------------------------------------------------------
+//
+// Transcribed from view/SabbaticalLeave/ and view/LeadReport/. None of it is
+// centralised in the source — every string below is an inline literal there,
+// cited to the line it came from.
+//
+// The doubled spaces in some titles are the source's, not typos. Its `Title`
+// component renders `<span>{firstWord}</span> {secondWord}` with a literal space
+// between, and several callers pass a leading or trailing space of their own
+// (SabbaticalLeave.tsx:39, ApproveLeaveTab.tsx:64, ApproveHistoryTab.tsx:59).
+
+export const SABBATICAL = {
+  /** SabbaticalLeave.tsx:38-41 — the whole apply screen when the flag is off. */
+  featureOff: "Sabbatical  Leave Feature is currently not available. Please check again later.",
+
+  apply: {
+    title: "Sabbatical Leave Application", // ApplyTab.tsx:316
+    userGuide: "User Guide", // :324
+
+    /** :330-333. Shown INSTEAD of the form — this is the hard block. */
+    noLeadTitle: "Reporting lead not set",
+    noLeadBody:
+      "Sabbatical leave requires a reporting lead for the approval process. Your lead is " +
+      "currently not set in the people management system. Please contact the People " +
+      "Operations team to update your profile before applying.",
+
+    employmentStartDate: "Employment Start date", // :343 — always read-only
+    lastSabbaticalEndDate: "Last sabbatical leave end date", // :350
+    startDate: "Leave request start date*", // :371
+    endDate: "Leave request end date*", // :392
+    commentLabel: "Additional Comments:", // :417
+    commentPlaceholder: "Add a comment...", // :420 — three dots, not an ellipsis
+    submit: "Apply", // :518
+
+    /** The three acknowledgements. All required; the second carries a link. */
+    ackManagerApproval:
+      "I confirm that I have discussed my sabbatical leave plans with my lead and have " +
+      "obtained their approval.", // :441
+    ackPolicyBefore: "I have read and understood the terms of the ", // :467
+    ackPolicyLink: "Sabbatical Leave Policy", // :474
+    ackPolicyAfter: ".", // :476
+    /** :502. "6 months" is hardcoded copy in the source, not config-driven. */
+    ackResignation:
+      "I acknowledge that I cannot voluntarily resign from my employment for 6 months after " +
+      "completing sabbatical leave. If I do, I will be required to reimburse an amount " +
+      "equivalent to the salary paid to me during the sabbatical period.",
+
+    /** Inline, on the field itself. */
+    startDateRequired: "Start date is required", // :387
+    endDateRequired: "End date is required", // :409
+    durationExceededField: (weeks: number) => `Leave duration must not exceed ${weeks} weeks`, // :408
+
+    /** Raised as errors, in this order (:212-261). */
+    datesRequired: "Please select both start and end dates", // :220
+    endBeforeStart: "End date must be after start date", // :225
+    durationExceeded: (weeks: number) =>
+      `Sabbatical leave duration should be less than or equal to ${weeks} weeks`, // :234
+    acknowledgeAll: "Please acknowledge all the required checkboxes", // :259
+
+    /**
+     * :171-174. The anchor is the last approved sabbatical's end date, or the
+     * employment start date when there is none — and the sentence names which.
+     */
+    notEligible: (years: number, anchor: "last sabbatical leave end date" | "employment start date") =>
+      `The leave start date must be at least ${years} years after the ${anchor}.`,
+    anchorLastSabbatical: "last sabbatical leave end date",
+    anchorEmploymentStart: "employment start date",
+
+    /** :263-272. Note " to " here, where the approve dialog uses an en dash. */
+    confirmTitle: "Do you want to submit this sabbatical leave?",
+    confirmBody: (dateRange: string, leadEmail: string | null) =>
+      `This will submit your sabbatical leave request for ${dateRange} and send it` +
+      `${leadEmail ? ` to ${leadEmail}` : ""} for approval.`,
+    confirmOk: "Yes",
+    confirmCancel: "No",
+  },
+
+  approve: {
+    title: "Sabbatical  Leave Approval", // ApproveLeaveTab.tsx:64
+    historyTitle: "Sabbatical  Leave History", // ApproveHistoryTab.tsx:59
+    approve: "Approve", // ApproveLeaveTable.tsx:151
+    reject: "Reject", // :163
+
+    confirmApproveTitle: "Do you want to approve this leave?", // :70
+    confirmRejectTitle: "Do you want to reject this leave?", // :70
+    /** :72. `teamShare` is appended only to the approve message, never reject. */
+    confirmApproveBody: (email: string, dateRange: string, teamShare: string) =>
+      `This will approve the sabbatical leave for ${email} (${dateRange}).${teamShare}`,
+    confirmRejectBody: (email: string, dateRange: string) =>
+      `This will reject the sabbatical leave request for ${email} (${dateRange}).`,
+    /** :63 — leading space is deliberate; it follows a full stop. */
+    teamShare: (percent: number) =>
+      ` ${percent}% of your team will be on sabbatical during this period.`,
+    confirmApproveOk: "Yes, Approve", // :86
+    confirmRejectOk: "Yes, Reject", // :86
+    confirmCancel: "Cancel", // :87
+  },
+
+  /** ApproveLeaveTable.tsx:94-124 and ApprovalHistoryTable.tsx:28-66. */
+  columns: {
+    employee: "Employee",
+    startDate: "Start Date",
+    endDate: "End Date",
+    dayCount: "Day Count",
+    approval: "Approval",
+    lead: "Lead",
+    status: "Status",
+    /** ApprovalHistoryTable.tsx:62 — for a row with no approver yet. */
+    noLead: "N/A",
+    /** :74 — a status the switch does not recognise. */
+    unknownStatus: "Unknown",
+  },
+
+  history: { title: "Sabbatical Leave History" }, // SabbaticalLeaveHistory.tsx:25
+  report: { title: "Sabbatical Leave Report" }, // AdminSabbaticalTab.tsx:83
+} as const;

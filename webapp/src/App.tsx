@@ -63,7 +63,7 @@ import LeaveHistoryPage from "@features/leave/pages/LeaveHistoryPage";
 // screens will share the same chunk when they land.
 const LeaveReportsPage = lazy(() => import("@features/leave/pages/LeaveReportsPage"));
 
-import LeaveSabbaticalComingSoonPage from "@features/leave/pages/LeaveSabbaticalComingSoonPage";
+import LeaveSabbaticalPage from "@features/leave/pages/LeaveSabbaticalPage";
 import OpdNewClaimPage from "@features/finance/opd/pages/OpdNewClaimPage";
 import OpdHistoryPage from "@features/finance/opd/pages/OpdHistoryPage";
 import OpdApprovalsPage from "@features/finance/opd/pages/OpdApprovalsPage";
@@ -109,9 +109,7 @@ export default function App() {
               </Suspense>
             }
           />
-          {/* Sabbatical use cases (apply/approve/report) are on hold this
-              iteration — placeholder links out to the Leave app instead. */}
-          <Route path="me/leave/sabbatical" element={<LeaveSabbaticalComingSoonPage />} />
+          <Route path="me/leave/sabbatical" element={<LeaveSabbaticalPage />} />
           {/* Me → digiops-finance claim apps: native screens ported from the
               three finance apps (opd-claims, cc-expenses, expense-claims).
               Moved in from the Finance perspective — same rationale as

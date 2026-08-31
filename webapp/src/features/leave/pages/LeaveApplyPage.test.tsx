@@ -42,9 +42,12 @@ const employeeList = [
   { workEmail: "gone@wso2.com", firstName: "Long", lastName: "Gone", employeeThumbnail: "", employeeStatus: "Left" },
 ];
 
+// Mutable so a test can move the employee and check what changes with them.
+const user = { location: "Sri Lanka" as string | null };
+
 vi.mock("../api/useLeaveData", () => ({
   useLeaveUserInfo: () => ({
-    data: { workEmail: "me@wso2.com", leadEmail: "lead@wso2.com", location: "Sri Lanka" },
+    data: { workEmail: "me@wso2.com", leadEmail: "lead@wso2.com", location: user.location },
   }),
   useLeaveAppConfig: () => ({ data: appConfigData, isPending: false, isError: false }),
   useLeaveEmployees: () => ({ data: employeeList, isPending: false, isError: false }),
@@ -72,7 +75,10 @@ vi.mock("../components/LeaveShell", () => ({
 }));
 vi.mock("../components/LeaveBalanceSummary", () => ({ default: () => null }));
 
-beforeEach(() => submitMutate.mockClear());
+beforeEach(() => {
+  submitMutate.mockClear();
+  user.location = "Sri Lanka";
+});
 
 const { default: LeaveApplyPage } = await import("./LeaveApplyPage");
 const { NotificationsProvider } = await import("@context/notifications/NotificationsContext");
@@ -149,7 +155,7 @@ describe("what happens when the form is not ready", () => {
     await user.clear(end);
     await user.type(end, "2020-01-01");
 
-    await user.click(screen.getByRole("button", { name: /Submit leave/ }));
+    await user.click(screen.getByRole("button", { name: /Submit Leave/ }));
     expect(await screen.findByText("Please select start and end dates")).toBeInTheDocument();
     expect(submitMutate).not.toHaveBeenCalled();
   });
@@ -161,8 +167,8 @@ describe("the confirmation before posting", () => {
     const user = (await import("@testing-library/user-event")).default.setup();
     show();
 
-    await waitFor(() => expect(screen.getByRole("button", { name: /Submit leave/ })).toBeEnabled());
-    await user.click(screen.getByRole("button", { name: /Submit leave/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Submit Leave/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Submit Leave/ }));
 
     expect(await screen.findByText("Do you want to submit this leave?")).toBeInTheDocument();
     // "Casual/Annual" because this fixture sits in Sri Lanka.
@@ -174,8 +180,8 @@ describe("the confirmation before posting", () => {
   it("posts only after Yes", async () => {
     const user = (await import("@testing-library/user-event")).default.setup();
     show();
-    await waitFor(() => expect(screen.getByRole("button", { name: /Submit leave/ })).toBeEnabled());
-    await user.click(screen.getByRole("button", { name: /Submit leave/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Submit Leave/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Submit Leave/ }));
     await user.click(await screen.findByRole("button", { name: "Yes" }));
     expect(submitMutate).toHaveBeenCalledTimes(1);
   });
@@ -183,8 +189,8 @@ describe("the confirmation before posting", () => {
   it("posts nothing after No", async () => {
     const user = (await import("@testing-library/user-event")).default.setup();
     show();
-    await waitFor(() => expect(screen.getByRole("button", { name: /Submit leave/ })).toBeEnabled());
-    await user.click(screen.getByRole("button", { name: /Submit leave/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Submit Leave/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Submit Leave/ }));
     await user.click(await screen.findByRole("button", { name: "No" }));
     expect(submitMutate).not.toHaveBeenCalled();
     // MUI keeps the dialog mounted through its close transition.
@@ -230,5 +236,62 @@ describe("picking someone to notify", () => {
     const { user, field } = await openPicker();
     await user.type(field, "here@");
     expect(await screen.findByText("Still Here")).toBeInTheDocument();
+  });
+});
+
+// The leave type buttons are the most-read copy on this form, and what a type
+// is called depends on where the employee sits — LeaveSelection.tsx:57-109
+// pairs each location's types with its own LeaveLabel. leaveTypeLabel was
+// added for exactly this and then wired into the confirmation dialog alone,
+// so every button still read the flat report-table name. Asserting the call
+// site rather than the helper: the helper's own tests passed throughout.
+describe("what a leave type is called where you are", () => {
+  it("uses India's names for an employee in India", async () => {
+    user.location = "India";
+    show();
+    expect(await screen.findByRole("button", { name: /Annual \/ Earned/ })).toBeInTheDocument();
+    // India's casual is "Casual", not Sri Lanka's "Casual/Annual".
+    expect(screen.getByRole("button", { name: /^Casual$/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Casual\/Annual/ })).not.toBeInTheDocument();
+  });
+
+  it("uses Spain's names for an employee in Spain", async () => {
+    user.location = "Spain";
+    show();
+    expect(await screen.findByRole("button", { name: /Annual Leave/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Casual Leave/ })).toBeInTheDocument();
+  });
+
+  it("uses Sri Lanka's name for an employee in Sri Lanka", async () => {
+    show();
+    expect(await screen.findByRole("button", { name: /Casual\/Annual/ })).toBeInTheDocument();
+  });
+
+  it("falls back to Sri Lanka for a location we don't recognise", async () => {
+    user.location = null;
+    show();
+    expect(await screen.findByRole("button", { name: /Casual\/Annual/ })).toBeInTheDocument();
+  });
+});
+
+// GeneralLeave.tsx:345-349 puts this next to Submit. Without it nothing on the
+// form says what the Public comment switch actually changes.
+describe("who can read the comment", () => {
+  it("names the excluded group while the comment is private", async () => {
+    show();
+    expect(
+      await screen.findByText(
+        "Your comment will be visible to all email recipients except the WSO2 Vacation Group.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("drops the exclusion once the comment is public", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    show();
+    await userEvent.click(await screen.findByRole("switch", { name: /Public comment/ }));
+    expect(
+      await screen.findByText("Your comment will be visible to all email recipients."),
+    ).toBeInTheDocument();
   });
 });

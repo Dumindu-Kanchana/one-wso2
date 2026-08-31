@@ -181,8 +181,16 @@ export const leaveServiceUrls = {
   leaveAction: (id: number, action: "approve" | "reject") =>
     `${leaveBackendUrl}/leaves/${id}/${action}`,
   employees: `${leaveBackendUrl}/employees`,
-  leaveEntitlement: (email: string) =>
-    `${leaveBackendUrl}/employees/${encodeURIComponent(email)}/leave-entitlement`,
+  // `years` maps to the repeated ?years= query the leave app sends. Omitting
+  // it lets the backend pick its own period, which is what the congés-payés
+  // leave year needs; France additionally asks for the calendar year so the
+  // RTT row reads from that record (leaveService.ts:239-253).
+  leaveEntitlement: (email: string, years?: number[]) => {
+    const base = `${leaveBackendUrl}/employees/${encodeURIComponent(email)}/leave-entitlement`;
+    if (!years || years.length === 0) return base;
+    const qs = years.map((y) => `years=${encodeURIComponent(String(y))}`).join("&");
+    return `${base}?${qs}`;
+  },
 };
 
 export function isLeaveBackendConfigured(): boolean {
