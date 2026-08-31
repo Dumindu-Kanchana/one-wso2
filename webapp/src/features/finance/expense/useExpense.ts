@@ -26,7 +26,6 @@ import type {
   ExpenseAppData,
   ExpenseClaim,
   ExpenseClaimSearchPayload,
-  ExpenseClaimsSearchResponse,
   ExpenseEmployee,
   ExpenseTypeData,
 } from "./expenseTypes";
@@ -69,12 +68,16 @@ export function useExpenseClaims(payload: ExpenseClaimSearchPayload, enabled = t
     enabled: enabled && isSignedIn && configured && Boolean(userSub),
     queryFn: async () => {
       const accessToken = await getAccessToken();
-      const res = await authedPost<ExpenseClaimsSearchResponse>(
+      // The response IS the array. tableSlice.ts:57 assigns `resp.data` straight
+      // to `Claim[]`, and axios's `data` is the response body — so there is no
+      // `{ body: [...] }` wrapper to unwrap. Unwrapping one yielded undefined
+      // every time, which is why every claim list rendered empty.
+      const res = await authedPost<ExpenseClaim[]>(
         expenseServiceUrls.searchClaims,
         accessToken,
         payload,
       );
-      return res?.body ?? [];
+      return Array.isArray(res) ? res : [];
     },
     staleTime: 60 * 1000,
     retry: financeRetry,

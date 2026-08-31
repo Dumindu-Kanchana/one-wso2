@@ -133,10 +133,6 @@ export interface ExpenseClaimSearchPayload {
   offset?: number | null;
 }
 
-export interface ExpenseClaimsSearchResponse {
-  body: ExpenseClaim[];
-}
-
 export interface ExpenseClaimPayload {
   transactions: ExpenseTransactionPayload[];
 }
