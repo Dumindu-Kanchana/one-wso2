@@ -117,7 +117,11 @@ function HistoryBody() {
         <ClaimsTable claims={claims.data!} onView={setSelected} />
       )}
 
-      <ExpenseClaimDetailsDialog claim={selected} onClose={() => setSelected(null)} />
+      <ExpenseClaimDetailsDialog
+        claim={selected}
+        onClose={() => setSelected(null)}
+        appData={appData.data}
+      />
     </Box>
   );
 }
