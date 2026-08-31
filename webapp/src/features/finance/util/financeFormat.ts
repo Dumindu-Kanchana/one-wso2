@@ -95,3 +95,15 @@ export function daysAgoIso(days: number): string {
   d.setDate(d.getDate() - days);
   return toIso(d);
 }
+
+/**
+ * The exclusive-safe upper bound for a transaction window — `utils.ts:21-33`
+ * in cc-expenses, which sets the end of today and then advances a day before
+ * formatting. Asking up to *today* can drop transactions dated today, which is
+ * why the source deliberately asks up to tomorrow.
+ */
+export function tomorrowIso(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return toIso(d);
+}

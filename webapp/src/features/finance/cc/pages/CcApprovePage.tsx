@@ -66,9 +66,16 @@ function ApproveBody() {
     (isLead && t.status === "pending_lead" && isUserLeadOf(t)) ||
     (isFinance && t.status === "pending_finance");
 
+  // approve-submissions/index.tsx:122-126 — finance's queue spans BOTH stages.
+  // A row still with the lead is shown but not actionable (isRowSelectable,
+  // ApproveTransactionsDataGrid.tsx:157-166), so finance can see what is
+  // waiting upstream instead of it being invisible until the lead acts.
+  const isVisible = (t: CcTransaction) =>
+    isSelectable(t) || (isFinance && t.status === "pending_lead");
+
   const rows = useMemo(
-    () => (txns.data ?? []).filter(isSelectable),
-    // isSelectable closes over isLead/isFinance/email
+    () => (txns.data ?? []).filter(isVisible),
+    // isVisible closes over isLead/isFinance/email
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [txns.data, isLead, isFinance, email],
   );
@@ -76,8 +83,9 @@ function ApproveBody() {
   // Split the checked, still-selectable rows by stage — each goes to its own
   // approve endpoint.
   const selected = useMemo(
-    () => rows.filter((t) => checked.has(t.id)),
-    [rows, checked],
+    () => rows.filter((t) => checked.has(t.id) && isSelectable(t)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, checked, isLead, isFinance, email],
   );
   const leadIds = selected.filter((t) => t.status === "pending_lead").map((t) => t.id);
   const financeIds = selected.filter((t) => t.status === "pending_finance").map((t) => t.id);

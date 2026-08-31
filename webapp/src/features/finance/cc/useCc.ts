@@ -21,7 +21,7 @@ import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls, isCcBackendConfigured } from "@config/apiConfig";
 import { foldIdentityError, useAsgardeoSub } from "@hooks/useAsgardeoSub";
 import { financeRetry } from "../util/financeError";
-import { daysAgoIso, todayIso } from "../util/financeFormat";
+import { daysAgoIso, tomorrowIso } from "../util/financeFormat";
 import type {
   CcCreditCard,
   CcEmployee,
@@ -88,7 +88,9 @@ export function useCcTransactions(
   const userSub = subState.status === "ready" ? subState.sub : undefined;
   const configured = isCcBackendConfigured();
   const dateFrom = opts.dateFrom ?? daysAgoIso(DEFAULT_WINDOW_DAYS);
-  const dateTo = opts.dateTo ?? todayIso();
+  // utils.ts:21-33 advances the end of the window by a day before formatting.
+  // Asking up to today can drop transactions dated today; the source never does.
+  const dateTo = opts.dateTo ?? tomorrowIso();
   const includeInactive = opts.includeInactive ?? false;
   const query = useQuery<CcTransaction[]>({
     queryKey: ["cc-transactions", userSub, dateFrom, dateTo, includeInactive],

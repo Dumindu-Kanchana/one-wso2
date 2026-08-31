@@ -41,6 +41,7 @@ export function CcTxnTable({
   showUser,
   showCard,
   selection,
+  edit,
 }: {
   txns: CcTransaction[];
   showUser?: boolean;
@@ -50,6 +51,12 @@ export function CcTxnTable({
     onToggle: (id: number) => void;
     isSelectable: (t: CcTransaction) => boolean;
   };
+  /**
+   * Offers an Edit action per row. `canEdit` decides which rows get one —
+   * PendingTransactionsDataGrid.tsx:232-236 allows it only while the claim is
+   * still with the lead.
+   */
+  edit?: { canEdit: (t: CcTransaction) => boolean; onEdit: (t: CcTransaction) => void };
 }) {
   const getAccessToken = useAccessToken();
   const [load, setLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
@@ -83,6 +90,7 @@ export function CcTxnTable({
             <TableCell align="right">Amount</TableCell>
             <TableCell>Files</TableCell>
             <TableCell>Status</TableCell>
+            {edit && <TableCell align="right" />}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -129,6 +137,20 @@ export function CcTxnTable({
                 <TableCell>
                   <StatusChip label={meta.label} color={meta.color} />
                 </TableCell>
+              {edit && (
+                <TableCell align="right">
+                  {edit.canEdit(t) && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => edit.onEdit(t)}
+                      sx={{ textTransform: "none", fontWeight: 600 }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </TableCell>
+              )}
               </TableRow>
             );
           })}

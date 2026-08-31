@@ -28,7 +28,7 @@ import {
 import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
-import { daysAgoIso, todayIso } from "../../util/financeFormat";
+import { daysAgoIso } from "../../util/financeFormat";
 import { CcTxnTable } from "../CcTxnTable";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcTxnStatus } from "../ccTypes";
@@ -68,7 +68,7 @@ function HistoryBody() {
   const [days, setDays] = useState(30);
   const [status, setStatus] = useState<CcTxnStatus | "all">("submitted");
 
-  const txns = useCcTransactions({ dateFrom: daysAgoIso(days), dateTo: todayIso(), includeInactive: true });
+  const txns = useCcTransactions({ dateFrom: daysAgoIso(days), includeInactive: true });
   const email = userInfo.data?.workEmail;
   const canSeeOthers = ccHasAccess(userInfo.data, "lead") || ccHasAccess(userInfo.data, "finance");
 
