@@ -40,12 +40,31 @@ import {
   type ExpenseClaim,
 } from "../expenseTypes";
 import { withLoadingAdornment } from "@components/picker-loading/pickerLoading";
+import { isExpenseBackendConfigured } from "@config/apiConfig";
 
 // The expense tab of Claim approval. It used to be two menu entries under Me,
 // one per stage; the stage is now a control on one screen, because the two
 // backend flags are independent and a person holding both had to leave the
 // screen to see the other half of their own queue.
 export default function ExpenseApprovalsTab() {
+  // Its own backend's connectivity, as the OPD tab reports its own: Claim
+  // approval spans two and either may be missing. Without this, an unset URL
+  // disables the app-data query, both capability flags read false, and the
+  // screen says the person is not a finance approver — blaming them for a
+  // deployment that was never configured.
+  if (!isExpenseBackendConfigured()) {
+    return (
+      <Alert severity="info">
+        Expense claims aren&apos;t connected yet. Set{" "}
+        <code>ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL</code> in <code>public/config.js</code> and
+        reload.
+      </Alert>
+    );
+  }
+  return <ExpenseApprovals />;
+}
+
+function ExpenseApprovals() {
   const appData = useExpenseAppData();
   const canLead = Boolean(appData.data?.enableLeadView);
   const canFinance = Boolean(appData.data?.enableFinanceView);

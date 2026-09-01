@@ -29,6 +29,7 @@ const payloads: Record<string, unknown>[] = [];
 // Which stages this person holds. Independent flags, so all three combinations
 // are reachable and each renders a different screen.
 const flags = { lead: true, finance: true };
+const configured = { value: true };
 
 vi.mock("../useExpense", () => ({
   useExpenseAppData: () => ({
@@ -63,6 +64,13 @@ vi.mock("../useExpenseMutations", () => ({
   useExpenseReceiptUpload: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+// The tab reports its own backend's connectivity now, rather than leaving it to
+// a shared frame — Claim approval spans two backends and either may be missing.
+vi.mock("@config/apiConfig", async () => {
+  const actual = await vi.importActual<typeof import("@config/apiConfig")>("@config/apiConfig");
+  return { ...actual, isExpenseBackendConfigured: () => configured.value };
+});
+
 vi.mock("../../components/FinanceShell", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -74,6 +82,7 @@ beforeEach(() => {
   payloads.length = 0;
   flags.lead = true;
   flags.finance = true;
+  configured.value = true;
 });
 
 /**
@@ -188,5 +197,25 @@ describe("typing a claim id does not search on every keystroke", () => {
     expect(distinctIds()).toEqual(
       new Set([JSON.stringify(undefined), JSON.stringify(["EC-3"])]),
     );
+  });
+});
+
+
+// An unset backend URL disables the app-data query, so both capability flags
+// read false and the screen would tell the person they are not a finance
+// approver — blaming them for a deployment nobody configured.
+describe("when the expense backend is not configured", () => {
+  it("says what is missing rather than refusing the person", () => {
+    configured.value = false;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <NotificationsProvider>
+          <ExpenseApprovalsTab />
+        </NotificationsProvider>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText(/aren't connected yet/)).toBeInTheDocument();
+    expect(screen.getByText(/ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL/)).toBeInTheDocument();
+    expect(screen.queryByText(/approver/i)).not.toBeInTheDocument();
   });
 });
