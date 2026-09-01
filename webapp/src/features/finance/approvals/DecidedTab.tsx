@@ -20,6 +20,7 @@ import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   Skeleton,
   Table,
@@ -146,7 +147,7 @@ export default function DecidedTab() {
           <TableBody>
             {opdRows.length > 0 && <Heading label="OPD claims" count={opdRows.length} />}
             {opdRows.map((claim) => (
-              <TableRow key={claim.id} hover onClick={() => setOpdTarget(claim)} sx={ROW}>
+              <TableRow key={claim.id} hover>
                 <TableCell sx={ID}>{claim.id}</TableCell>
                 <TableCell sx={CELL}>{claim.employeeEmail}</TableCell>
                 <TableCell sx={CELL}>
@@ -157,12 +158,13 @@ export default function DecidedTab() {
                 <TableCell sx={CELL}>
                   <Outcome status={claim.statusDetails.status ?? null} />
                 </TableCell>
+                <ViewCell onClick={() => setOpdTarget(claim)} />
               </TableRow>
             ))}
 
             {expenseRows.length > 0 && <Heading label="Expense claims" count={expenseRows.length} />}
             {expenseRows.map((claim) => (
-              <TableRow key={claim.id} hover onClick={() => setExpenseTarget(claim)} sx={ROW}>
+              <TableRow key={claim.id} hover>
                 <TableCell sx={ID}>{claim.id}</TableCell>
                 <TableCell sx={CELL}>{claim.employeeEmail}</TableCell>
                 <TableCell sx={CELL}>
@@ -180,6 +182,7 @@ export default function DecidedTab() {
                 <TableCell sx={CELL}>
                   <Outcome status={claim.statusDetails.status} />
                 </TableCell>
+                <ViewCell onClick={() => setExpenseTarget(claim)} />
               </TableRow>
             ))}
           </TableBody>
@@ -197,7 +200,23 @@ export default function DecidedTab() {
 
 const CELL = { fontSize: 12.5, fontVariantNumeric: "tabular-nums" } as const;
 const ID = { ...CELL, fontWeight: 600 } as const;
-const ROW = { cursor: "pointer" } as const;
+
+/**
+ * Opens the record for one claim.
+ *
+ * A button in the row rather than an onClick on the row itself: a `<tr>` takes
+ * no focus and answers no key, so the dialog was unreachable without a mouse.
+ * Matches Needs you, whose rows have always been opened this way.
+ */
+function ViewCell({ onClick }: { onClick: () => void }) {
+  return (
+    <TableCell align="right">
+      <Button size="small" variant="outlined" onClick={onClick} sx={{ textTransform: "none" }}>
+        View
+      </Button>
+    </TableCell>
+  );
+}
 
 function decidedOn(approved: string | null | undefined, rejected: string | null | undefined): string {
   const when = approved ?? rejected;
@@ -207,7 +226,7 @@ function decidedOn(approved: string | null | undefined, rejected: string | null 
 function Heading({ label, count }: { label: string; count: number }) {
   return (
     <TableRow>
-      <TableCell colSpan={6} sx={{ border: 0, pt: 2, pb: 0.75 }}>
+      <TableCell colSpan={7} sx={{ border: 0, pt: 2, pb: 0.75 }}>
         <Typography
           component="span"
           sx={{

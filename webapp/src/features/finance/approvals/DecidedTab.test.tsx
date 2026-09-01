@@ -306,3 +306,29 @@ describe("when the call that decides the queues fails", () => {
     expect(screen.queryByText("Nothing has been decided yet.")).not.toBeInTheDocument();
   });
 });
+
+
+// A <tr> takes no focus and answers no key, so a click handler on the row put
+// the record behind a mouse. Needs you has always used a button; this tab had
+// drifted from it.
+describe("opening a record without a mouse", () => {
+  it("offers a real button on each row", async () => {
+    data.opd = [opdClaim({})];
+    data.finance = [expenseClaim({})];
+    show();
+    const opdRow = (await screen.findByText("OPD-1")).closest("tr")!;
+    const expenseRow = screen.getByText("EXP-1").closest("tr")!;
+    expect(within(opdRow).getByRole("button", { name: "View" })).toBeInTheDocument();
+    expect(within(expenseRow).getByRole("button", { name: "View" })).toBeInTheDocument();
+  });
+
+  it("opens the record from the keyboard", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    data.opd = [opdClaim({})];
+    show();
+    const row = (await screen.findByText("OPD-1")).closest("tr")!;
+    within(row).getByRole("button", { name: "View" }).focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByTestId("opd-dialog")).toBeInTheDocument();
+  });
+});
