@@ -24,7 +24,12 @@ import { useFinanceGate } from "../api/useFinanceGate";
 import { CLAIM_APPROVAL_PATH } from "../approvals/claimApprovalTabs";
 
 // The Finance overview. It said "coming soon" while the perspective was empty;
-// Claim approval is here now, so it says what is here instead.
+// Claim approval is here now, so it lists what is here instead.
+//
+// The header names the DOMAIN, not today's contents — this is a home for
+// finance operations and more are coming, so a subtitle about approvals would
+// need rewriting the moment the second one lands. It also does not explain what
+// lives under Me: no other perspective explains its neighbours.
 //
 // The card is gated by the same rule as the rail entry: someone who approves no
 // claims should not be offered a link to a screen that will turn them away.
@@ -37,7 +42,7 @@ export default function FinancePage() {
       <PerspectiveHeader
         eyebrow="Finance perspective"
         title="Finance"
-        subtitle="Decisions on other people's claims. Filing your own, and looking up what you filed, stay under Me."
+        subtitle="Operations and tools for company finances."
       />
 
       {gate.isResolving ? (

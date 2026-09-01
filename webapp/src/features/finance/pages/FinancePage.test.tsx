@@ -73,6 +73,18 @@ describe("the Finance overview", () => {
     expect(screen.getByText(/Your own claims are under\s+Me/)).toBeInTheDocument();
   });
 
+  // A home for finance operations, with more coming. A subtitle naming today's
+  // one screen would need rewriting the moment the second one lands, and the
+  // sibling perspectives name their domain rather than their contents.
+  it("describes the perspective, not the one thing in it today", () => {
+    gate.canApprove = true;
+    show();
+    const subtitle = screen.getByText(/Operations and tools for company finances/);
+    expect(subtitle).toBeInTheDocument();
+    expect(subtitle.textContent).not.toMatch(/claim/i);
+    expect(subtitle.textContent).not.toMatch(/approv/i);
+  });
+
   it("waits for the backends rather than flashing the wrong answer", () => {
     gate.isResolving = true;
     show();
