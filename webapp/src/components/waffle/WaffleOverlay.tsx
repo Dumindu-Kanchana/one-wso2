@@ -107,10 +107,12 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
 
   const pick = (p: PerspectiveDef) => {
     if (!p.access) return;
-    // A separate application: hand it to a new tab and leave this one where it
-    // is. `noopener` because the opened page must not get a handle on ours.
+    // A separate application. The tile is a real anchor carrying the URL,
+    // `target="_blank"` and `rel="noopener noreferrer"`, so the BROWSER opens
+    // the tab — opening one here as well opened CSM twice on every click, and
+    // on a ctrl-click too, since that fires onClick as well as navigating.
+    // All this has left to do is get the launcher out of the way.
     if (p.externalUrl) {
-      window.open(p.externalUrl, "_blank", "noopener,noreferrer");
       onClose();
       return;
     }

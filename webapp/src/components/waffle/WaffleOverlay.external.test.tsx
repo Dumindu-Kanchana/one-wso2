@@ -102,15 +102,22 @@ describe("with the URL configured", () => {
     expect(tile.querySelectorAll("svg").length).toBe(2);
   });
 
-  it("opens the URL and closes the launcher when clicked", async () => {
+  // The tile IS the mechanism. Calling window.open from its onClick as well
+  // opened CSM in two tabs on every click — invisible here until this test,
+  // because jsdom does not follow an anchor's href.
+  it("leaves the opening to the anchor rather than opening it a second time", async () => {
+    const { WaffleOverlay } = await loadLauncher({ ONE_WSO2_CSM_URL: CSM_URL });
+    show(WaffleOverlay);
+
+    await userEvent.click(within(panel()).getByRole("link", { name: "Open CSM in a new tab" }));
+    expect(openCalls).toHaveLength(0);
+  });
+
+  it("still closes the launcher, so it is not left over the new tab", async () => {
     const { WaffleOverlay } = await loadLauncher({ ONE_WSO2_CSM_URL: CSM_URL });
     const { onClose } = show(WaffleOverlay);
 
     await userEvent.click(within(panel()).getByRole("link", { name: "Open CSM in a new tab" }));
-    expect(openCalls).toHaveLength(1);
-    expect(openCalls[0][0]).toBe(CSM_URL);
-    expect(openCalls[0][1]).toBe("_blank");
-    expect(openCalls[0][2]).toContain("noopener");
     expect(onClose).toHaveBeenCalled();
   });
 
