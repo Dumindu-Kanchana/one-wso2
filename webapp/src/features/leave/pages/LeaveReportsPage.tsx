@@ -200,7 +200,7 @@ function ReportsBody() {
                 value={employee}
                 onChange={(_e, v) => setEmployee(v as string | null)}
                 loading={employees.isLoading}
-          disabled={employees.isLoading}
+                disabled={employees.isLoading}
                 loadingText="Loading employees…"
                 noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
                 disableListWrap
@@ -227,7 +227,12 @@ function ReportsBody() {
                     );
                   });
                 }}
-                renderInput={(params) => <TextField {...params} placeholder="All employees" />}
+                renderInput={(params) => (
+                  <TextField
+                    {...withLoadingAdornment(params, employees.isLoading)}
+                    placeholder={employees.isLoading ? "Loading people…" : "All employees"}
+                  />
+                )}
               />
             </Box>
           ) : (
@@ -281,9 +286,7 @@ function ReportsBody() {
                 options={EMPLOYEE_STATUS_OPTIONS}
                 value={employeeStatuses}
                 onChange={(_e, v) => setEmployeeStatuses(v as EmployeeStatus[])}
-                renderInput={(params) => (
-                  <TextField {...withLoadingAdornment(params, employees.isLoading)} label="Employee status" />
-                )}
+                renderInput={(params) => <TextField {...params} label="Employee status" />}
               />
             </Box>
           </Box>

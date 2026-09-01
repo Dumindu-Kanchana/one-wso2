@@ -29,6 +29,8 @@ const userInfo = { data: undefined as unknown };
 // Reassigned, not emptied: the grid freezes the rows array it is handed, so a
 // later `leaveRows.length = 0` throws.
 let leaveRows: unknown[] = [];
+const state = { employeesLoading: false };
+
 const employeeList = [
   { workEmail: "here@wso2.com", firstName: "Still", lastName: "Here", employeeThumbnail: "", employeeStatus: "Active" },
   { workEmail: "going@wso2.com", firstName: "Marked", lastName: "Leaver", employeeThumbnail: "", employeeStatus: "Marked leaver" },
@@ -36,7 +38,12 @@ const employeeList = [
 
 vi.mock("../api/useLeaveData", () => ({
   useLeaveUserInfo: () => userInfo,
-  useLeaveEmployees: () => ({ data: employeeList, isPending: false, isError: false }),
+  useLeaveEmployees: () => ({
+    data: state.employeesLoading ? undefined : employeeList,
+    isPending: state.employeesLoading,
+    isLoading: state.employeesLoading,
+    isError: false,
+  }),
   useLeaves: (filter: unknown) => {
     filters.push(filter);
     return { data: { leaves: leaveRows }, isPending: false, isFetching: false, isError: false };
@@ -233,5 +240,37 @@ describe("the employee picker's option rows", () => {
       expect(option.style.position).toBe("absolute");
       expect(option.style.height).toBe("52px");
     }
+  });
+});
+
+
+// The spinner belongs to the directory query, so it belongs on the control that
+// waits for it. It was on the Employee STATUS picker — a fixed list of four
+// statuses that never loads — while the picker that does load had none.
+describe("while the employee directory is loading", () => {
+  it("marks the employee picker, which is the one waiting", () => {
+    state.employeesLoading = true;
+    userInfo.data = {
+      workEmail: "po@wso2.com",
+      privileges: [LEAVE_PRIVILEGE.EMPLOYEE, LEAVE_PRIVILEGE.PEOPLE_OPS_TEAM],
+    };
+    show();
+    const picker = screen.getByPlaceholderText("Loading people…");
+    expect(picker).toBeDisabled();
+    expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+    state.employeesLoading = false;
+  });
+
+  it("leaves the status picker alone, since its options are a fixed list", () => {
+    state.employeesLoading = true;
+    userInfo.data = {
+      workEmail: "po@wso2.com",
+      privileges: [LEAVE_PRIVILEGE.EMPLOYEE, LEAVE_PRIVILEGE.PEOPLE_OPS_TEAM],
+    };
+    show();
+    const status = screen.getByLabelText("Employee status");
+    expect(status).toBeEnabled();
+    expect(status.closest(".MuiFormControl-root")?.querySelector('[role="progressbar"]')).toBeNull();
+    state.employeesLoading = false;
   });
 });
