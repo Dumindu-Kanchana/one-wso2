@@ -146,4 +146,32 @@ describe("an exact match beats a descendant one", () => {
   it("falls back to the owner for a URL only it can claim", () => {
     expect(item("/people-ops/reports/something-else")).toBe("reports-home");
   });
+
+  // Both rows can claim this one: it sits under the owner AND under the deeper
+  // row. Taking whichever appears first in the registry makes the lit row
+  // depend on the order entries happen to be written in.
+  it("gives a deeper URL to the deeper row, not the one listed first", () => {
+    expect(item("/people-ops/reports/active-employees/E123")).toBe("reports-active");
+  });
+
+  it("does the same when the deeper row is listed first", () => {
+    const reordered: PerspectiveSection[] = [
+      {
+        id: "reports",
+        label: "Reports",
+        children: [
+          { id: "reports-active", label: "Active", path: "/people-ops/reports/active-employees" },
+          { id: "reports-home", label: "All", path: "/people-ops/reports" },
+        ],
+      },
+    ];
+    expect(
+      activeItemId({
+        sections: reordered,
+        pathname: "/people-ops/reports/active-employees/E123",
+        overviewPath: "/people-ops",
+        overviewId: "ov",
+      }),
+    ).toBe("reports-active");
+  });
 });

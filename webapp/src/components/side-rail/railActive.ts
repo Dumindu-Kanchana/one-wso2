@@ -85,11 +85,21 @@ export function activeItemId({
   }
   if (overviewPath && matchPath(overviewPath, pathname)) return overviewId;
 
+  // The DEEPEST row that can claim this URL, not the first one written down.
+  // Two rows can both own a path — a list and a detail beneath it — and taking
+  // whichever comes first makes the lit row depend on the order the registry
+  // happens to be authored in.
+  let best: { id: string; depth: number } | undefined;
+  const consider = (id: string, path: string) => {
+    if (!onPathOrBelow(path, pathname)) return;
+    const depth = path.split("/").filter(Boolean).length;
+    if (!best || depth > best.depth) best = { id, depth };
+  };
   for (const s of sections) {
     for (const c of s.children ?? []) {
-      if (c.path && onPathOrBelow(c.path, pathname)) return c.id;
+      if (c.path) consider(c.id, c.path);
     }
-    if (s.path && onPathOrBelow(s.path, pathname)) return s.id;
+    if (s.path) consider(s.id, s.path);
   }
-  return "";
+  return best?.id ?? "";
 }
