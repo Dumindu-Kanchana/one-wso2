@@ -45,6 +45,13 @@ vi.mock("../useOpdMutations", () => ({
   useOpdClaimStatus: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
+// The tab reports its own backend's connectivity now, rather than leaving it to
+// a shared frame — Claim approval spans two backends and either may be missing.
+vi.mock("@config/apiConfig", async () => {
+  const actual = await vi.importActual<typeof import("@config/apiConfig")>("@config/apiConfig");
+  return { ...actual, isOpdBackendConfigured: () => true };
+});
+
 vi.mock("../../components/FinanceShell", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));

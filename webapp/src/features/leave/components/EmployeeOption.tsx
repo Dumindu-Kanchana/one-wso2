@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import type { HTMLAttributes, JSX } from "react";
+import type { CSSProperties, HTMLAttributes, JSX } from "react";
 import { Box, Chip, Typography } from "@wso2/oxygen-ui";
 import EmployeeAvatar from "@features/my/my-team/components/EmployeeAvatar";
 import type { MinimalEmployeeInfo } from "../api/leaveTypes";
@@ -39,6 +39,7 @@ export function EmployeeOption({
   employee,
   props,
   showStatus = false,
+  style,
 }: {
   readonly employee: MinimalEmployeeInfo;
   readonly props: HTMLAttributes<HTMLLIElement>;
@@ -47,10 +48,26 @@ export function EmployeeOption({
    * the Notify picker never offers a leaver, so a status chip would be noise.
    */
   readonly showStatus?: boolean;
+  /**
+   * Where a windowed list wants this row. VirtualizedListbox clones its
+   * react-window `style` — `position: absolute` and a `top` — onto whatever the
+   * option renderer returned. This is a component rather than an `<li>`, so
+   * that clone lands here and has to be forwarded, or every row falls back into
+   * normal flow inside a container sized for one row's worth of height, and the
+   * list collapses into itself.
+   */
+  readonly style?: CSSProperties;
 }): JSX.Element {
   const name = employeeDisplayName(employee);
   return (
-    <li {...props} key={employee.workEmail} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <li
+      {...props}
+      key={employee.workEmail}
+      // Position first, then this row's own layout: the two sets do not
+      // overlap, and writing it this way keeps the row a flex row whatever a
+      // windowing list asks for.
+      style={{ ...style, display: "flex", alignItems: "center", gap: 12 }}
+    >
       <EmployeeAvatar employee={employee} size={32} />
       <Box sx={{ minWidth: 0 }}>
         <Typography variant="body2" noWrap>

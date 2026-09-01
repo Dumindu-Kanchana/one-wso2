@@ -26,6 +26,10 @@ import { LEAVE_ITEM_IDS } from "@constants/meApps";
 import { useUserInfo } from "@api/useUserInfo";
 import { useFinanceGate } from "@features/finance/api/useFinanceGate";
 import { useLeaveGate } from "@features/leave/api/useLeaveGate";
+import {
+  activeGroupIds as activeGroupIdsFor,
+  activeItemId as activeItemIdFor,
+} from "./railActive";
 import { useMarketingOpsGate } from "@features/marketing-ops/api/useMarketingOpsGate";
 
 // Context-sensitive left rail, built on Oxygen's compound `Sidebar`.
@@ -102,7 +106,10 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // doesn't see "Approve Submissions". Dispatched per item id rather than
   // per perspective since Finance items are just some of Me's sections now.
   // Only fetch those roles while Me is active.
-  const financeGate = useFinanceGate(active.key === "me");
+  // Both perspectives: the claim apps' own screens are under Me, and Claim
+  // approval is under Finance. One gate answers for both, so it has to be
+  // asked in either place.
+  const financeGate = useFinanceGate(active.key === "me" || active.key === "finance");
 
   // Leave is the same problem again: its backend numbers LEAD 879 /
   // PEOPLE_OPS_TEAM 789, unrelated to people-app's 993 / 999. Reading
@@ -148,17 +155,10 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   // own is the useful half; refusing to close again was not. Collapsing it does
   // hide the row marking where you are — but that is now a state the user chose,
   // which is how every other accordion behaves.
-  const activeGroupIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const s of sections) {
-      // matchPath (rather than a raw string ===) so a trailing slash on the
-      // URL (e.g. "/me/leave/reports/") still matches its exact route.
-      if (s.children?.some((c) => c.path && matchPath(c.path, location.pathname))) {
-        ids.add(s.id);
-      }
-    }
-    return ids;
-  }, [sections, location.pathname]);
+  const activeGroupIds = useMemo(
+    () => activeGroupIdsFor(sections, location.pathname),
+    [sections, location.pathname],
+  );
 
   // Oxygen wants a Record, not a Set.
   const expandedMenus = useMemo(() => {
@@ -179,25 +179,12 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
   const activeItem = useMemo(() => {
     // Settings sits outside the registry, so it is matched before the sections.
     if (matchPath(SETTINGS_PATH, location.pathname)) return SETTINGS_ID;
-    for (const s of sections) {
-      if (s.path && matchPath(s.path, location.pathname)) return s.id;
-      for (const c of s.children ?? []) {
-        if (c.path && matchPath(c.path, location.pathname)) return c.id;
-      }
-    }
-    if (active.path && matchPath(active.path, location.pathname)) return OVERVIEW_ID;
-
-    // Nothing matched exactly, so try again allowing descendants: a detail
-    // route like /me/my-team/E123 should keep its own section lit rather than
-    // clearing the rail. Deliberately a SECOND pass — an exact match must
-    // always win, or a section whose path prefixes another's would steal it.
-    for (const s of sections) {
-      for (const c of s.children ?? []) {
-        if (c.path && matchPath({ path: c.path, end: false }, location.pathname)) return c.id;
-      }
-      if (s.path && matchPath({ path: s.path, end: false }, location.pathname)) return s.id;
-    }
-    return "";
+    return activeItemIdFor({
+      sections,
+      pathname: location.pathname,
+      overviewPath: active.path,
+      overviewId: OVERVIEW_ID,
+    });
   }, [sections, active.path, location.pathname]);
 
   // Scroll a canvas anchor into view. If we're on a sub-route of the

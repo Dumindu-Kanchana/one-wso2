@@ -76,9 +76,9 @@ describe("PinThisPageButton", () => {
   });
 
   it("stores the registry label, not a path guess", async () => {
-    renderAt("/me/opd/history");
+    renderAt("/finance/cc/history");
     await userEvent.click(screen.getByRole("button", { name: /pin this page/i }));
-    expect(readEntries()[0].label).toBe("OPD Claims · Claim History");
+    expect(readEntries()[0].label).toBe("Credit Card Expenses · History");
   });
 
   it("unpins on a second click", async () => {

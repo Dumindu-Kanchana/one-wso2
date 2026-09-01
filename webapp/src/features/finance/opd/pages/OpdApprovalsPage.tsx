@@ -34,13 +34,12 @@ import {
 } from "@wso2/oxygen-ui";
 import { useDebouncedValue } from "@hooks/useDebouncedValue";
 import { isOpdBackendConfigured } from "@config/apiConfig";
-import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { money, formatNice } from "../../util/financeFormat";
 import { useOpdClaims, useOpdEmployees, useOpdUserInfo } from "../useOpd";
 import { OpdClaimDetailsDialog } from "../OpdClaimDetailsDialog";
 import { OPD_ROLE, opdHasRole, opdStatusFilter, type OpdClaim, type OpdClaimStatus } from "../opdTypes";
-import { FINANCE_EYEBROW } from "@constants/financeApps";
+import { withLoadingAdornment } from "@components/picker-loading/pickerLoading";
 
 type TabKey = "pending" | "approved" | "rejected";
 const TAB_STATUS: Record<TabKey, OpdClaimStatus[]> = {
@@ -49,18 +48,20 @@ const TAB_STATUS: Record<TabKey, OpdClaimStatus[]> = {
   rejected: ["REJECTED"],
 };
 
-export default function OpdApprovalsPage() {
-  return (
-    <FinanceShell
-      eyebrow={FINANCE_EYEBROW.opd}
-      title="OPD approvals"
-      subtitle="Finance review of OPD claims across the company. Open a pending claim to check its bills and approve or reject it."
-      configured={isOpdBackendConfigured()}
-      configKey="ONE_WSO2_OPD_BACKEND_URL"
-    >
-      <ApprovalsBody />
-    </FinanceShell>
-  );
+// The OPD tab of Claim approval. The page frame is the shell's now, but this
+// screen still owns the one thing only it knows: whether its own backend is
+// configured. Claim approval spans two backends and either may be missing, so
+// the notice belongs per tab rather than around the whole screen.
+export default function OpdApprovalsTab() {
+  if (!isOpdBackendConfigured()) {
+    return (
+      <Alert severity="info">
+        OPD claims aren&apos;t connected yet. Set <code>ONE_WSO2_OPD_BACKEND_URL</code> in{" "}
+        <code>public/config.js</code> and reload.
+      </Alert>
+    );
+  }
+  return <ApprovalsBody />;
 }
 
 function ApprovalsBody() {
@@ -120,8 +121,11 @@ function ApprovalsBody() {
           value={employee}
           onChange={(_e, v) => setEmployee(v)}
           loading={employees.isLoading}
+                disabled={employees.isLoading}
           sx={{ minWidth: 260 }}
-          renderInput={(params) => <TextField {...params} label="Filter by email" />}
+          renderInput={(params) => (
+                  <TextField {...withLoadingAdornment(params, employees.isLoading)} label="Filter by email" />
+                )}
         />
         <TextField
           size="small"

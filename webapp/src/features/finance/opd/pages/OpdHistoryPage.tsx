@@ -21,6 +21,7 @@ import {
   Alert,
   Box,
   Button,
+  Card,
   Dialog,
   DialogActions,
   DialogContent,
@@ -40,11 +41,11 @@ import {
   Typography,
 } from "@wso2/oxygen-ui";
 import { isOpdBackendConfigured } from "@config/apiConfig";
-import FinanceShell from "../../components/FinanceShell";
 import { StatusChip, opdStatusMeta } from "../../components/FinanceChips";
 import { describeError } from "../../util/financeError";
 import { money, formatNice } from "../../util/financeFormat";
-import { useOpdClaims, useOpdUserInfo } from "../useOpd";
+import { CLAIMS_PATH } from "../../claims/claimsTabs";
+import { useOpdAppData, useOpdClaims, useOpdUserInfo } from "../useOpd";
 import { OpdClaimDetailsDialog } from "../OpdClaimDetailsDialog";
 import {
   OPD_FILTERABLE_STATUSES,
@@ -53,19 +54,81 @@ import {
   type OpdClaimRange,
   type OpdClaimStatus,
 } from "../opdTypes";
-import { FINANCE_EYEBROW } from "@constants/financeApps";
 
-export default function OpdHistoryPage() {
+// The OPD tab of Claims. Reports its own backend's connectivity, since the
+// screen spans two and either may be missing.
+export default function OpdClaimsTab() {
+  if (!isOpdBackendConfigured()) {
+    return (
+      <Alert severity="info">
+        OPD claims aren&apos;t connected yet. Set <code>ONE_WSO2_OPD_BACKEND_URL</code> in{" "}
+        <code>public/config.js</code> and reload.
+      </Alert>
+    );
+  }
   return (
-    <FinanceShell
-      eyebrow={FINANCE_EYEBROW.opd}
-      title="My OPD claims"
-      subtitle="Your submitted OPD claims and where each one stands. Open a claim to see its bills and receipts."
-      configured={isOpdBackendConfigured()}
-      configKey="ONE_WSO2_OPD_BACKEND_URL"
-    >
+    <>
+      <AllowanceStrip />
       <HistoryBody />
-    </FinanceShell>
+    </>
+  );
+}
+
+/**
+ * What is left of this year's allowance.
+ *
+ * These figures used to appear only inside the new-claim form — after someone
+ * had already decided to file one. Whether it is worth claiming is a question
+ * you answer BEFORE opening the form, so the answer belongs on the tab you ask
+ * it from. Same `/app-data` call the form makes, so it costs nothing extra.
+ */
+function AllowanceStrip() {
+  const appData = useOpdAppData();
+  const summary = appData.data?.claimSummary;
+
+  if (appData.isLoading) {
+    return <Skeleton variant="rectangular" height={64} sx={{ borderRadius: 1.5, mb: 2 }} />;
+  }
+  // Silently absent rather than showing dashes: the claims below are the point
+  // of the screen, and a strip of "—" would read as something being broken.
+  if (!summary) return null;
+
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+        gap: 1.25,
+        mb: 2,
+      }}
+    >
+      <Allowance label="Annual limit" value={money(summary.totalClaimLimit)} />
+      <Allowance label="Already claimed" value={money(summary.totalClaimedAmount)} />
+      {/* Three, not four: the summary carries exactly these. The form's fourth
+          stat — what the claim being written comes to — has no meaning here. */}
+      <Allowance label="Remaining" value={money(summary.totalRemaining)} highlight />
+    </Box>
+  );
+}
+
+function Allowance({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <Card variant="outlined" sx={{ p: 1.25, ...(highlight && { borderColor: "primary.main" }) }}>
+      <Typography sx={{ fontSize: 10, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </Typography>
+    </Card>
   );
 }
 
@@ -355,7 +418,7 @@ function HistoryBody() {
               const transactions = resubmitting?.transactions ?? [];
               setResubmitting(null);
               setSelected(null);
-              navigate("/me/opd/new", {
+              navigate(`${CLAIMS_PATH}/opd/new`, {
                 state: { resubmitTransactions: transactions },
               });
             }}

@@ -27,8 +27,9 @@ vi.mock("react-router", async () => {
   const actual = await vi.importActual<typeof import("react-router")>("react-router");
   return { ...actual, useNavigate: () => navigate, useLocation: () => location };
 });
-const location = { pathname: "/me/opd/new", state: null as unknown, key: "k", search: "", hash: "" };
+const location = { pathname: "/me/claims/opd/new", state: null as unknown, key: "k", search: "", hash: "" };
 import type { ReactNode } from "react";
+import { localIsoDateOffset } from "@utils/localDate";
 
 // First tests for any of the three finance ports. The audit against
 // digiops-finance/apps/opd-claims found five behaviours that were dropped in
@@ -36,7 +37,11 @@ import type { ReactNode } from "react";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const LAST_YEAR = CURRENT_YEAR - 1;
-const TODAY = new Date().toISOString().slice(0, 10);
+// The field's `max` comes from `todayIso()` (financeFormat.ts:55), which reads
+// local date fields. `toISOString()` is UTC and names a different day between
+// midnight UTC and local midnight, so the expectation is built the same way the
+// code under test builds it.
+const TODAY = localIsoDateOffset(0);
 
 const state = {
   lastYearClaimSummary: null as { totalClaimedAmount: number; totalRemaining: number; totalClaimLimit: number } | null,
@@ -449,12 +454,46 @@ describe("bills carried over from a resubmit", () => {
     location.state = { resubmitTransactions: carried };
     show();
     await screen.findByText("Carried");
-    expect(navigate).toHaveBeenCalledWith("/me/opd/new", { replace: true, state: null });
+    expect(navigate).toHaveBeenCalledWith("/me/claims/opd/new", { replace: true, state: null });
   });
 
   it("does not navigate when there is nothing carried over", async () => {
     show();
     await screen.findByText(/No bills yet/);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+// A submitted claim should have a visible result. Leaving an emptied form on
+// screen makes it look like nothing happened, and the claim it produced is the
+// one thing worth seeing.
+describe("after a claim goes in", () => {
+  async function submitClaim() {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Submit claim/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(submitMutate).toHaveBeenCalled());
+  }
+
+  it("goes to the OPD list, not the expense one", async () => {
+    await submitClaim();
+    submitMutate.mock.calls[0][1].onSuccess();
+    expect(navigate).toHaveBeenCalledWith("/me/claims/opd", { replace: true });
+  });
+
+  // Back should not return to a form that has already been sent.
+  it("replaces the form in history rather than stacking on it", async () => {
+    await submitClaim();
+    submitMutate.mock.calls[0][1].onSuccess();
+    expect(navigate.mock.calls.at(-1)?.[1]).toMatchObject({ replace: true });
+  });
+
+  it("stays on the form when the submit fails", async () => {
+    await submitClaim();
+    navigate.mockClear();
+    submitMutate.mock.calls[0][1].onError(new Error("nope"));
     expect(navigate).not.toHaveBeenCalled();
   });
 });

@@ -90,8 +90,11 @@ export default function EmployeeEmailPicker({
       value={selected}
       onChange={(_, option) => onChange(option?.workEmail ?? "")}
       onBlur={onBlur}
-      disabled={disabled}
-      loading={employees.isPending}
+      // Unclickable while its options arrive, as well as when the caller says
+      // so: a picker you can type into before its directory has loaded tells
+      // you there is no such person.
+      disabled={disabled || employees.isLoading}
+      loading={employees.isLoading}
       autoHighlight
       size="small"
       // Both halves are searchable: people look for a colleague by name and
@@ -183,7 +186,7 @@ export default function EmployeeEmailPicker({
               ) : null,
               endAdornment: (
                 <>
-                  {employees.isPending ? <CircularProgress size={14} /> : null}
+                  {employees.isLoading ? <CircularProgress size={14} /> : null}
                   {params.InputProps.endAdornment}
                 </>
               ),

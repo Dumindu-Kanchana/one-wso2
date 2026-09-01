@@ -76,6 +76,13 @@ window.config = {
   // rendered as a link that goes nowhere.
   // ONE_WSO2_MARKETINGOPS_ISAC_URL: "<your-isac-url>",
 
+  // CSM base URL — a separate application, reached from its launcher tile and
+  // opened in a new tab. Nothing here calls it as an API, and there is no route
+  // for it, so it is never a landing choice or a favourite. Optional — when
+  // absent, the tile stays in its unbuilt state rather than becoming a link
+  // that goes nowhere.
+  // ONE_WSO2_CSM_URL: "<your-csm-url>",
+
   // Pardot UI base URL — for deep-linking to an email template after Email
   // Workbench pushes it. A link target, not an API. Optional; defaults to
   // https://pi.pardot.com, which is correct for every WSO2 environment today.

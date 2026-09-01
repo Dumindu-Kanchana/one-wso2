@@ -17,25 +17,24 @@
 // Central perspective registry. The waffle switcher and left rail both read
 // from this — one edit here changes every entry point.
 
-import { isIsacConfigured, isacUrl } from "@config/apiConfig";
+import { csmUrl, isCsmConfigured, isIsacConfigured, isacUrl } from "@config/apiConfig";
 import {
-  ChartNoAxesCombinedIcon,
+  CheckCheckIcon,
   DatabaseIcon,
   HouseIcon,
   LifeBuoyIcon,
   MegaphoneIcon,
   SatelliteDishIcon,
-  ScaleIcon,
   UserRoundIcon,
   UserRoundMinusIcon,
   UsersIcon,
   UsersRoundIcon,
   WalletIcon,
-  ZapIcon,
   type LucideIcon,
 } from "@wso2/oxygen-ui-icons-react";
 import type { Capability, MenuApp } from "@constants/appMenu";
-import { FINANCE_APPS } from "@constants/financeApps";
+import { FINANCE_PERSPECTIVE_APPS, ME_FINANCE_APPS } from "@constants/financeApps";
+import { CLAIM_APPROVAL_PATH } from "@features/finance/approvals/claimApprovalTabs";
 import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 import { ME_APPS } from "@constants/meApps";
 
@@ -167,7 +166,7 @@ const MARKETING_OPS_SECTIONS: PerspectiveSection[] = [
 const ME_SECTIONS: PerspectiveSection[] = [
   { id: "me-my-team", label: "My Team", icon: UsersRoundIcon, path: "/me/my-team", requires: ["lead"] },
   ...appsToSections(ME_APPS),
-  ...appsToSections(FINANCE_APPS),
+  ...appsToSections(ME_FINANCE_APPS),
 ];
 
 export interface PerspectiveDef {
@@ -188,6 +187,14 @@ export interface PerspectiveDef {
    * these, because the gate's own message is the right answer there.
    */
   externallyGated?: boolean;
+  /**
+   * Set when the perspective is a separate application this webapp only points
+   * at. Its launcher tile opens the URL in a new tab instead of routing, and it
+   * carries no `path` — so `reachablePerspectives` excludes it, and it can be
+   * neither a landing choice nor a favourite. Both would be shortcuts to
+   * somewhere this app cannot take you.
+   */
+  externalUrl?: string;
   sections?: PerspectiveSection[];
 }
 
@@ -202,20 +209,39 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     path: "/people-ops",
     sections: PEOPLE_OPS_SECTIONS,
   },
-  // Skeleton tile — clickable, lands on a "coming soon" page (see
-  // FinancePage). The actual OPD/credit-card/expense claim apps live under
-  // Me now (see ME_SECTIONS above); this just reserves the Finance spot in
-  // the waffle/rail for whatever surfaces here next.
+  // Submitting a claim and looking up your own stay under Me (see ME_SECTIONS)
+  // — those are things you do for yourself. Deciding other people's claims is
+  // not, so it lives here. Its rail entry is gated by the three claim backends'
+  // own rules, not by `requires`; see features/finance/api/useFinanceGate.
   {
     key: "finance",
     label: "Finance",
     icon: WalletIcon,
     access: true,
     path: "/finance",
+    sections: [
+      {
+        id: "claim-approval",
+        label: "Claim approval",
+        icon: CheckCheckIcon,
+        path: CLAIM_APPROVAL_PATH,
+      },
+      // Credit card lives here rather than under Me because a corporate card is
+      // not something everyone has — unlike leave or claims, it is not part of
+      // the set every employee needs.
+      ...appsToSections(FINANCE_PERSPECTIVE_APPS),
+    ],
   },
-  { key: "csm", label: "CSM", icon: LifeBuoyIcon, access: false },
-  { key: "revops", label: "Rev Ops", icon: ChartNoAxesCombinedIcon, access: false },
-  { key: "legal", label: "Legal", icon: ScaleIcon, access: false },
+  // A separate application, opened in a new tab. `access` follows the URL being
+  // configured: without one the tile stays in its unbuilt state rather than
+  // becoming a link to nowhere.
+  {
+    key: "csm",
+    label: "CSM",
+    icon: LifeBuoyIcon,
+    access: isCsmConfigured(),
+    externalUrl: csmUrl || undefined,
+  },
   // Marketing Ops — UNLOCKED. Ported so far: Utilities (UTM + Asset Name
   // generators and their Marketing Admin panels) and Ad Campaigns → Analytics.
   // Still in Marketing Ops itself: Email Workbench, Events, CRM Upload — those
@@ -241,12 +267,6 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
     path: "/marketing-ops",
     sections: MARKETING_OPS_SECTIONS,
   },
-  // Locked until the Service Requests surface has real content — the page was a
-  // static prototype and the persona showed as clickable in the waffle even
-  // though it led nowhere useful. Flip access back to true (and re-add the
-  // /service-requests route in App.tsx) when there is something to land on.
-  { key: "requests", label: "Service Requests", icon: ZapIcon, access: false },
-
   // "Me" is the Home landing: the person's own profile plus everyday apps —
   // Leave, Menu, and the finance claims.
   //
@@ -277,12 +297,12 @@ export function reachablePerspectives(): PerspectiveDef[] {
 /**
  * Every perspective, for the launcher's "Apps" group.
  *
- * There used to be a `group` field splitting these from a "cross" set — Me and
- * Service Requests — rendered under "For you" in both the rail and the
- * launcher. Both of those surfaces are gone (the rail does not duplicate the
- * launcher, and Me is a default favourite), so the field ended up on every
- * entry with nothing reading the distinction. An alias rather than a second
- * exported array, so there is one list to keep in order.
+ * There used to be a `group` field splitting these from a "cross" set rendered
+ * under "For you" in both the rail and the launcher. Both of those surfaces are
+ * gone (the rail does not duplicate the launcher, and Me is a default
+ * favourite), so the field ended up on every entry with nothing reading the
+ * distinction. An alias rather than a second exported array, so there is one
+ * list to keep in order.
  */
 export const FUNCTIONAL_PERSPECTIVES = PERSPECTIVES;
 

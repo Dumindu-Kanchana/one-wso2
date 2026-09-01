@@ -35,7 +35,6 @@ import {
 } from "@wso2/oxygen-ui";
 import { describeError } from "../util/leaveError";
 import { useNotifications } from "@context/notifications/NotificationsContext";
-import LeaveShell from "../components/LeaveShell";
 import { StatusChip } from "../components/LeaveChips";
 import {
   GENERAL_LEAVE_TYPES,
@@ -62,15 +61,15 @@ import { CANCEL_CONFIRMATION, SnackMessage, noLeaveHistoryFor } from "../util/le
 // cancelled from here (matches leave-app's allowedDaysToCancelLeave default).
 const CANCEL_WINDOW_DAYS = 30;
 
-export default function LeaveHistoryPage() {
-  return (
-    <LeaveShell
-      title="My leave history"
-      subtitle="Your approved and pending leave for the selected year. You can cancel a leave up to 30 days after it starts."
-    >
-      <HistoryBody leaveCategory={GENERAL_LEAVE_TYPES} />
-    </LeaveShell>
-  );
+// The two tabs of My History (route.ts:112-127). Both are the same screen with
+// a different category filter, which is how the source shares one LeaveHistory
+// component between GeneralLeaveHistory and SabbaticalLeaveHistory.
+export default function GeneralHistoryTab() {
+  return <HistoryBody leaveCategory={GENERAL_LEAVE_TYPES} />;
+}
+
+export function SabbaticalHistoryTab() {
+  return <HistoryBody leaveCategory={["sabbatical"]} />;
 }
 
 // The body is shared by the general history page and the Sabbatical tab, the

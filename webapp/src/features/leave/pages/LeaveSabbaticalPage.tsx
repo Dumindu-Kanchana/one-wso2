@@ -32,23 +32,15 @@ import {
   Link,
   Skeleton,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from "@wso2/oxygen-ui";
 import { useNotifications } from "@context/notifications/NotificationsContext";
-import LeaveShell from "../components/LeaveShell";
 import LeaveDateField from "../components/LeaveDateField";
-import { HistoryBody } from "./LeaveHistoryPage";
-import SabbaticalApproveTab from "../components/SabbaticalApproveTab";
-import SabbaticalApprovalHistoryTab from "../components/SabbaticalApprovalHistoryTab";
-import SabbaticalReportTab from "../components/SabbaticalReportTab";
 import { useLeaveAppConfig, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
 import { useSubmitLeave } from "../api/useLeaveMutations";
-import { useLeaveGate } from "../api/useLeaveGate";
 import { describeError } from "../util/leaveError";
-import { SABBATICAL } from "../util/leaveCopy";
+import { SABBATICAL, SnackMessage } from "../util/leaveCopy";
 import { formatNice, parseIso, todayIso } from "../util/leaveDates";
 import {
   eligibilityGapDays,
@@ -67,82 +59,23 @@ import {
 // free-text comment rather than sent as a field, because the submit goes
 // through the ordinary POST /leaves.
 
-export default function LeaveSabbaticalPage() {
-  return (
-    <LeaveShell
-      title="Sabbatical"
-      subtitle="A sabbatical is a long, planned break. Your lead approves it, so agree the dates with them before applying."
-    >
-      <SabbaticalTabs />
-    </LeaveShell>
-  );
-}
-
-// The source splits these across four top-level routes (route.ts:73-149) and
-// builds its router from the role table. One WSO2 keeps a single Sabbatical
-// entry and gates the tabs instead, so the same rules decide what a person can
-// reach — they just reach it from one place.
-function SabbaticalTabs() {
-  const gate = useLeaveGate();
-  const canApply = gate.canSee("leave-sabbatical");
-
-  const tabs = [
-    { key: "apply", label: "Apply", show: canApply },
-    { key: "history", label: "My history", show: canApply },
-    // route.ts:87,94,101 — approving is LEAD only. People Ops can report on
-    // sabbaticals but cannot decide one.
-    { key: "approve", label: "Approve", show: gate.isLead },
-    { key: "approval-history", label: "Approval history", show: gate.isLead },
-    // route.ts:148 — LEAD or People Ops, same as the general report.
-    { key: "report", label: "Report", show: gate.isLead || gate.isPeopleOps },
-  ].filter((t) => t.show);
-
-  const [tabKey, setTabKey] = useState(tabs[0]?.key ?? "apply");
-  const active = tabs.find((t) => t.key === tabKey) ?? tabs[0];
-
-  if (gate.isResolving) {
-    return <Skeleton variant="rectangular" height={420} sx={{ borderRadius: 1.5 }} />;
-  }
-
-  if (!active) {
-    return <Alert severity="info">Sabbatical leave isn&apos;t available for your role.</Alert>;
-  }
-
-  return (
-    <Box>
-      {/* Rendered even for a single tab. A People-Ops-only account gets Report
-          and nothing else, and without the label the screen reads as whatever
-          the page subtitle says — which is written for someone applying. */}
-      <Tabs
-          value={active.key}
-          onChange={(_e, v) => setTabKey(String(v))}
-          sx={{
-            mb: 2,
-            minHeight: 36,
-            "& .MuiTab-root": { minHeight: 36, textTransform: "none", fontSize: 13, fontWeight: 600 },
-          }}
-        >
-          {tabs.map((t) => (
-            <Tab key={t.key} value={t.key} label={t.label} />
-          ))}
-      </Tabs>
-
-      {active.key === "apply" && <SabbaticalApply />}
-      {/* SabbaticalLeaveHistory.tsx:21-28 — the same history screen as the
-          general one, filtered to sabbatical. Statuses, year selector and the
-          cancel rule all come from the shared body. */}
-      {active.key === "history" && <HistoryBody leaveCategory={["sabbatical"]} />}
-      {active.key === "approve" && <SabbaticalApproveTab />}
-      {active.key === "approval-history" && <SabbaticalApprovalHistoryTab />}
-      {active.key === "report" && <SabbaticalReportTab isPeopleOps={gate.isPeopleOps} />}
-    </Box>
-  );
+// The Sabbatical tab of Apply (route.ts:72-78).
+//
+// Three things about this screen are easy to get wrong, so they are spelled out
+// where they happen below: the last-sabbatical date is editable only when there
+// isn't one; the eligibility warning is measured from whichever anchor applies
+// and names it in the sentence; and the date the user types is appended to the
+// free-text comment rather than sent as a field, because the submit goes
+// through the ordinary POST /leaves.
+export default function SabbaticalApplyTab() {
+  return <SabbaticalApply />;
 }
 
 function SabbaticalApply() {
+
   const userInfo = useLeaveUserInfo();
   const appConfig = useLeaveAppConfig();
-  const { showError } = useNotifications();
+  const { showSuccess, showError } = useNotifications();
   const submit = useSubmitLeave();
 
   const workEmail = userInfo.data?.workEmail ?? undefined;
@@ -286,6 +219,16 @@ function SabbaticalApply() {
       { leaveType: "sabbatical", startDate, endDate, comment: commentWithDate },
       {
         onSuccess: () => {
+          // leave.ts:150-156 — the sabbatical submit goes through the
+          // submitLeave thunk, which raises this on fulfilment. The port says it
+          // at the call site instead, this codebase's convention, and this call
+          // site was not saying it at all.
+          //
+          // The thunk's wording, NOT the Apply form's: GeneralLeave.tsx:147
+          // calls the API directly and hardcodes "…successfully!", while
+          // everything going through the slice gets SnackMessage's "…successfully".
+          // Same event, two strings, and the difference is the source's.
+          showSuccess(SnackMessage.success.submitLeaveMessage);
           // :291-296 — dates, comment and the three boxes clear; the anchor the
           // user typed is left alone.
           setStartDate("");
@@ -300,7 +243,11 @@ function SabbaticalApply() {
     );
   };
 
-  if (userInfo.isPending || appConfig.isPending || history.isPending) {
+  // `isLoading`, not `isPending`: the history query is enabled on
+  // `Boolean(workEmail)`, and React Query leaves a disabled query pending for
+  // good. Waiting on that meant a failed /user-info span forever instead of
+  // falling through to the error below.
+  if (userInfo.isLoading || appConfig.isLoading || history.isLoading) {
     return <Skeleton variant="rectangular" height={420} sx={{ borderRadius: 1.5 }} />;
   }
 

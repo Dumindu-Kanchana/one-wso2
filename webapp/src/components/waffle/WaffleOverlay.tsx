@@ -20,7 +20,7 @@ import { Box, IconButton, Paper, Tooltip, Typography } from "@wso2/oxygen-ui";
 // @mui/material is already a direct dependency that the theme files import from.
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Popper from "@mui/material/Popper";
-import { StarIcon } from "@wso2/oxygen-ui-icons-react";
+import { ArrowUpRightIcon, StarIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNavigate } from "react-router";
 import {
   FUNCTIONAL_PERSPECTIVES,
@@ -37,9 +37,10 @@ interface WaffleOverlayProps {
   onClose: () => void;
 }
 
-// The app switcher: a panel hanging off the launcher button, functional
-// (persona) apps on top, cross (Me / Service Requests) below. Locked tiles show
-// a padlock and don't navigate.
+// The app switcher: a panel hanging off the launcher button, with favourites
+// above the full set of apps. Unbuilt tiles
+// render grayscaled and don't navigate; a tile for an app that lives in another
+// application opens it in a new tab and says so with a corner badge.
 //
 // Deliberately NOT modal, which is the whole point of the `Popper`. A launcher
 // is a place you glance at, so the page behind it stays scrollable and
@@ -105,7 +106,17 @@ export default function WaffleOverlay({ anchorEl, onClose }: WaffleOverlayProps)
   }, [anchorEl]);
 
   const pick = (p: PerspectiveDef) => {
-    if (!p.access || !p.path) return;
+    if (!p.access) return;
+    // A separate application. The tile is a real anchor carrying the URL,
+    // `target="_blank"` and `rel="noopener noreferrer"`, so the BROWSER opens
+    // the tab — opening one here as well opened CSM twice on every click, and
+    // on a ctrl-click too, since that fires onClick as well as navigating.
+    // All this has left to do is get the launcher out of the way.
+    if (p.externalUrl) {
+      onClose();
+      return;
+    }
+    if (!p.path) return;
     navigate(p.path);
     onClose();
   };
@@ -235,13 +246,25 @@ function WaffleGroup({
         // Undefined for a perspective with no hue yet, which degrades to the
         // neutral treatment rather than breaking the grid.
         const tint = perspectiveHue(p.key);
+        const isExternal = Boolean(p.access && p.externalUrl);
         const tile = (
           <Box
-            component="button"
-            type="button"
+            // A real anchor when it leaves the app, so middle-click and
+            // ctrl-click open a tab the way they do everywhere else. onClick
+            // stays on it to close the launcher.
+            component={isExternal ? "a" : "button"}
+            {...(isExternal
+              ? { href: p.externalUrl, target: "_blank", rel: "noopener noreferrer" }
+              : { type: "button" })}
             onClick={() => onPick(p)}
             disabled={!p.access}
-            aria-label={p.access ? `Switch to ${p.label}` : `${p.label} — not available yet`}
+            aria-label={
+              isExternal
+                ? `Open ${p.label} in a new tab`
+                : p.access
+                  ? `Switch to ${p.label}`
+                  : `${p.label} — not available yet`
+            }
             aria-current={isActive ? "page" : undefined}
             sx={{
               all: "unset",
@@ -280,12 +303,25 @@ function WaffleGroup({
               ...(p.access ? {} : { filter: "grayscale(1) contrast(0.9)" }),
             }}
           >
+            {/* Marks a tile that leaves One WSO2, in the corner a tile badge
+                belongs in. Absolutely positioned, so it adds no flex child and
+                every tile keeps identical internal geometry — the same reason
+                the label always occupies two lines whether or not it wraps.
+                aria-hidden because the tile's own label already says "in a new
+                tab"; the glyph is there for the eye scanning the grid. */}
+            {isExternal && (
+              <ArrowUpRightIcon
+                size={11}
+                aria-hidden
+                style={{ position: "absolute", top: 6, right: 6 }}
+              />
+            )}
             {/* Every tile must have identical internal geometry, or the badges
                 sit at different heights across the grid. Three rules do that:
                 the badge never shrinks; the label always occupies exactly two
                 lines whether or not it wraps ("Leave" vs "Marketing Ops"); and
-                the padlock is taken out of flow so a locked tile doesn't have
-                an extra flex child to centre around. */}
+                the badge above is taken out of flow so a tile carrying one
+                doesn't have an extra flex child to centre around. */}
             <Box
               sx={(theme) => ({
                 width: 48,
@@ -386,7 +422,12 @@ function WaffleGroup({
         return p.access ? (
           <Box key={p.key} className="waffle-cell" sx={{ position: "relative" }}>
             {tile}
-            {star}
+            {/* No star on an app that lives elsewhere: favourites and the
+                landing page both resolve a perspective to a route, and this one
+                has none — `reachablePerspectives` excludes it, so the toggle
+                would appear to work and store nothing. The corner carries the
+                outbound badge instead. */}
+            {isExternal ? null : star}
           </Box>
         ) : (
           <Tooltip key={p.key} title={`${p.label} isn't available yet`}>

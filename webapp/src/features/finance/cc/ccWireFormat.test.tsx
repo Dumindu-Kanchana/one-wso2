@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { localIsoDateOffset } from "@utils/localDate";
 
 // These exercise the query functions themselves. The expense port taught us
 // that hook-mocked screen tests cannot see a broken data path — a search that
@@ -82,17 +83,6 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-// `daysAgoIso` / `tomorrowIso` step with setDate() and format from local date
-// fields, so expectations must too — a UTC ISO string with a fixed 86,400,000 ms
-// offset names a different day in the evening of a negative-offset zone.
-function localIso(dayOffset: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + dayOffset);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
-}
-
 const active = { id: 1, ccNumber: "1111", label: "Travel", status: "Active" };
 const closed = { id: 2, ccNumber: "2222", label: "Old", status: "Inactive" };
 
@@ -132,8 +122,8 @@ describe("the transaction window", () => {
     renderHook(() => useCcTransactions(), { wrapper });
     await waitFor(() => expect(requests.length).toBeGreaterThan(0));
     const url = requests[0].url;
-    expect(url).toContain(`dateTo=${localIso(1)}`);
-    expect(url).not.toContain(`dateTo=${localIso(0)}`);
+    expect(url).toContain(`dateTo=${localIsoDateOffset(1)}`);
+    expect(url).not.toContain(`dateTo=${localIsoDateOffset(0)}`);
   });
 
   // utils.ts:21-33 — fetchTransactions defaults to `range || 7`, and New /
@@ -142,7 +132,7 @@ describe("the transaction window", () => {
   it("looks back seven days by default", async () => {
     renderHook(() => useCcTransactions(), { wrapper });
     await waitFor(() => expect(requests.length).toBeGreaterThan(0));
-    expect(requests[0].url).toContain(`dateFrom=${localIso(-7)}`);
+    expect(requests[0].url).toContain(`dateFrom=${localIsoDateOffset(-7)}`);
   });
 
   it("honours a caller's own window over the default", async () => {

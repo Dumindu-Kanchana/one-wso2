@@ -574,6 +574,19 @@ export function isIsacConfigured(): boolean {
   return Boolean(isacUrl);
 }
 
+// CSM — a separate application this webapp does not host. Its launcher tile
+// opens it in a new tab rather than routing anywhere, which is why it needs no
+// route of its own and never appears as a landing choice or a favourite: there
+// is nothing here to land on.
+//
+// Empty string = not configured, and the tile then stays in its unbuilt state
+// rather than becoming a link to nowhere.
+export const csmUrl: string = window.config?.ONE_WSO2_CSM_URL ?? "";
+
+export function isCsmConfigured(): boolean {
+  return Boolean(csmUrl);
+}
+
 export const promotionServiceUrls = {
   // GET /employee-info?employeeWorkEmail=<email> — returns the caller's
   // EmployeeInfoWithLead (startDate, jobBand, lastPromotedDate, reportingLead,

@@ -5,8 +5,9 @@ Ported from `digiops-finance/apps/expense-claims/webapp` (5,849 lines) into
 had no specification and no tests, and its DTOs were mirrored from the *backend* rather
 than the running app.
 
-Routes: `/me/expense/new`, `/me/expense/history`, `/me/expense/lead-approvals`,
-`/me/expense/finance-approvals`. Backend is `ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL`.
+Routes: `/me/claims/expense` (a tab of Claims) and `/me/claims/expense/new`. Approving moved to
+`/finance/claim-approval/expense` — see `claim-approval.md`. Backend is
+`ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL`.
 
 ---
 
@@ -36,7 +37,7 @@ the backend and are not sent.
 
 ## 3. Screens
 
-### 3.1 New claim — `/me/expense/new`
+### 3.1 New claim — `/me/claims/expense/new`
 
 - **Expense types depend on the job number** — `GET /user-configurations/expense-types`
   is re-fetched per selection.
@@ -55,7 +56,7 @@ the backend and are not sent.
   from `/employees`, falling back to the address, and omitting the parenthetical entirely
   when neither is known.
 
-### 3.2 Claim history — `/me/expense/history`
+### 3.2 Claim history — `/me/claims/expense`
 
 Defaults to **Latest 100** (`limit: 100` and *no* date filter, so claims across all years
 appear); a chosen year narrows to a `startDate`/`endDate` range. Also filterable by

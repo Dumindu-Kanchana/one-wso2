@@ -35,7 +35,7 @@ export type PinnableEntry = Omit<PinnedEntry, "visitedAt" | "pinned">;
  * disambiguation stays "My Team".
  */
 /**
- * Drop a trailing slash so "/me/opd/history/" resolves like "/me/opd/history".
+ * Drop a trailing slash so "/me/claims/" resolves like "/me/claims".
  * React Router matches both, so both reach here; without this the registry
  * lookup misses, the label falls back to a guess, and the same page pins a
  * second time alongside its canonical entry. SideRail gets this for free from
@@ -57,7 +57,7 @@ export function pinnableRoute(pathname: string, search = ""): PinnableEntry {
 
   return {
     kind,
-    // Full href as the id, so /me/opd/history and a filtered variant of it are
+    // Full href as the id, so /me/claims and a filtered variant of it are
     // separate pins rather than one overwriting the other.
     id: href,
     label: match ?? findParentRoute(path) ?? fallbackLabel(path),

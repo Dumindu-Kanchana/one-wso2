@@ -46,8 +46,28 @@ import {
 import { VariableSizeList, type ListChildComponentProps } from "react-window";
 
 const LISTBOX_PADDING = 8; // px — matches MUI's default Listbox padding.
-const ITEM_SIZE = 36; // px — one row at Autocomplete size="small".
+
+// One row, measured rather than assumed. An option here is a photo beside a
+// name with the address under it, and MUI's line-heights are unitless
+// multipliers, so the height is the same whatever face the theme loads:
+//
+//   body2   14px x 1.43 = 20.02   (the name)
+//   caption 12px x 1.66 = 19.92   (the address, and any status chip, which is
+//                                  16px and sits inside that line box)
+//   padding 6px + 6px   = 12      (.MuiAutocomplete-option, Autocomplete.js:352-357)
+//                         -----
+//                         51.94   -> 52
+//
+// The 32px avatar is shorter than the two lines, so it never sets the height.
+// This was 36, which is one line's worth: every row overflowed its slot by 16px,
+// and with eight of them the list collapsed into an unreadable band.
+const ITEM_SIZE = 52;
 const MAX_VISIBLE_ROWS = 8;
+
+// MUI caps the listbox at 40vh (Autocomplete.js:341). Asking react-window for
+// more than that leaves it scrolling a viewport taller than the box it is
+// painted in, so the two are kept in agreement.
+const MUI_LISTBOX_MAX_VH = 0.4;
 
 // Each child is one MUI-rendered <li>; only `style` is set on the clone
 // (for absolute positioning), so that's all the element type needs to admit.
@@ -89,12 +109,18 @@ const VirtualizedListbox = forwardRef<HTMLDivElement, HTMLAttributes<HTMLElement
     const itemCount = itemData.length;
     const listRef = useResetCache(itemCount);
 
+    const rowsHeight = Math.min(itemCount, MAX_VISIBLE_ROWS) * ITEM_SIZE + 2 * LISTBOX_PADDING;
+    const height = Math.min(
+      rowsHeight,
+      Math.round((globalThis.window?.innerHeight ?? 0) * MUI_LISTBOX_MAX_VH) || rowsHeight,
+    );
+
     return (
       <div ref={ref}>
         <OuterElementContext.Provider value={other}>
           <VariableSizeList
             itemData={itemData}
-            height={Math.min(itemCount, MAX_VISIBLE_ROWS) * ITEM_SIZE + 2 * LISTBOX_PADDING}
+            height={height}
             width="100%"
             ref={listRef}
             outerElementType={OuterElementType}

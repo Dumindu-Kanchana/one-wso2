@@ -17,7 +17,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 
-const userInfo: { data?: unknown; isPending?: boolean } = {};
+// Both flags, as React Query reports them: a query that is fetching is pending
+// AND loading; a DISABLED query is pending but not loading, because it never
+// fetches. The gate has to read the second one, or a caller that switched it
+// off would be told forever that it is mid-flight.
+const userInfo: { data?: unknown; isPending?: boolean; isLoading?: boolean } = {};
 vi.mock("./useLeaveData", () => ({ useLeaveUserInfo: () => userInfo }));
 
 const { useLeaveGate } = await import("./useLeaveGate");
@@ -26,6 +30,7 @@ const { LEAVE_PRIVILEGE } = await import("./leaveTypes");
 function gateFor(data: unknown) {
   userInfo.data = data;
   userInfo.isPending = false;
+  userInfo.isLoading = false;
   return renderHook(() => useLeaveGate()).result.current;
 }
 
@@ -82,22 +87,25 @@ describe("the per-user screens", () => {
 });
 
 // route.ts:77-78 and :124-125 — allowRoles [EMPLOYEE, LEAD], denyRoles [INTERN],
-// on both the apply and the history sabbatical routes.
-describe("who can see Sabbatical", () => {
+// on both the apply and the history sabbatical routes. This is the permission
+// to TAKE a sabbatical; whether the rail offers the Sabbatical entry is a
+// different question, covered further down.
+describe("who may take a sabbatical", () => {
   it("an employee can", () => {
-    expect(gateFor({ privileges: [P.EMPLOYEE] }).canSee("leave-sabbatical")).toBe(true);
+    expect(gateFor({ privileges: [P.EMPLOYEE] }).canSee("leave-sabbatical-own")).toBe(true);
   });
 
   it("a lead can", () => {
-    expect(gateFor({ privileges: [P.LEAD] }).canSee("leave-sabbatical")).toBe(true);
+    expect(gateFor({ privileges: [P.LEAD] }).canSee("leave-sabbatical-own")).toBe(true);
   });
 
   it("an intern cannot, even holding the employee privilege", () => {
-    expect(gateFor({ privileges: [P.EMPLOYEE, P.INTERN] }).canSee("leave-sabbatical")).toBe(false);
+    expect(gateFor({ privileges: [P.EMPLOYEE, P.INTERN] }).canSee("leave-sabbatical-own")).toBe(false);
   });
 
+  // They still get the Sabbatical entry, for its Report — see below.
   it("a People-Ops-only user cannot — they hold neither allowed role", () => {
-    expect(gateFor({ privileges: [P.PEOPLE_OPS_TEAM] }).canSee("leave-sabbatical")).toBe(false);
+    expect(gateFor({ privileges: [P.PEOPLE_OPS_TEAM] }).canSee("leave-sabbatical-own")).toBe(false);
   });
 });
 
@@ -112,6 +120,7 @@ describe("before /user-info has answered", () => {
   it("reports that it is still resolving, and grants nothing", () => {
     userInfo.data = undefined;
     userInfo.isPending = true;
+    userInfo.isLoading = true;
     const gate = renderHook(() => useLeaveGate()).result.current;
     expect(gate.isResolving).toBe(true);
     expect(gate.canSee("leave-reports")).toBe(false);
@@ -149,5 +158,76 @@ describe("who can see My History", () => {
 
   it("Apply stays open to a People-Ops-only account", () => {
     expect(gateFor({ privileges: [P.PEOPLE_OPS_TEAM] }).canSee("leave-apply")).toBe(true);
+  });
+});
+
+// A rail entry is offered when the person may open any tab inside it — not when
+// they may take that kind of leave. People Ops cannot hold a sabbatical, but the
+// sabbatical Report is theirs (route.ts:143-148). Gating the entry on the
+// sabbatical permission alone hid a screen they are entitled to and left it
+// reachable only by typing the URL.
+describe("which leave entries the rail offers", () => {
+  it("offers Sabbatical to People Ops, who get its Report but cannot apply", () => {
+    const gate = gateFor({ privileges: [P.PEOPLE_OPS_TEAM] });
+    expect(gate.canSee("leave-sabbatical")).toBe(true);
+    expect(gate.canSee("leave-sabbatical-own")).toBe(false);
+    expect(gate.canSee("leave-reports")).toBe(true);
+  });
+
+  it("offers Sabbatical to someone who may take one", () => {
+    expect(gateFor({ privileges: [P.EMPLOYEE] }).canSee("leave-sabbatical")).toBe(true);
+  });
+
+  it("offers a lead both entries", () => {
+    const gate = gateFor({ privileges: [P.EMPLOYEE, P.LEAD] });
+    expect(gate.canSee("leave-general")).toBe(true);
+    expect(gate.canSee("leave-sabbatical")).toBe(true);
+  });
+
+  // An intern may take general leave but never a sabbatical, cannot approve,
+  // and gets no reports — so the whole entry goes.
+  it("withholds Sabbatical entirely from an intern", () => {
+    const gate = gateFor({ privileges: [P.EMPLOYEE, P.INTERN] });
+    expect(gate.canSee("leave-sabbatical")).toBe(false);
+    expect(gate.canSee("leave-general")).toBe(true);
+  });
+
+  it("always offers General, since applying is open to everyone", () => {
+    for (const p of [P.EMPLOYEE, P.INTERN, P.LEAD, P.PEOPLE_OPS_TEAM]) {
+      expect(gateFor({ privileges: [p] }).canSee("leave-general")).toBe(true);
+    }
+  });
+});
+
+// A gate switched off by its caller is not "still resolving" — it was never
+// asked. The rail does this while another perspective is active, and a screen
+// that waited on it would show a skeleton that never resolves.
+describe("when the caller switches the gate off", () => {
+  it("is not reported as resolving", () => {
+    userInfo.data = undefined;
+    userInfo.isPending = true; // disabled queries stay pending for good
+    userInfo.isLoading = false;
+    const gate = renderHook(() => useLeaveGate(false)).result.current;
+    expect(gate.isResolving).toBe(false);
+  });
+});
+
+
+// The state that made this gate wrong once already. useLeaveUserInfo is held
+// back until the Asgardeo sub resolves, so on a cold load the query is DISABLED
+// and merely not-fetching: pending true, loading false. Read as "loading", that
+// is a finished check holding no privileges — and the rail hides entries from
+// the people who have them.
+//
+// Distinct from a query disabled because the person lacks a role, where nothing
+// is coming and not-loading is the truth. Why it is off is what decides.
+describe("while identity is still resolving", () => {
+  it("reports itself as still resolving, not as a finished denial", () => {
+    userInfo.data = undefined;
+    userInfo.isPending = true;
+    userInfo.isLoading = false; // disabled: never started, so never "loading"
+    const gate = renderHook(() => useLeaveGate()).result.current;
+    expect(gate.isResolving).toBe(true);
+    expect(gate.canSee("leave-reports")).toBe(false);
   });
 });

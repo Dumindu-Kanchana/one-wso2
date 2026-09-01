@@ -64,6 +64,7 @@ import {
   type CcSummaryPeriod,
 } from "../ccDashboard";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
+import { ccPaths } from "../ccPaths";
 
 // Ported from view/dashboard/. The figures are aggregated in the database — the
 // screen only picks the window to scope them to.
@@ -198,7 +199,7 @@ function DashboardBody() {
             value={`${CURRENCY} ${wholeAmount(current?.amount ?? 0)}`}
             loading={summary.isLoading}
             linkTitle="New transaction"
-            onLinkClick={() => navigate("/me/cc/new")}
+            onLinkClick={() => navigate(ccPaths.newTransactions)}
           />
           <Stat
             title="Total Transactions Pending Submission"

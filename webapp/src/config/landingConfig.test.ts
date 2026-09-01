@@ -43,11 +43,15 @@ describe("landing options", () => {
     }
   });
 
-  it("excludes the locked placeholders", () => {
+  // Derived from the registry rather than a hardcoded list, which went stale the
+  // moment the unbuilt placeholders were removed: the old assertion named keys
+  // that no longer exist and passed by saying nothing.
+  it("excludes anything without a route of its own", () => {
     const keys = landingOptions().map((o) => o.key);
-    // These are registry entries with access: false — reachable one day, not now.
-    for (const locked of ["csm", "revops", "legal", "requests"]) {
-      expect(keys, `"${locked}" should not be landable`).not.toContain(locked);
+    const unlandable = PERSPECTIVES.filter((p) => !p.access || !p.path);
+    expect(unlandable.length, "no unlandable perspective left to check").toBeGreaterThan(0);
+    for (const p of unlandable) {
+      expect(keys, `"${p.key}" should not be landable`).not.toContain(p.key);
     }
   });
 
@@ -88,9 +92,9 @@ describe("landingPath", () => {
     expect(landingPath()).toBe("/marketing-ops");
   });
 
-  it("falls back on a locked perspective rather than stranding the user", () => {
-    // "csm" exists in the registry but has no route, so landing there would hit
-    // the catch-all and bounce.
+  it("falls back on a routeless perspective rather than stranding the user", () => {
+    // "csm" is in the registry but lives in another application, so it has no
+    // route here; landing there would hit the catch-all and bounce.
     setLandingPreference("csm");
     expect(landingPath()).toBe("/me");
   });

@@ -27,7 +27,7 @@ import type { ReactNode } from "react";
 // The 2024→2027 span crosses a leap year, so counting by eye gets it wrong.
 
 const profile = {
-  workEmail: "me@wso2.com",
+  workEmail: "me@wso2.com" as string | undefined,
   leadEmail: "lead@wso2.com" as string | null,
   employmentStartDate: "2024-01-01",
   location: "Sri Lanka",
@@ -54,6 +54,7 @@ const state = {
   leavesFailed: false,
   configFailed: false,
   userInfoLoading: false,
+  userInfoFailed: false,
 };
 
 // Every filter useLeaves is called with, so a test can assert what the screen
@@ -65,7 +66,8 @@ vi.mock("../api/useLeaveData", () => ({
     data: state.userInfoLoading ? undefined : { ...profile, subordinateCount: state.subordinateCount },
     isPending: state.userInfoLoading,
     isLoading: state.userInfoLoading,
-    isError: false,
+    isError: state.userInfoFailed,
+    error: state.userInfoFailed ? new Error("no profile") : null,
   }),
   useLeaveAppConfig: () => ({
     data: state.configFailed
@@ -76,14 +78,18 @@ vi.mock("../api/useLeaveData", () => ({
     isSuccess: !state.configFailed,
   }),
   useLeaveEmployees: () => ({ data: [], isLoading: false, isError: false }),
-  useLeaves: (filter: Record<string, unknown>) => {
-    leaveFilters.push(filter);
+  useLeaves: (filter: Record<string, unknown>, enabled = true) => {
+    if (enabled) leaveFilters.push(filter);
     return {
-      data: state.leavesFailed ? undefined : { leaves: state.leaves },
-      isPending: false,
+      data: state.leavesFailed || !enabled ? undefined : { leaves: state.leaves },
+      // As React Query reports a DISABLED query: never fetched, so `pending`
+      // forever, while `isLoading` — pending AND fetching — stays false. The
+      // mock used to report `isPending: false` regardless, which hid a screen
+      // that waits on the wrong flag.
+      isPending: !enabled,
       isLoading: false,
-      isError: state.leavesFailed,
-      isSuccess: !state.leavesFailed,
+      isError: state.leavesFailed && enabled,
+      isSuccess: !state.leavesFailed && enabled,
       error: state.leavesFailed ? new Error("boom") : null,
     };
   },
@@ -110,7 +116,13 @@ vi.mock("../components/LeaveShell", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-const { default: LeaveSabbaticalPage } = await import("./LeaveSabbaticalPage");
+const { default: SabbaticalApplyTab } = await import("./LeaveSabbaticalPage");
+const { SabbaticalHistoryTab } = await import("./LeaveHistoryPage");
+const { default: SabbaticalApproveTab } = await import("../components/SabbaticalApproveTab");
+const { default: SabbaticalApprovalHistoryTab } = await import(
+  "../components/SabbaticalApprovalHistoryTab"
+);
+const { default: SabbaticalReportTab } = await import("../components/SabbaticalReportTab");
 const { NotificationsProvider } = await import("@context/notifications/NotificationsContext");
 
 beforeEach(() => {
@@ -123,18 +135,21 @@ beforeEach(() => {
   state.leavesFailed = false;
   state.configFailed = false;
   state.userInfoLoading = false;
+  state.userInfoFailed = false;
+  profile.workEmail = "me@wso2.com";
   profile.leadEmail = "lead@wso2.com";
   state.leaves = [];
   state.canSee = true;
   state.featureEnabled = true;
 });
 
-function show() {
+// Each sabbatical screen is its own route under an action group now
+// (leaveTabs.ts), so a test renders the body it is about. Which tabs appear,
+// and who may reach them, is covered in LeaveTabRouting.test.tsx.
+function show(body: ReactNode = <SabbaticalApplyTab />) {
   return render(
     <QueryClientProvider client={new QueryClient()}>
-      <NotificationsProvider>
-        <LeaveSabbaticalPage />
-      </NotificationsProvider>
+      <NotificationsProvider>{body}</NotificationsProvider>
     </QueryClientProvider>,
   );
 }
@@ -327,7 +342,21 @@ describe("what actually gets submitted", () => {
 });
 
 // SabbaticalLeave.tsx:36-43 and route.ts:77-78.
-describe("who and when the screen is available", () => {
+// Who may reach this screen is decided by its route now; see
+// LeaveTabRouting.test.tsx. What remains here is the feature flag, which the
+// screen itself honours.
+describe("when the sabbatical feature is switched off", () => {
+  // The history query is enabled on `Boolean(workEmail)`. When /user-info fails
+  // there is no email, so that query is never fetched — and a loading check
+  // waiting on its `isPending` would spin forever instead of reaching the error
+  // below it.
+  it("shows the error rather than spinning when the profile fails to load", async () => {
+    profile.workEmail = undefined;
+    state.userInfoFailed = true;
+    show();
+    expect(await screen.findByText(/Couldn't load your leave profile/)).toBeInTheDocument();
+  });
+
   it("is replaced wholesale when the feature flag is off", async () => {
     state.featureEnabled = false;
     show();
@@ -337,36 +366,6 @@ describe("who and when the screen is available", () => {
     );
     expect(screen.queryByRole("button", { name: "Apply" })).not.toBeInTheDocument();
   });
-
-  it("is closed to a role the gate rejects", async () => {
-    state.canSee = false;
-    show();
-    expect(await screen.findByText(/isn't available for your role/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Apply" })).not.toBeInTheDocument();
-  });
-});
-
-// The source reaches these through separate routes (route.ts:73-127); One WSO2
-// keeps one Sabbatical entry and gates tabs instead. The rules that decide what
-// a person can reach are the same either way.
-describe("the sabbatical tabs", () => {
-  it("offers apply and my history to someone eligible", async () => {
-    show();
-    expect(await screen.findByRole("tab", { name: "Apply" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "My history" })).toBeInTheDocument();
-  });
-
-  it("opens on Apply", async () => {
-    show();
-    expect(await screen.findByRole("button", { name: "Apply" })).toBeInTheDocument();
-  });
-
-  it("shows no tabs at all to a role the gate rejects", async () => {
-    state.canSee = false;
-    show();
-    expect(await screen.findByText(/isn't available for your role/)).toBeInTheDocument();
-    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-  });
 });
 
 // SabbaticalLeaveHistory.tsx:21-28 — the general history screen with the
@@ -375,68 +374,36 @@ describe("the sabbatical tabs", () => {
 // wrong.
 describe("the my-history tab", () => {
   it("asks only for sabbatical leave", async () => {
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
-    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    show(<SabbaticalHistoryTab />);
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(0));
     const historyFilter = leaveFilters.at(-1)!;
     expect(historyFilter.leaveCategory).toEqual(["sabbatical"]);
   });
 
   it("keeps the source's statuses and ordering", async () => {
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
-    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    show(<SabbaticalHistoryTab />);
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(0));
     const historyFilter = leaveFilters.at(-1)!;
     expect(historyFilter.statuses).toEqual(["APPROVED", "PENDING"]);
     expect(historyFilter.orderBy).toBe("DESC");
   });
 
   it("brings the year selector with it", async () => {
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
+    show(<SabbaticalHistoryTab />);
     expect(await screen.findByText("Year")).toBeInTheDocument();
   });
 
   it("says so when there is no sabbatical on record", async () => {
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "My history" }));
+    show(<SabbaticalHistoryTab />);
     expect(await screen.findByText(/No leave history available for/)).toBeInTheDocument();
-  });
-});
-
-// route.ts:87,94,101 — approving is LEAD only, by the privilege number alone.
-// The orphaned draft of this screen accepted `isLead`, the LEAD privilege OR
-// `subordinateCount > 0`, which handed the approve queue to people the running
-// app does not.
-describe("who gets the approve tabs", () => {
-  it("a lead does", async () => {
-    state.isLead = true;
-    show();
-    expect(await screen.findByRole("tab", { name: "Approve" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Approval history" })).toBeInTheDocument();
-  });
-
-  it("a plain employee does not", async () => {
-    show();
-    await screen.findByRole("tab", { name: "Apply" });
-    expect(screen.queryByRole("tab", { name: "Approve" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Approval history" })).not.toBeInTheDocument();
-  });
-
-  it("having reports without the privilege is not enough", async () => {
-    state.subordinateCount = 12;
-    show();
-    await screen.findByRole("tab", { name: "Apply" });
-    expect(screen.queryByRole("tab", { name: "Approve" })).not.toBeInTheDocument();
   });
 });
 
 describe("the approve tab", () => {
   it("asks for its own reports' pending sabbaticals", async () => {
     state.isLead = true;
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
-    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    show(<SabbaticalApproveTab />);
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(0));
     expect(leaveFilters.at(-1)).toMatchObject({
       subordinatesLeaves: true,
       leaveCategory: ["sabbatical"],
@@ -447,9 +414,8 @@ describe("the approve tab", () => {
 
   it("asks only for decided requests on the history tab", async () => {
     state.isLead = true;
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Approval history" }));
-    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    show(<SabbaticalApprovalHistoryTab />);
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(0));
     expect(leaveFilters.at(-1)).toMatchObject({
       subordinatesLeaves: true,
       leaveCategory: ["sabbatical"],
@@ -477,8 +443,7 @@ describe("deciding on a request", () => {
     state.isLead = true;
     state.subordinateCount = 4;
     state.leaves = [pendingRow];
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    show(<SabbaticalApproveTab />);
     fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
     // One approved sabbatical returned for four reports = 25%.
     expect(
@@ -492,8 +457,7 @@ describe("deciding on a request", () => {
     state.isLead = true;
     state.subordinateCount = 4;
     state.leaves = [pendingRow];
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    show(<SabbaticalApproveTab />);
     fireEvent.click(await screen.findByRole("button", { name: "Reject" }));
     expect(
       await screen.findByText(
@@ -507,8 +471,7 @@ describe("deciding on a request", () => {
     state.isLead = true;
     state.subordinateCount = 4;
     state.leaves = [pendingRow];
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    show(<SabbaticalApproveTab />);
     fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
     expect(approveMutate).not.toHaveBeenCalled();
 
@@ -522,31 +485,10 @@ describe("deciding on a request", () => {
 // every status rather than approved only, and no employee-status filter — the
 // source never passes that handler, so Toolbar.tsx:265 hides the control.
 describe("the sabbatical report tab", () => {
-  it("is open to a lead and to People Ops", async () => {
-    state.isLead = true;
-    show();
-    expect(await screen.findByRole("tab", { name: "Report" })).toBeInTheDocument();
-  });
-
-  it("is open to People Ops who cannot apply", async () => {
-    state.canSee = false;
-    state.isPeopleOps = true;
-    show();
-    expect(await screen.findByRole("tab", { name: "Report" })).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Apply" })).not.toBeInTheDocument();
-  });
-
-  it("is closed to a plain employee", async () => {
-    show();
-    await screen.findByRole("tab", { name: "Apply" });
-    expect(screen.queryByRole("tab", { name: "Report" })).not.toBeInTheDocument();
-  });
-
   it("asks for every status, unlike the general report", async () => {
     state.isLead = true;
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
-    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    show(<SabbaticalReportTab />);
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(0));
     expect(leaveFilters.at(-1)).toMatchObject({
       leaveCategory: ["sabbatical"],
       statuses: ["PENDING", "APPROVED", "REJECTED", "CANCELLED"],
@@ -555,34 +497,30 @@ describe("the sabbatical report tab", () => {
 
   it("scopes a plain lead to their own reports", async () => {
     state.isLead = true;
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
-    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    show(<SabbaticalReportTab />);
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(0));
     expect(leaveFilters.at(-1)!.approverEmail).toBe("me@wso2.com");
   });
 
   it("starts People Ops across everyone", async () => {
     state.isLead = true;
     state.isPeopleOps = true;
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
-    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(1));
+    show(<SabbaticalReportTab />);
+    await waitFor(() => expect(leaveFilters.length).toBeGreaterThan(0));
     expect(leaveFilters.at(-1)!.approverEmail).toBeUndefined();
   });
 
   it("offers no employee-status filter", async () => {
     state.isLead = true;
     state.isPeopleOps = true;
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
+    show(<SabbaticalReportTab />);
     await screen.findByRole("button", { name: /Fetch report/ });
     expect(screen.queryByLabelText(/Employee status/i)).not.toBeInTheDocument();
   });
 
   it("refuses a range that ends before it starts", async () => {
     state.isLead = true;
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Report" }));
+    show(<SabbaticalReportTab />);
     fireEvent.change(screen.getByLabelText("From"), { target: { value: "2027-05-01" } });
     fireEvent.change(screen.getByLabelText("To"), { target: { value: "2027-04-01" } });
     fireEvent.click(screen.getByRole("button", { name: /Fetch report/ }));
@@ -648,8 +586,7 @@ describe("holding the approve button until the team share is known", () => {
     state.isLead = true;
     state.userInfoLoading = true;
     state.leaves = [pendingRow];
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    show(<SabbaticalApproveTab />);
     fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
     expect(await screen.findByRole("button", { name: "Yes, Approve" })).toBeDisabled();
   });
@@ -658,8 +595,7 @@ describe("holding the approve button until the team share is known", () => {
     state.isLead = true;
     state.subordinateCount = 4;
     state.leaves = [pendingRow];
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    show(<SabbaticalApproveTab />);
     fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
     expect(await screen.findByRole("button", { name: "Yes, Approve" })).toBeEnabled();
   });
@@ -668,9 +604,45 @@ describe("holding the approve button until the team share is known", () => {
     state.isLead = true;
     state.userInfoLoading = true;
     state.leaves = [pendingRow];
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: "Approve" }));
+    show(<SabbaticalApproveTab />);
     fireEvent.click(await screen.findByRole("button", { name: "Reject" }));
     expect(await screen.findByRole("button", { name: "Yes, Reject" })).toBeEnabled();
   });
 });
+
+// leave.ts:150-156 — the source raises this from inside the submitLeave thunk,
+// so a sabbatical is confirmed exactly as general leave is. Asserted on both
+// call sites, because a message that lives at the call site is a message the
+// next call site can forget.
+describe("what the screen says after a successful submit", () => {
+  async function submitAndSucceed() {
+    show();
+    await fillValidRequest();
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Yes" }));
+    await waitFor(() => expect(submitMutate).toHaveBeenCalled());
+    // Drive the mutation's own success path, the way React Query would.
+    submitMutate.mock.calls[0][1].onSuccess();
+  }
+
+  // The thunk's wording, without the exclamation mark the Apply form hardcodes
+  // (leave.ts:150-156 vs GeneralLeave.tsx:147). Same event, two strings, and
+  // that difference is the source's — asserted exactly so it stays that way.
+  it("confirms the request was submitted, as a success and not an error", async () => {
+    await submitAndSucceed();
+    expect(screen.queryByText("Leave request submitted successfully!")).not.toBeInTheDocument();
+    const message = await screen.findByText("Leave request submitted successfully");
+    // MUI stamps the severity into the Alert's class; a success reported
+    // through showError would read as a failure that somehow worked.
+    const alert = message.closest(".MuiAlert-root");
+    expect(alert?.className).toMatch(/AlertSuccess|standardSuccess|filledSuccess/);
+  });
+
+  it("clears the form so a second request cannot be sent by accident", async () => {
+    await submitAndSucceed();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Leave request start date/)).toHaveValue(""),
+    );
+    expect(screen.getByLabelText(/Leave request end date/)).toHaveValue("");
+  });
+})

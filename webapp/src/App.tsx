@@ -55,18 +55,30 @@ import {
   EmailWorkbenchHistoryPage,
   EmailWorkbenchManagePage,
 } from "@features/marketing-ops/email-workbench/pages/EmailWorkbenchPages";
-import LeaveApplyPage from "@features/leave/pages/LeaveApplyPage";
-import LeaveHistoryPage from "@features/leave/pages/LeaveHistoryPage";
+import LeaveGroupPage, {
+  LeaveGroupIndex,
+  LeaveTabRoute,
+} from "@features/leave/pages/LeaveGroupPage";
+import GeneralApplyTab from "@features/leave/pages/LeaveApplyPage";
+import GeneralHistoryTab, {
+  SabbaticalHistoryTab,
+} from "@features/leave/pages/LeaveHistoryPage";
+import SabbaticalApproveTab from "@features/leave/components/SabbaticalApproveTab";
+import SabbaticalApprovalHistoryTab from "@features/leave/components/SabbaticalApprovalHistoryTab";
 // Lazy on purpose. This is the only screen that pulls in the DataGrid, which
 // costs ~115 kB gzipped — and only leads and People Ops can open it, so loading
 // it for everyone taxes the many for the few. The sabbatical approve and report
 // screens will share the same chunk when they land.
-const LeaveReportsPage = lazy(() => import("@features/leave/pages/LeaveReportsPage"));
+const GeneralReportTab = lazy(() => import("@features/leave/pages/LeaveReportsPage"));
+const SabbaticalReportTab = lazy(
+  () => import("@features/leave/components/SabbaticalReportTab"),
+);
 
-import LeaveSabbaticalPage from "@features/leave/pages/LeaveSabbaticalPage";
+import SabbaticalApplyTab from "@features/leave/pages/LeaveSabbaticalPage";
+import ClaimsPage, { ClaimsIndex } from "@features/finance/claims/ClaimsPage";
 import OpdNewClaimPage from "@features/finance/opd/pages/OpdNewClaimPage";
-import OpdHistoryPage from "@features/finance/opd/pages/OpdHistoryPage";
-import OpdApprovalsPage from "@features/finance/opd/pages/OpdApprovalsPage";
+import OpdClaimsTab from "@features/finance/opd/pages/OpdHistoryPage";
+import OpdApprovalsTab from "@features/finance/opd/pages/OpdApprovalsPage";
 import CcDashboardPage from "@features/finance/cc/pages/CcDashboardPage";
 import CcNewTransactionsPage from "@features/finance/cc/pages/CcNewTransactionsPage";
 import CcPendingPage from "@features/finance/cc/pages/CcPendingPage";
@@ -74,11 +86,14 @@ import CcApprovePage from "@features/finance/cc/pages/CcApprovePage";
 import CcHistoryPage from "@features/finance/cc/pages/CcHistoryPage";
 import CcSettingsPage from "@features/finance/cc/pages/CcSettingsPage";
 import ExpenseNewClaimPage from "@features/finance/expense/pages/ExpenseNewClaimPage";
-import ExpenseHistoryPage from "@features/finance/expense/pages/ExpenseHistoryPage";
-import {
-  ExpenseLeadApprovalsPage,
-  ExpenseFinanceApprovalsPage,
-} from "@features/finance/expense/pages/ExpenseApprovalsPage";
+import ExpenseClaimsTab from "@features/finance/expense/pages/ExpenseHistoryPage";
+import ClaimApprovalPage, {
+  ClaimApprovalIndex,
+  ClaimApprovalTabRoute,
+} from "@features/finance/approvals/ClaimApprovalPage";
+import NeedsYouTab from "@features/finance/approvals/NeedsYouTab";
+import DecidedTab from "@features/finance/approvals/DecidedTab";
+import ExpenseApprovalsTab from "@features/finance/expense/pages/ExpenseApprovalsPage";
 
 export default function App() {
   return (
@@ -98,19 +113,87 @@ export default function App() {
           {/* Me → Leave: native screens ported from leave-app. Lives here
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}
-          <Route path="me/leave/apply" element={<LeaveApplyPage />} />
-          <Route path="me/leave/history" element={<LeaveHistoryPage />} />
-          <Route
-            path="me/leave/reports"
-            element={
-              // Skeleton rather than null: the chunk is fetched on navigation,
-              // and a blank frame reads as a broken link.
-              <Suspense fallback={<Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />}>
-                <LeaveReportsPage />
-              </Suspense>
-            }
-          />
-          <Route path="me/leave/sabbatical" element={<LeaveSabbaticalPage />} />
+          {/* Two groups by kind of leave, each holding everything you can do
+              with that kind. General is the everyday path; sabbatical is rare,
+              so it sits behind its own entry rather than threading through
+              every group. Each tab is a real route, so it can be linked,
+              refreshed and gated; see features/leave/leaveTabs.ts. */}
+          <Route path="me/leave/general" element={<LeaveGroupPage groupKey="general" />}>
+            <Route index element={<LeaveGroupIndex groupKey="general" />} />
+            <Route
+              path="apply"
+              element={
+                <LeaveTabRoute groupKey="general" gateId="leave-apply">
+                  <GeneralApplyTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="history"
+              element={
+                <LeaveTabRoute groupKey="general" gateId="leave-history">
+                  <GeneralHistoryTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="reports"
+              element={
+                <LeaveTabRoute groupKey="general" gateId="leave-reports">
+                  {/* Skeleton rather than null: the chunk is fetched on
+                      navigation, and a blank frame reads as a broken link. */}
+                  <Suspense fallback={<Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />}>
+                    <GeneralReportTab />
+                  </Suspense>
+                </LeaveTabRoute>
+              }
+            />
+          </Route>
+          <Route path="me/leave/sabbatical" element={<LeaveGroupPage groupKey="sabbatical" />}>
+            <Route index element={<LeaveGroupIndex groupKey="sabbatical" />} />
+            <Route
+              path="apply"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-sabbatical-own">
+                  <SabbaticalApplyTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="history"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-sabbatical-own">
+                  <SabbaticalHistoryTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="approve"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-approve">
+                  <SabbaticalApproveTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="approval-history"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-approve">
+                  <SabbaticalApprovalHistoryTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="report"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-reports">
+                  <Suspense fallback={<Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />}>
+                    <SabbaticalReportTab />
+                  </Suspense>
+                </LeaveTabRoute>
+              }
+            />
+          </Route>
           {/* Me → digiops-finance claim apps: native screens ported from the
               three finance apps (opd-claims, cc-expenses, expense-claims).
               Moved in from the Finance perspective — same rationale as
@@ -118,19 +201,24 @@ export default function App() {
               lead/finance-approver subset of items approves others'). The
               Finance perspective itself is now just a skeleton tile (see
               FinancePage) — these apps don't live there anymore. */}
-          <Route path="me/opd/new" element={<OpdNewClaimPage />} />
-          <Route path="me/opd/history" element={<OpdHistoryPage />} />
-          <Route path="me/opd/approvals" element={<OpdApprovalsPage />} />
-          <Route path="me/cc/dashboard" element={<CcDashboardPage />} />
-          <Route path="me/cc/new" element={<CcNewTransactionsPage />} />
-          <Route path="me/cc/pending" element={<CcPendingPage />} />
-          <Route path="me/cc/approve" element={<CcApprovePage />} />
-          <Route path="me/cc/history" element={<CcHistoryPage />} />
-          <Route path="me/cc/settings" element={<CcSettingsPage />} />
-          <Route path="me/expense/new" element={<ExpenseNewClaimPage />} />
-          <Route path="me/expense/history" element={<ExpenseHistoryPage />} />
-          <Route path="me/expense/lead-approvals" element={<ExpenseLeadApprovalsPage />} />
-          <Route path="me/expense/finance-approvals" element={<ExpenseFinanceApprovalsPage />} />
+          {/* Me → Claims: the two things you file for yourself, one entry with
+              a tab each. The forms keep routes of their own — both are long,
+              both hold a draft, and both are worth linking to directly — and
+              are reached through the Add claim menu, because no single form
+              could take both types. See features/finance/claims. */}
+          <Route path="me/claims" element={<ClaimsPage />}>
+            <Route index element={<ClaimsIndex />} />
+            <Route path="expense" element={<ExpenseClaimsTab />} />
+            <Route path="opd" element={<OpdClaimsTab />} />
+          </Route>
+          <Route path="me/claims/expense/new" element={<ExpenseNewClaimPage />} />
+          <Route path="me/claims/opd/new" element={<OpdNewClaimPage />} />
+          <Route path="finance/cc/dashboard" element={<CcDashboardPage />} />
+          <Route path="finance/cc/new" element={<CcNewTransactionsPage />} />
+          <Route path="finance/cc/pending" element={<CcPendingPage />} />
+          <Route path="finance/cc/approve" element={<CcApprovePage />} />
+          <Route path="finance/cc/history" element={<CcHistoryPage />} />
+          <Route path="finance/cc/settings" element={<CcSettingsPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
           {/* People Ops reports. Admin-only, but enforced by the backend and
               explained by PeopleOpsShell — there is no route-level guard, so
@@ -157,8 +245,48 @@ export default function App() {
             element={<EmployeeDetailPage />}
           />
           {/* Finance perspective — skeleton "coming soon" tile; the actual
-              claim apps are the me/opd, me/cc, me/expense routes above. */}
+              claim apps are the me/claims routes above. */}
           <Route path="finance" element={<FinancePage />} />
+          {/* Finance → Claim approval. Approving is work you do for other
+              people, so it sits here rather than under Me with the things you
+              do for yourself; submitting and history stay there. Each tab is a
+              real route, gated by its own rule at the route rather than only
+              hidden from the bar. See features/finance/approvals. */}
+          <Route path="finance/claim-approval" element={<ClaimApprovalPage />}>
+            <Route index element={<ClaimApprovalIndex />} />
+            <Route
+              path="needs-you"
+              element={
+                <ClaimApprovalTabRoute gateId="claim-approval">
+                  <NeedsYouTab />
+                </ClaimApprovalTabRoute>
+              }
+            />
+            <Route
+              path="expense"
+              element={
+                <ClaimApprovalTabRoute gateId="claim-approval-expense">
+                  <ExpenseApprovalsTab />
+                </ClaimApprovalTabRoute>
+              }
+            />
+            <Route
+              path="opd"
+              element={
+                <ClaimApprovalTabRoute gateId="claim-approval-opd">
+                  <OpdApprovalsTab />
+                </ClaimApprovalTabRoute>
+              }
+            />
+            <Route
+              path="decided"
+              element={
+                <ClaimApprovalTabRoute gateId="claim-approval">
+                  <DecidedTab />
+                </ClaimApprovalTabRoute>
+              }
+            />
+          </Route>
           {/* Marketing Ops perspective — overview + the Phase 1 Utilities
               screens, ported from the Marketing Ops frontend. The remaining
               operations (Ad Campaigns, Email Workbench, Events, CRM Upload)

@@ -117,6 +117,62 @@ describe("the report filter", () => {
     expect(url.searchParams.get("approverEmail")).toBe("lead@wso2.com");
   });
 
+  // The exact request a lead's report makes, compared against one confirmed
+  // working against the live backend on 2026-09-01:
+  //
+  //   /leaves?approverEmail=duminduk%40wso2.com&startDate=2026-01-01
+  //          &endDate=2026-09-01&statuses=APPROVED
+  //          &employeeStatuses=Active&employeeStatuses=Marked%20leaver
+  //
+  // The same request with `limit=1000&orderBy=DESC` added and employeeStatuses
+  // dropped came back empty. The running app sends neither — it never puts a
+  // `limit` on an approver-scoped query at all (leaveService.ts:145-150 builds
+  // them, LeadReportTab.tsx:55-62 sends none) — so this asserts the absence as
+  // firmly as the presence.
+  it("sends the parameter set the live backend answers, and nothing else", async () => {
+    renderHook(
+      () =>
+        useLeaves({
+          startDate: "2026-01-01",
+          endDate: "2026-09-01",
+          statuses: ["APPROVED"],
+          approverEmail: "duminduk@wso2.com",
+          employeeStatuses: ["Active", "Marked leaver"],
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(requests).toHaveLength(1));
+
+    const sent = new URL(requests[0].url).searchParams;
+    const working = new URL(
+      "https://x/leaves?approverEmail=duminduk%40wso2.com&startDate=2026-01-01" +
+        "&endDate=2026-09-01&statuses=APPROVED" +
+        "&employeeStatuses=Active&employeeStatuses=Marked%20leaver",
+    ).searchParams;
+
+    const pairs = (p: URLSearchParams) =>
+      [...p.entries()].map(([k, v]) => `${k}=${v}`).sort();
+    expect(pairs(sent)).toEqual(pairs(working));
+  });
+
+  it("puts no limit on an approver-scoped report", async () => {
+    renderHook(
+      () =>
+        useLeaves({
+          startDate: "2026-01-01",
+          endDate: "2026-09-01",
+          statuses: ["APPROVED"],
+          approverEmail: "lead@wso2.com",
+          employeeStatuses: ["Active"],
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(requests).toHaveLength(1));
+    const sent = new URL(requests[0].url).searchParams;
+    expect(sent.get("limit")).toBeNull();
+    expect(sent.get("orderBy")).toBeNull();
+  });
+
   it("encodes an email rather than interpolating it raw", async () => {
     // The source builds this one param with a bare template literal
     // (leaveService.ts:122) while encoding every sibling.

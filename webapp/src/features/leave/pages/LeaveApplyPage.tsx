@@ -40,7 +40,6 @@ import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListb
 import { EmployeeOption } from "../components/EmployeeOption";
 import { employeeDisplayName } from "../util/employeeName";
 import EmployeeAvatar from "@features/my/my-team/components/EmployeeAvatar";
-import LeaveShell from "../components/LeaveShell";
 import LeaveBalanceSummary from "../components/LeaveBalanceSummary";
 import LeaveDateField from "../components/LeaveDateField";
 import {
@@ -73,18 +72,14 @@ import {
   PUBLIC_COMMENT_NOTE,
   SUBMIT_SUCCESS,
 } from "../util/leaveCopy";
+import { withLoadingAdornment } from "@components/picker-loading/pickerLoading";
 
 type Portion = "full" | "first" | "second";
 
-export default function LeaveApplyPage() {
-  return (
-    <LeaveShell
-      title="Apply for leave"
-      subtitle="Request general leave — pick your dates, the leave type and portion, and who to notify. Working days are validated against the holiday calendar before you submit."
-    >
-      <ApplyForm />
-    </LeaveShell>
-  );
+// The General tab of Apply (route.ts:65-70). The page frame and the tab bar
+// are LeaveGroupPage's; this is only the form.
+export default function GeneralApplyTab() {
+  return <ApplyForm />;
 }
 
 function ApplyForm() {
@@ -480,6 +475,7 @@ function ApplyForm() {
           value={[...mandatory, ...recipients.filter((r) => !mandatory.includes(r))]}
           onChange={(_e, v) => setRecipients((v as string[]).filter((r) => !mandatory.includes(r)))}
           loading={employees.isLoading}
+          disabled={employees.isLoading}
           loadingText="Loading employees…"
           noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
           disableListWrap
@@ -533,7 +529,10 @@ function ApplyForm() {
             })
           }
           renderInput={(params) => (
-            <TextField {...params} placeholder="Add people to notify (optional)" />
+            <TextField
+              {...withLoadingAdornment(params, employees.isLoading)}
+              placeholder={employees.isLoading ? "Loading people…" : "Add people to notify (optional)"}
+            />
           )}
         />
         <Typography sx={{ fontSize: 11, color: "text.disabled", mt: 0.75 }}>

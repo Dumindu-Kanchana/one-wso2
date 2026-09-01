@@ -51,7 +51,16 @@ const rejectedClaim = {
   ],
 };
 
-const state = { claims: [rejectedClaim] as unknown[] };
+const DEFAULT_SUMMARY = {
+  totalClaimLimit: 75000,
+  totalClaimedAmount: 21300,
+  totalRemaining: 53700,
+};
+
+const state = {
+  summary: DEFAULT_SUMMARY as typeof DEFAULT_SUMMARY | undefined,
+  claims: [rejectedClaim] as unknown[],
+};
 
 // Every search payload the screen asks for, so filter assertions are about
 // what reaches the backend rather than what renders.
@@ -68,11 +77,28 @@ vi.mock("../useOpd", () => ({
     return { data: state.claims, isLoading: false, isError: false, isSuccess: true };
   },
   useOpdEmployees: () => ({ data: [], isLoading: false, isError: false }),
+  // The tab now shows this year's allowance above the list — the figures used
+  // to appear only inside the new-claim form, after the decision to file one
+  // had already been made.
+  useOpdAppData: () => ({
+    data: state.summary
+      ? { claimSummary: state.summary, lastYearClaimSummary: null, draft: null }
+      : undefined,
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 vi.mock("../useOpdMutations", () => ({
   useOpdClaimStatus: () => ({ mutate: vi.fn(), isPending: false }),
 }));
+
+// The tab reports its own backend's connectivity now, rather than leaving it to
+// a shared frame — Claims spans two backends and either may be missing.
+vi.mock("@config/apiConfig", async () => {
+  const actual = await vi.importActual<typeof import("@config/apiConfig")>("@config/apiConfig");
+  return { ...actual, isOpdBackendConfigured: () => true };
+});
 
 vi.mock("../../components/FinanceShell", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -85,6 +111,7 @@ beforeEach(() => {
   navigate.mockClear();
   payloads.length = 0;
   state.claims = [rejectedClaim];
+  state.summary = DEFAULT_SUMMARY;
 });
 
 function show() {
@@ -139,7 +166,7 @@ describe("resubmitting a rejected claim", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Resubmit" }));
 
     await waitFor(() => expect(navigate).toHaveBeenCalled());
-    expect(navigate).toHaveBeenCalledWith("/me/opd/new", {
+    expect(navigate).toHaveBeenCalledWith("/me/claims/opd/new", {
       state: { resubmitTransactions: rejectedClaim.transactions },
     });
   });
@@ -260,5 +287,32 @@ describe("the custom period cannot be inverted", () => {
     await waitFor(() => expect(payloads.length).toBeGreaterThan(0));
     const { startYear, endYear } = payloads.at(-1) as { startYear: number; endYear: number };
     expect(startYear).toBeLessThanOrEqual(endYear);
+  });
+});
+
+
+// Whether a claim is worth filing is a question you answer BEFORE opening the
+// form, so the allowance sits on the tab rather than inside the form where it
+// used to live.
+describe("this year's allowance", () => {
+  it("shows the three figures the summary carries", async () => {
+    show();
+    expect(await screen.findByText("Annual limit")).toBeInTheDocument();
+    expect(screen.getByText("Already claimed")).toBeInTheDocument();
+    expect(screen.getByText("Remaining")).toBeInTheDocument();
+  });
+
+  it("shows what is left, which is the figure the decision turns on", async () => {
+    show();
+    expect(await screen.findByText("Rs. 53,700.00")).toBeInTheDocument();
+  });
+
+  // A strip of dashes above the claims would read as something broken, and the
+  // claims are the point of the screen.
+  it("says nothing at all rather than showing blanks when there is no summary", async () => {
+    state.summary = undefined;
+    show();
+    await screen.findByText("C-9");
+    expect(screen.queryByText("Annual limit")).not.toBeInTheDocument();
   });
 });

@@ -5,8 +5,15 @@ Ported from `digiops-finance/apps/cc-expenses/webapp` (13,764 lines) into
 had no specification and no tests, and its DTOs were mirrored from the *backend*
 rather than from the running app, which is where the gaps below came from.
 
-Routes: `/me/cc/dashboard`, `/me/cc/new`, `/me/cc/pending`, `/me/cc/approve`,
-`/me/cc/history`, `/me/cc/settings`. Backend is `ONE_WSO2_CC_EXPENSES_BACKEND_URL`.
+Routes: `/finance/cc/dashboard`, `/finance/cc/new`, `/finance/cc/pending`,
+`/finance/cc/approve`, `/finance/cc/history`, `/finance/cc/settings`. Backend is
+`ONE_WSO2_CC_EXPENSES_BACKEND_URL`.
+
+**Under Finance, not Me.** Leave and claims are things every employee does, so they sit with
+the person; a corporate card is not something everyone has, so the whole app sits with the
+other finance operations instead. That includes the four screens a cardholder uses for their
+own spend — the app is not split the way claims are, because the split there was about *who
+the work is for*, and this one is about *who has a card at all*.
 
 ---
 
@@ -27,7 +34,7 @@ Access comes from `GET /user-info` as **privilege names**, not numbers
 
 ## 2. Screens
 
-### 2.1 Dashboard — `/me/cc/dashboard`
+### 2.1 Dashboard — `/finance/cc/dashboard`
 
 What is still unsubmitted, how long it has been sitting, and what has been claimed.
 
@@ -56,7 +63,7 @@ drops the cents, as the source's `formatCurrency(x).split(".")[0]` does througho
   the backend already scopes them — so the request omits `ownedCardsOnly` rather than
   sending it as false.
 
-### 2.2 New transactions — `/me/cc/new`
+### 2.2 New transactions — `/finance/cc/new`
 
 Uncategorised transactions from the last **seven days**. Each needs an expense type, a
 comment, and — depending on the category — more:
@@ -75,19 +82,19 @@ transaction amount.
 
 A row can be saved as a draft or submitted. Receipts and contracts attach per transaction.
 
-### 2.3 Pending submissions — `/me/cc/pending`
+### 2.3 Pending submissions — `/finance/cc/pending`
 
 The card holder's own submitted transactions, still with a lead or with finance. **While
 it is still with the lead**, the card holder can correct a submission in place, saved
 through `/save-edit`. Once finance has it, it is locked.
 
-### 2.4 Approve submissions — `/me/cc/approve`
+### 2.4 Approve submissions — `/finance/cc/approve`
 
 Lead and finance. Finance sees a queue spanning **both** stages, so work still sitting
 with a lead is visible rather than absent until the lead acts — but they cannot select
 what is not yet theirs. Finance may also correct a transaction that has reached them.
 
-### 2.5 History — `/me/cc/history`
+### 2.5 History — `/finance/cc/history`
 
 Everything the viewer is entitled to see, over a chosen window (7 days by default).
 Someone who can see other people's spend also gets **employee**, **card** and **lead**
@@ -97,7 +104,7 @@ than comparing the whole string.
 Opening a transaction shows its categorisation and its **approval trail** — who had it and
 when, and the report sequence number once booked.
 
-### 2.6 Statement ingestion — `/me/cc/settings`
+### 2.6 Statement ingestion — `/finance/cc/settings`
 
 Finance only. Upload a bank statement, then process it into transactions.
 

@@ -95,6 +95,9 @@ function clean(value: unknown): string {
   if (typeof value === 'string') return value.trim()
   if (typeof value === 'number') return String(value)
   if (typeof value === 'boolean') return value ? '1' : '0'
+  // UTC on purpose: exceljs hands back date cells as Dates at UTC midnight, so
+  // reading local fields here would report the previous day for every negative
+  // offset. Verified by round-tripping a workbook under TZ=America/Los_Angeles.
   if (value instanceof Date) return value.toISOString().slice(0, 10)
   if (typeof value === 'object') {
     const v = value as {

@@ -35,7 +35,6 @@ import {
 } from "@wso2/oxygen-ui";
 import { useDebouncedValue } from "@hooks/useDebouncedValue";
 import { isExpenseBackendConfigured } from "@config/apiConfig";
-import FinanceShell from "../../components/FinanceShell";
 import { StatusChip, expenseStatusMeta } from "../../components/FinanceChips";
 import { describeError } from "../../util/financeError";
 import { money, formatNice, startOfYearIso, endOfYearIso } from "../../util/financeFormat";
@@ -46,20 +45,21 @@ import {
   type ExpenseClaim,
   type ExpenseClaimStatus,
 } from "../expenseTypes";
-import { FINANCE_EYEBROW } from "@constants/financeApps";
 
-export default function ExpenseHistoryPage() {
-  return (
-    <FinanceShell
-      eyebrow={FINANCE_EYEBROW.expense}
-      title="My expense claims"
-      subtitle="Your submitted expense claims and where each one stands. Open a claim to see its lines and receipts."
-      configured={isExpenseBackendConfigured()}
-      configKey="ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL"
-    >
-      <HistoryBody />
-    </FinanceShell>
-  );
+// The Expense tab of Claims. The page frame is the Claims shell's now, but this
+// tab still reports its own backend's connectivity: the screen spans two
+// backends and either may be missing, so the notice belongs per tab.
+export default function ExpenseClaimsTab() {
+  if (!isExpenseBackendConfigured()) {
+    return (
+      <Alert severity="info">
+        Expense claims aren&apos;t connected yet. Set{" "}
+        <code>ONE_WSO2_EXPENSE_CLAIMS_BACKEND_URL</code> in <code>public/config.js</code> and
+        reload.
+      </Alert>
+    );
+  }
+  return <HistoryBody />;
 }
 
 // Match the source app's default: "Latest 100" sends limit=100 with NO date

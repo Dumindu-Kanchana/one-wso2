@@ -30,6 +30,8 @@ const appConfigData = {
   },
 };
 
+const state = { employeesLoading: false };
+
 const employeeList = [
   {
     workEmail: "here@wso2.com",
@@ -50,7 +52,15 @@ vi.mock("../api/useLeaveData", () => ({
     data: { workEmail: "me@wso2.com", leadEmail: "lead@wso2.com", location: user.location },
   }),
   useLeaveAppConfig: () => ({ data: appConfigData, isPending: false, isError: false }),
-  useLeaveEmployees: () => ({ data: employeeList, isPending: false, isError: false }),
+  useLeaveEmployees: () => ({
+    data: state.employeesLoading ? undefined : employeeList,
+    // Both flags, as React Query reports them: a fetching query is pending AND
+    // loading; a disabled one is pending but not loading, because it never
+    // fetches.
+    isPending: state.employeesLoading,
+    isLoading: state.employeesLoading,
+    isError: false,
+  }),
   useLeaveEntitlement: () => ({ data: undefined, isPending: false, isError: false }),
 }));
 const submitMutate = vi.fn();
@@ -186,6 +196,23 @@ describe("the confirmation before posting", () => {
     expect(submitMutate).toHaveBeenCalledTimes(1);
   });
 
+  // The sabbatical form had this call site and not this message, so it went
+  // quiet on success. Pinned on both forms: the source raises it from inside the
+  // submitLeave thunk (leave.ts:150-156), so it is not optional per screen.
+  it("confirms the request was submitted", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Submit Leave/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Submit Leave/ }));
+    await user.click(await screen.findByRole("button", { name: "Yes" }));
+    await waitFor(() => expect(submitMutate).toHaveBeenCalled());
+    // Drive the mutation's own success path, the way React Query would.
+    submitMutate.mock.calls[0][1].onSuccess();
+    const message = await screen.findByText("Leave request submitted successfully!");
+    const alert = message.closest(".MuiAlert-root");
+    expect(alert?.className).toMatch(/AlertSuccess|standardSuccess|filledSuccess/);
+  });
+
   it("posts nothing after No", async () => {
     const user = (await import("@testing-library/user-event")).default.setup();
     show();
@@ -293,5 +320,91 @@ describe("who can read the comment", () => {
     expect(
       await screen.findByText("Your comment will be visible to all email recipients."),
     ).toBeInTheDocument();
+  });
+});
+
+// The Notify picker windows its options with react-window
+// (VirtualizedListbox), which renders only the visible rows and positions each
+// one absolutely. react-window passes that position as a `style` prop, cloned
+// onto whatever the option renderer returned.
+//
+// EmployeeOption is a component, not an <li>, so the clone lands on the
+// component's props — and unless it forwards `style` to the element it renders,
+// the positioning is silently dropped. Every row then falls into normal flow
+// inside a container sized for 36px rows, so the list collapses and the
+// overflow paints outside the popup.
+describe("the notify picker's option rows", () => {
+  async function openNotify() {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    show();
+    await user.click(screen.getByPlaceholderText("Add people to notify (optional)"));
+    await user.type(screen.getByPlaceholderText("Add people to notify (optional)"), "@wso2.com");
+  }
+
+  it("positions each row where react-window put it", async () => {
+    await openNotify();
+    const options = await screen.findAllByRole("option");
+    expect(options.length).toBeGreaterThan(0);
+    for (const option of options) {
+      expect(option.style.position).toBe("absolute");
+      expect(option.style.top).not.toBe("");
+    }
+  });
+
+  // Measured in a headless browser against the real MUI option styles: the two
+  // lines and the padding come to 51.94px, so a row needs a 52px slot. It was
+  // 36 — one line's worth — and every row overflowed by 16px.
+  it("gives each row a slot as tall as the row really is", async () => {
+    await openNotify();
+    const options = await screen.findAllByRole("option");
+    for (const option of options) {
+      expect(option.style.height).toBe("52px");
+    }
+  });
+
+  // Consecutive rows must not overlap, which is what a slot shorter than the
+  // row produces.
+  it("stacks the rows without overlapping them", async () => {
+    await openNotify();
+    const tops = (await screen.findAllByRole("option")).map((o) => parseFloat(o.style.top));
+    expect(tops.length).toBeGreaterThan(1);
+    for (let i = 1; i < tops.length; i++) {
+      expect(tops[i] - tops[i - 1]).toBe(52);
+    }
+  });
+
+  it("keeps the row's own layout while doing so", async () => {
+    await openNotify();
+    const [first] = await screen.findAllByRole("option");
+    // The photo-and-name row still lays out as a flex row.
+    expect(first.style.display).toBe("flex");
+    expect(first.style.alignItems).toBe("center");
+  });
+});
+
+
+// The directory takes a moment. Until it lands the field is unusable — typing
+// into it would say there is no such person — so it says so plainly rather than
+// looking ready and behaving like an empty address book.
+describe("while the people list is still loading", () => {
+  it("greys the picker out rather than letting someone type into nothing", () => {
+    state.employeesLoading = true;
+    show();
+    expect(screen.getByPlaceholderText("Loading people…")).toBeDisabled();
+    state.employeesLoading = false;
+  });
+
+  it("shows a spinner in the field, not only inside an unopened dropdown", () => {
+    state.employeesLoading = true;
+    show();
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    state.employeesLoading = false;
+  });
+
+  it("hands the field over once the list arrives", async () => {
+    show();
+    const field = screen.getByPlaceholderText("Add people to notify (optional)");
+    expect(field).toBeEnabled();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 });
