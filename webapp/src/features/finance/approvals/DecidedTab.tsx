@@ -93,12 +93,21 @@ export default function DecidedTab() {
   if (loading) return <Skeleton variant="rectangular" height={280} sx={{ borderRadius: 1.5 }} />;
 
   const failure =
+  // The two calls that decide WHICH queues run belong here too. When either
+  // fails its flags read false, so the queues are disabled rather than failing
+  // — and a disabled query reports no error. Without these the screen would
+  // tell an approver nothing is waiting when nothing had loaded.
+    (expenseAppData.isError && describeError(expenseAppData.error)) ||
+    (opdUserInfo.isError && describeError(opdUserInfo.error)) ||
     (leadDecided.isError && describeError(leadDecided.error)) ||
     (financeDecided.isError && describeError(financeDecided.error)) ||
     (opdDecided.isError && describeError(opdDecided.error)) ||
     null;
 
-  if (expenseRows.length === 0 && opdRows.length === 0) {
+  // "Nothing has been decided" is a claim about the data, so it is only made
+  // when the data actually arrived. With a failure in hand the alert stands
+  // alone — saying both at once tells the reader two different things.
+  if (expenseRows.length === 0 && opdRows.length === 0 && !failure) {
     return (
       <Box>
         {failure && (
@@ -120,6 +129,7 @@ export default function DecidedTab() {
           Some queues couldn&apos;t be loaded. {failure}
         </Alert>
       )}
+      {expenseRows.length === 0 && opdRows.length === 0 ? null : (
       <Box sx={{ overflowX: "auto" }}>
         <Table size="small">
           <TableBody>
@@ -164,6 +174,7 @@ export default function DecidedTab() {
           </TableBody>
         </Table>
       </Box>
+      )}
 
       {/* Read-only: `review` is left off, so these open as a record of what was
           decided rather than offering the decision again. */}

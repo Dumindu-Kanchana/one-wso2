@@ -36,6 +36,7 @@ const data = {
   opd: [] as unknown[],
   expenseFails: false,
   opdFails: false,
+  appDataFails: false,
 };
 
 vi.mock("../expense/useExpense", () => ({
@@ -51,7 +52,8 @@ vi.mock("../expense/useExpense", () => ({
     },
     isPending: false,
     isLoading: false,
-    isError: false,
+    isError: data.appDataFails,
+    error: new Error("expense app-data down"),
   }),
   useExpenseClaims: (payload: Record<string, unknown>, enabled = true) => {
     if (enabled) searches.expense.push(payload);
@@ -144,6 +146,7 @@ beforeEach(() => {
   data.opd = [];
   data.expenseFails = false;
   data.opdFails = false;
+  data.appDataFails = false;
 });
 
 const show = () =>
@@ -257,5 +260,19 @@ describe("what it shows", () => {
     show();
     expect(await screen.findByText("EXP-OK")).toBeInTheDocument();
     expect(screen.getByText(/couldn't be loaded/)).toBeInTheDocument();
+  });
+});
+
+
+// Same trap as Needs you: the call that decides which queues run. When it fails
+// the flags read false, the queues are disabled rather than failing, and a
+// disabled query reports no error — so the screen would say nothing had been
+// decided when nothing had loaded.
+describe("when the call that decides the queues fails", () => {
+  it("says something failed rather than reporting an empty list", async () => {
+    data.appDataFails = true;
+    show();
+    expect(await screen.findByText(/couldn't be loaded/)).toBeInTheDocument();
+    expect(screen.queryByText("Nothing has been decided yet.")).not.toBeInTheDocument();
   });
 });

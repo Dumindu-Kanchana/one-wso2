@@ -103,6 +103,12 @@ export default function NeedsYouTab() {
   // One queue failing must not blank the other: a finance approver whose OPD
   // backend is down still has expense claims to get through.
   const failures = [
+  // The two calls that decide WHICH queues run belong here too. When either
+  // fails its flags read false, so the queues are disabled rather than failing
+  // — and a disabled query reports no error. Without these the screen would
+  // tell an approver nothing is waiting when nothing had loaded.
+    expenseAppData.isError ? describeError(expenseAppData.error) : null,
+    opdUserInfo.isError ? describeError(opdUserInfo.error) : null,
     leadQueue.isError ? describeError(leadQueue.error) : null,
     financeQueue.isError ? describeError(financeQueue.error) : null,
     opdQueue.isError ? describeError(opdQueue.error) : null,

@@ -38,6 +38,8 @@ const data = {
   opd: [] as unknown[],
   expenseFails: false,
   opdFails: false,
+  appDataFails: false,
+  opdUserInfoFails: false,
 };
 
 vi.mock("../expense/useExpense", () => ({
@@ -53,7 +55,8 @@ vi.mock("../expense/useExpense", () => ({
     },
     isPending: false,
     isLoading: false,
-    isError: false,
+    isError: data.appDataFails,
+    error: new Error("expense app-data down"),
   }),
   useExpenseClaims: (payload: Record<string, unknown>, enabled = true) => {
     if (enabled) searches.expense.push(payload);
@@ -77,6 +80,8 @@ vi.mock("../opd/useOpd", () => ({
     data: { userRoles: flags.opd ? [555] : [444] },
     isPending: false,
     isLoading: false,
+    isError: data.opdUserInfoFails,
+    error: new Error("opd user-info down"),
   }),
   useOpdClaims: (payload: Record<string, unknown>, enabled = true) => {
     if (enabled) searches.opd.push(payload);
@@ -134,6 +139,8 @@ beforeEach(() => {
   data.opd = [];
   data.expenseFails = false;
   data.opdFails = false;
+  data.appDataFails = false;
+  data.opdUserInfoFails = false;
 });
 
 const show = (body: ReactNode = <NeedsYouTab />) =>
@@ -302,5 +309,28 @@ describe("opening a claim", () => {
     within(row).getByRole("button", { name: "Review" }).click();
     await waitFor(() => expect(screen.getByTestId("opd-dialog")).toBeInTheDocument());
     expect(screen.queryByTestId("expense-dialog")).not.toBeInTheDocument();
+  });
+});
+
+
+// The nastiest failure on this screen: the call that decides WHICH queues to
+// run. When it fails every capability flag reads false, so both queues are
+// disabled rather than failing — and a disabled queue reports no error. The
+// screen would say "nothing is waiting on you" to an approver whose claims had
+// simply not loaded.
+describe("when the call that decides the queues fails", () => {
+  it("says something failed rather than reporting an empty queue", async () => {
+    data.appDataFails = true;
+    show();
+    expect(await screen.findByText(/couldn't be loaded/)).toBeInTheDocument();
+    expect(screen.queryByText("Nothing is waiting on you.")).not.toBeInTheDocument();
+  });
+
+  // Same shape on the other backend: the role check gates the OPD queue.
+  it("does the same when the OPD role check fails", async () => {
+    data.opdUserInfoFails = true;
+    show();
+    expect(await screen.findByText(/couldn't be loaded/)).toBeInTheDocument();
+    expect(screen.queryByText("Nothing is waiting on you.")).not.toBeInTheDocument();
   });
 });
