@@ -52,7 +52,22 @@ is explained where it is made rather than in a dialog of its own to dismiss.
 The menu **navigates**; it does not open a form in a box. Both forms are long, both hold a
 draft, and both are worth linking to directly.
 
-### 2.3 This year's OPD allowance
+### 2.3 After a claim goes in
+
+A successful submit returns to the list the claim just joined — its own type's tab, not
+whichever was open before. Leaving an emptied form on screen makes a submission look like
+nothing happened, and the claim it produced is the one thing worth seeing.
+
+It **replaces** the form in history, so Back does not return to a form that has already been
+sent; it goes wherever the user was before they opened it. A failed submit stays put, with
+the lines intact.
+
+Safe by construction: both forms already delete the server draft with a synchronous
+`mutate()` rather than relying on the autosave debounce, precisely because that timer is
+cleared on unmount — so navigating away immediately cannot leave a draft to be re-seeded and
+submitted again as a duplicate.
+
+### 2.4 This year's OPD allowance
 
 The annual limit, what has been claimed against it, and what is left now sit above the OPD
 list. They used to appear only inside the new-claim form — after someone had already decided
@@ -85,10 +100,12 @@ Nothing is released, so there is nobody holding a link to them.
 
 ## 5. Test checklist
 
-- `ClaimsPage.test.tsx` — opens on expense; a tab per type, the URL-named one marked;
+- `ClaimsPage.test.tsx` — opens on OPD, which also leads the tab order; a tab per type, the URL-named one marked;
   clicking a tab changes the URL; the button reads the same on both tabs; the menu asks
   rather than guessing from the open tab, says what each type is for, and opens the right
   form; the form replaces the tabs rather than opening in a box.
+- `OpdNewClaimPage.test.tsx` / `ExpenseNewClaimPage.test.tsx` — a successful submit lands on
+  its own type's tab and replaces the form in history; a failed one stays put.
 - `OpdHistoryPage.test.tsx` — the allowance shows the three figures the summary carries,
   including what is left; absent rather than dashed when there is no summary; resubmit
   navigates to the form's new path.

@@ -61,6 +61,11 @@ export const CLAIM_TYPES: readonly ClaimTypeDef[] = [
   },
 ] as const;
 
+/** Where a type's list lives — the tab a finished claim lands back on. */
+export function claimTabPath(segment: ClaimTypeDef["segment"]): string {
+  return `${CLAIMS_PATH}/${segment}`;
+}
+
 /**
  * The tab to open on — the first one, so the default and the tab order cannot
  * disagree. A default sitting second reads as a bug rather than a choice.

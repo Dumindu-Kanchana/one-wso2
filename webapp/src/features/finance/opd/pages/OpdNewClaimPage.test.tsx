@@ -463,3 +463,37 @@ describe("bills carried over from a resubmit", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 });
+
+// A submitted claim should have a visible result. Leaving an emptied form on
+// screen makes it look like nothing happened, and the claim it produced is the
+// one thing worth seeing.
+describe("after a claim goes in", () => {
+  async function submitClaim() {
+    state.draft = draftOf(`${CURRENT_YEAR}-02-01`);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Submit claim/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(submitMutate).toHaveBeenCalled());
+  }
+
+  it("goes to the OPD list, not the expense one", async () => {
+    await submitClaim();
+    submitMutate.mock.calls[0][1].onSuccess();
+    expect(navigate).toHaveBeenCalledWith("/me/claims/opd", { replace: true });
+  });
+
+  // Back should not return to a form that has already been sent.
+  it("replaces the form in history rather than stacking on it", async () => {
+    await submitClaim();
+    submitMutate.mock.calls[0][1].onSuccess();
+    expect(navigate.mock.calls.at(-1)?.[1]).toMatchObject({ replace: true });
+  });
+
+  it("stays on the form when the submit fails", async () => {
+    await submitClaim();
+    navigate.mockClear();
+    submitMutate.mock.calls[0][1].onError(new Error("nope"));
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});

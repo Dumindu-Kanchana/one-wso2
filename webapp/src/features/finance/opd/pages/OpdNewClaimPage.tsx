@@ -46,6 +46,7 @@ import { useOpdAppData, useOpdUserInfo } from "../useOpd";
 import { useOpdDraftSync, useOpdReceiptUpload, useSubmitOpdClaim } from "../useOpdMutations";
 import { OPD_ROLE, opdHasRole, type OpdTransaction } from "../opdTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
+import { claimTabPath } from "../../claims/claimsTabs";
 
 const COMMENT_MAX = 100;
 
@@ -222,6 +223,12 @@ function NewClaimBody() {
           // synchronously, so it survives an immediate unmount.
           draft.remove.mutate();
           setItems([]);
+          // Back to the list the claim just joined, so the submission has a
+          // visible result rather than leaving an emptied form on screen.
+          //
+          // `replace`, so Back does not return to a form that has already been
+          // sent — it goes wherever the user was before they opened it.
+          navigate(claimTabPath("opd"), { replace: true });
         },
         onError: (err) => showError(describeError(err)),
       },

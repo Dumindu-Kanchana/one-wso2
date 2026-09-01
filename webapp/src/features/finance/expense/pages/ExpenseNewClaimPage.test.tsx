@@ -22,6 +22,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { localIsoDateOffset } from "@utils/localDate";
 
+// The page leaves for the claims list once a claim is in, so the test needs to
+// see where it went.
+const navigate = vi.fn();
+vi.mock("react-router", async () => {
+  const actual = await vi.importActual<typeof import("react-router")>("react-router");
+  return { ...actual, useNavigate: () => navigate };
+});
+
 vi.mock("@hooks/useAccessToken", () => ({ useAccessToken: () => async () => "token" }));
 vi.mock("@asgardeo/react", () => ({ useAsgardeo: () => ({ isSignedIn: true }) }));
 
@@ -93,6 +101,7 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   submitMutate.mockClear();
+  navigate.mockClear();
   draftRemove.mockClear();
   state.draft = null;
   state.managerEmail = "lead@wso2.com";
@@ -341,5 +350,40 @@ describe("a bill cannot be dated in the future", () => {
     fireEvent.click(await screen.findByRole("button", { name: "+ Add expense" }));
     fireEvent.change(await screen.findByLabelText("Bill date"), { target: { value: "" } });
     expect(screen.getByRole("button", { name: "Add expense" })).toBeDisabled();
+  });
+});
+
+
+// A submitted claim should have a visible result. Leaving an emptied form on
+// screen makes it look like nothing happened, and the claim it produced is the
+// one thing worth seeing.
+describe("after a claim goes in", () => {
+  /** A claim with one line in it, sent and confirmed. */
+  async function submitClaim() {
+    state.draft = { transactions: [draftLine] };
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore Draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Submit claim/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(submitMutate).toHaveBeenCalled());
+  }
+
+  it("goes to the expense list, not the OPD one", async () => {
+    await submitClaim();
+    submitMutate.mock.calls[0][1].onSuccess();
+    expect(navigate).toHaveBeenCalledWith("/me/claims/expense", { replace: true });
+  });
+
+  // Back should not return to a form that has already been sent.
+  it("replaces the form in history rather than stacking on it", async () => {
+    await submitClaim();
+    submitMutate.mock.calls[0][1].onSuccess();
+    expect(navigate.mock.calls.at(-1)?.[1]).toMatchObject({ replace: true });
+  });
+
+  it("stays put when the submit fails", async () => {
+    await submitClaim();
+    submitMutate.mock.calls[0][1].onError(new Error("nope"));
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

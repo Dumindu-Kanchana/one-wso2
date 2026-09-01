@@ -42,6 +42,8 @@ import { AddExpenseDialog, FieldLabel, type DraftLine } from "../ExpenseLineDial
 import { useExpenseDraftSync, useExpenseReceiptUpload, useSubmitExpenseClaim } from "../useExpenseMutations";
 import type { ExpenseTransactionPayload } from "../expenseTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
+import { useNavigate } from "react-router";
+import { claimTabPath } from "../../claims/claimsTabs";
 
 
 export default function ExpenseNewClaimPage() {
@@ -64,6 +66,7 @@ function NewClaimBody() {
   const upload = useExpenseReceiptUpload();
   const submit = useSubmitExpenseClaim();
   const draft = useExpenseDraftSync();
+  const navigate = useNavigate();
   const { showSuccess, showError } = useNotifications();
 
   const [items, setItems] = useState<DraftLine[]>([]);
@@ -170,6 +173,12 @@ function NewClaimBody() {
           // can't leave it to be re-seeded and submitted as a duplicate.
           draft.remove.mutate();
           setItems([]);
+          // Back to the list the claim just joined, so the submission has a
+          // visible result rather than leaving an emptied form on screen.
+          //
+          // `replace`, so Back does not return to a form that has already been
+          // sent — it goes wherever the user was before they opened it.
+          navigate(claimTabPath("expense"), { replace: true });
         },
         onError: (err) => showError(describeError(err)),
       },
