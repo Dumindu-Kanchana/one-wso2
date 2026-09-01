@@ -14,8 +14,9 @@ Approving was four menu entries across three apps, all filed under **Me** — th
 things you do for yourself. Approving is the opposite: work you do for other people. An
 approver had to know which app a claim came from before they could find it.
 
-Three of those four moved here. **Credit card keeps its own Approve Submissions under Me**,
-because a card transaction is not a claim and the menu is named for claims.
+Three of those four moved here. **Credit card keeps its own Approve Submissions**, because a
+card transaction is not a claim and this menu is named for claims — it sits with the rest of
+the card app, which is also under Finance (`/finance/cc/approve`).
 
 **Submitting and history stayed under Me.** Filing your own claim and looking up what you
 filed are things you do for yourself. This does split each app across two perspectives,

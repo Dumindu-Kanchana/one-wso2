@@ -203,7 +203,7 @@ bar, and whether the tab's route will render, from one mapping — so a hidden t
 typing its URL. The tab bar is filtered by the same call, so the bar can never offer something the
 route would refuse.
 
-Two consequences worth stating. The group URL (`/me/leave/apply`) redirects to the first tab the
+Two consequences worth stating. A group URL (`/me/leave/general`) redirects to the first tab the
 visitor is *allowed*, not a hardcoded one — a People-Ops-only account cannot apply for a sabbatical,
 so a fixed redirect would land them on a refusal. And nothing below the group page renders until
 `/user-info` resolves, because deciding on an unresolved gate would redirect a lead away from a

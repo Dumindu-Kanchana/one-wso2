@@ -89,7 +89,8 @@ other people's is restricted, and that is Finance → Claim approval.
 
 **Credit card is not part of Claims.** Its transactions arrive from a bank statement rather
 than being filed by anyone, so there is nothing to "add" — Claims means the things you file.
-It keeps its own entry under Me.
+It keeps its own entry, under **Finance**: a corporate card is not something everyone has, so
+unlike claims it is not part of the set every employee needs.
 
 **No combined tab.** Unlike the approval screen, there is no "everything" view: your own
 claims are not a queue and nothing here is waiting on you, so ordering the two types together
