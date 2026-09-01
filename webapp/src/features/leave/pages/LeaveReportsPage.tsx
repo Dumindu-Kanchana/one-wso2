@@ -35,7 +35,6 @@ import { describeError } from "../util/leaveError";
 import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListbox";
 import { EmployeeOption } from "../components/EmployeeOption";
 import { employeeDisplayName } from "../util/employeeName";
-import LeaveShell from "../components/LeaveShell";
 import { LeaveTypeChip } from "../components/LeaveChips";
 import type { DatabaseLeave, EmployeeStatus, LeaveFilter } from "../api/leaveTypes";
 import { useNotifications } from "@context/notifications/NotificationsContext";
@@ -56,15 +55,9 @@ const PERIOD_LABEL: Record<string, string> = {
 const EMPLOYEE_STATUS_OPTIONS: EmployeeStatus[] = ["Active", "Marked leaver", "Left"];
 const DEFAULT_EMPLOYEE_STATUSES: EmployeeStatus[] = ["Active", "Marked leaver"];
 
-export default function LeaveReportsPage() {
-  return (
-    <LeaveShell
-      title="Leave reports"
-      subtitle="Approved leave across your team (leads) or the organisation (People Ops), filtered by date range."
-    >
-      <ReportsBody />
-    </LeaveShell>
-  );
+// The General tab of Reports (route.ts:136-142).
+export default function GeneralReportTab() {
+  return <ReportsBody />;
 }
 
 function ReportsBody() {

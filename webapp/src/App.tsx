@@ -55,15 +55,26 @@ import {
   EmailWorkbenchHistoryPage,
   EmailWorkbenchManagePage,
 } from "@features/marketing-ops/email-workbench/pages/EmailWorkbenchPages";
-import LeaveApplyPage from "@features/leave/pages/LeaveApplyPage";
-import LeaveHistoryPage from "@features/leave/pages/LeaveHistoryPage";
+import LeaveGroupPage, {
+  LeaveGroupIndex,
+  LeaveTabRoute,
+} from "@features/leave/pages/LeaveGroupPage";
+import GeneralApplyTab from "@features/leave/pages/LeaveApplyPage";
+import GeneralHistoryTab, {
+  SabbaticalHistoryTab,
+} from "@features/leave/pages/LeaveHistoryPage";
+import SabbaticalApproveTab from "@features/leave/components/SabbaticalApproveTab";
+import SabbaticalApprovalHistoryTab from "@features/leave/components/SabbaticalApprovalHistoryTab";
 // Lazy on purpose. This is the only screen that pulls in the DataGrid, which
 // costs ~115 kB gzipped — and only leads and People Ops can open it, so loading
 // it for everyone taxes the many for the few. The sabbatical approve and report
 // screens will share the same chunk when they land.
-const LeaveReportsPage = lazy(() => import("@features/leave/pages/LeaveReportsPage"));
+const GeneralReportTab = lazy(() => import("@features/leave/pages/LeaveReportsPage"));
+const SabbaticalReportTab = lazy(
+  () => import("@features/leave/components/SabbaticalReportTab"),
+);
 
-import LeaveSabbaticalPage from "@features/leave/pages/LeaveSabbaticalPage";
+import SabbaticalApplyTab from "@features/leave/pages/LeaveSabbaticalPage";
 import OpdNewClaimPage from "@features/finance/opd/pages/OpdNewClaimPage";
 import OpdHistoryPage from "@features/finance/opd/pages/OpdHistoryPage";
 import OpdApprovalsPage from "@features/finance/opd/pages/OpdApprovalsPage";
@@ -98,19 +109,87 @@ export default function App() {
           {/* Me → Leave: native screens ported from leave-app. Lives here
               (not People Ops) — it's something every employee does for
               themself, not an HR-team tool. */}
-          <Route path="me/leave/apply" element={<LeaveApplyPage />} />
-          <Route path="me/leave/history" element={<LeaveHistoryPage />} />
-          <Route
-            path="me/leave/reports"
-            element={
-              // Skeleton rather than null: the chunk is fetched on navigation,
-              // and a blank frame reads as a broken link.
-              <Suspense fallback={<Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />}>
-                <LeaveReportsPage />
-              </Suspense>
-            }
-          />
-          <Route path="me/leave/sabbatical" element={<LeaveSabbaticalPage />} />
+          {/* Two groups by kind of leave, each holding everything you can do
+              with that kind. General is the everyday path; sabbatical is rare,
+              so it sits behind its own entry rather than threading through
+              every group. Each tab is a real route, so it can be linked,
+              refreshed and gated; see features/leave/leaveTabs.ts. */}
+          <Route path="me/leave/general" element={<LeaveGroupPage groupKey="general" />}>
+            <Route index element={<LeaveGroupIndex groupKey="general" />} />
+            <Route
+              path="apply"
+              element={
+                <LeaveTabRoute groupKey="general" gateId="leave-apply">
+                  <GeneralApplyTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="history"
+              element={
+                <LeaveTabRoute groupKey="general" gateId="leave-history">
+                  <GeneralHistoryTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="reports"
+              element={
+                <LeaveTabRoute groupKey="general" gateId="leave-reports">
+                  {/* Skeleton rather than null: the chunk is fetched on
+                      navigation, and a blank frame reads as a broken link. */}
+                  <Suspense fallback={<Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />}>
+                    <GeneralReportTab />
+                  </Suspense>
+                </LeaveTabRoute>
+              }
+            />
+          </Route>
+          <Route path="me/leave/sabbatical" element={<LeaveGroupPage groupKey="sabbatical" />}>
+            <Route index element={<LeaveGroupIndex groupKey="sabbatical" />} />
+            <Route
+              path="apply"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-sabbatical-own">
+                  <SabbaticalApplyTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="history"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-sabbatical-own">
+                  <SabbaticalHistoryTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="approve"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-approve">
+                  <SabbaticalApproveTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="approval-history"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-approve">
+                  <SabbaticalApprovalHistoryTab />
+                </LeaveTabRoute>
+              }
+            />
+            <Route
+              path="report"
+              element={
+                <LeaveTabRoute groupKey="sabbatical" gateId="leave-reports">
+                  <Suspense fallback={<Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1.5 }} />}>
+                    <SabbaticalReportTab />
+                  </Suspense>
+                </LeaveTabRoute>
+              }
+            />
+          </Route>
           {/* Me → digiops-finance claim apps: native screens ported from the
               three finance apps (opd-claims, cc-expenses, expense-claims).
               Moved in from the Finance perspective — same rationale as

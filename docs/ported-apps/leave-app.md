@@ -11,9 +11,10 @@ production; what it does is observed. Its Ballerina backend was read only to und
 anything inferred from it and never seen in the running app is marked as such in §9 and is a question,
 not a claim.
 
-**In One WSO2:** four screens under Me → Leave. `/me/leave/apply`, `/me/leave/history`,
-`/me/leave/reports`, `/me/leave/sabbatical`. Backend is the leave service configured as
-`ONE_WSO2_LEAVE_BACKEND_URL`.
+**In One WSO2:** two entries under Me → Leave, one per kind of leave, each opening on tabs for
+everything you can do with that kind. `/me/leave/general` → `apply`, `history`, `reports`;
+`/me/leave/sabbatical` → `apply`, `history`, `approve`, `approval-history`, `report`. Backend is the
+leave service configured as `ONE_WSO2_LEAVE_BACKEND_URL`.
 
 ---
 
@@ -39,7 +40,7 @@ The backend grants `LEAD` on having subordinates, so anyone leading a team holds
 
 ## 2. Screens
 
-### 2.1 Apply — `/me/leave/apply`
+### 2.1 Apply — `/me/leave/general/apply`
 
 Dates, leave type, day portion, people to notify, an optional comment. A live validation call
 (`isValidationOnlyMode=true`, debounced 400 ms) returns the working-day count for the range.
@@ -65,12 +66,12 @@ employees are not offerable.
 
 **Submitting** asks for confirmation first, naming the type, working days, range and portion.
 
-### 2.2 My History — `/me/leave/history`
+### 2.2 My History — `/me/leave/general/history`
 
 Cards for one year at a time, newest first, statuses `[APPROVED, PENDING]`. Cancel is offered until
 the leave started more than 30 days ago. The year list runs from the employment year to now.
 
-### 2.3 Reports — `/me/leave/reports`
+### 2.3 Reports — `/me/leave/general/reports`
 
 A DataGrid: six columns, sortable, paged at ten, with the filter panel, column visibility, density
 and CSV/print export the component provides. Filters are drafted and applied on **Fetch report**.
@@ -78,16 +79,15 @@ The day total is shown only when the result covers one employee.
 
 ### 2.4 Sabbatical — `/me/leave/sabbatical`
 
-One screen with role-gated tabs. The source spreads these across four top-level routes and builds its
-router from the role table; the tabs are gated by the same rules, so the same people reach the same
-things from one place.
+Its own rail entry, holding everything to do with sabbaticals. A sabbatical is a once-in-years
+thing, so it stays out of the everyday path rather than appearing as a tab in every group.
 
-| Tab | Who | Source |
+| Route | Who | Source |
 |---|---|---|
-| Apply | employee or lead, not intern | `ApplyTab.tsx` |
-| My history | employee or lead, not intern | `SabbaticalLeaveHistory.tsx` |
-| Approve | lead | `ApproveLeaveTab.tsx` + `ApproveLeaveTable.tsx` |
-| Approval history | lead | `ApproveHistoryTab.tsx` + `ApprovalHistoryTable.tsx` |
+| `/me/leave/sabbatical/apply` | employee or lead, not intern | `ApplyTab.tsx` |
+| `/me/leave/sabbatical/history` | employee or lead, not intern | `SabbaticalLeaveHistory.tsx` |
+| `/me/leave/sabbatical/approve` | lead | `ApproveLeaveTab.tsx` + `ApproveLeaveTable.tsx` |
+| `/me/leave/sabbatical/approval-history` | lead | `ApproveHistoryTab.tsx` + `ApprovalHistoryTable.tsx` |
 | Report | lead or People Ops | `AdminSabbaticalTab.tsx` |
 
 The whole screen is replaced by a notice when `appConfig.isSabbaticalLeaveEnabled` is false. Apply is
@@ -169,6 +169,14 @@ changes which rows come back.
   sortable; the total only for one employee; the toolbar's four controls present.
 - Gate: employee, intern, lead, People Ops, and none — `isLead` alone and `subordinateCount > 0`
   alone must **not** grant Reports.
+- Rail entries (`useLeaveGate.test.tsx`): an entry appears when any tab in it does — Sabbatical is
+  offered to People Ops for its Report, withheld entirely from an intern, and General is offered to
+  everyone because applying is open to all.
+- Tab routing (`LeaveTabRouting.test.tsx`): the group URL redirects to the first *permitted* tab;
+  the bar offers only permitted tabs and says so when there are none; the tab named by the URL is
+  the one marked selected; clicking a tab changes the URL; a refused tab's URL redirects to one the
+  visitor may see, or explains when there is none; and nothing is decided while the gate is still
+  resolving — a deep-linked lead stays on the URL they asked for.
 
 ---
 
@@ -179,10 +187,37 @@ UTC midnight, so dates render a day early west of UTC; it renders "1 days"; it r
 "Conges_payes Leave"; and its `SingleLeaveHistory` omits `status`, which the backend returns and the
 port's DTO carries.
 
-**Structural.** The source puts each sabbatical screen beside its general counterpart — Apply →
-General|Sabbatical, My History → General|Sabbatical, Reports → General|Sabbatical, plus a lead-only
-Approve. One WSO2 keeps a single Sabbatical entry with tabs inside it. Behaviour and gating are
-unchanged; only the grouping differs.
+**Structural.** The source's route table (`route.ts:47-150`) nests action-first — Apply →
+General|Sabbatical, Approve → Sabbatical|Approval History, My History → General|Sabbatical, Reports →
+General|Sabbatical — and draws the second level as a sidebar. One WSO2 transposes it: two entries by
+**kind**, each holding the actions for that kind. The screens, their rules and their order within a
+group are unchanged; what differs is which level is the rail and which the tabs.
+
+The reason is frequency. General leave is an everyday errand and sabbaticals are taken once in
+several years, so threading Sabbatical through Apply, My History and Reports would put a rare thing
+in front of everyone, every time. Kept apart, the common path is one entry with three tabs.
+
+Each tab is a real route, so a tab can be linked, survives a refresh, and is reachable with the back
+button. It is also *gated* at the route: `useLeaveGate.canSee` decides the rail entry, the tab in the
+bar, and whether the tab's route will render, from one mapping — so a hidden tab cannot be reached by
+typing its URL. The tab bar is filtered by the same call, so the bar can never offer something the
+route would refuse.
+
+Two consequences worth stating. The group URL (`/me/leave/apply`) redirects to the first tab the
+visitor is *allowed*, not a hardcoded one — a People-Ops-only account cannot apply for a sabbatical,
+so a fixed redirect would land them on a refusal. And nothing below the group page renders until
+`/user-info` resolves, because deciding on an unresolved gate would redirect a lead away from a
+deep link before their privileges arrived, and a redirect is not undone when the answer comes.
+
+**General has no Approve tab.** That is the source's own asymmetry (`route.ts:80-103`): its Approve
+route has only sabbatical children, because general leave is approved elsewhere. So Approve and
+Approval history appear under Sabbatical and nowhere else.
+
+**A rail entry appears when any tab inside it does** — not when the person may take that kind of
+leave. People Ops cannot hold a sabbatical but the sabbatical Report is theirs (`route.ts:143-148`),
+so the entry is offered to them and opens on Report. Gating it on the sabbatical permission alone
+hid a screen they are entitled to and left it reachable only by typing the URL, which is what the
+previous single-entry arrangement did.
 
 **Cosmetic.** The source's tables are MUI DataGrids; the sabbatical approve, approval-history and
 report tables here are plain tables, so they have no column picker or CSV export. The general report

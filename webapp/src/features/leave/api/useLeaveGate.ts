@@ -15,6 +15,7 @@
 // under the License.
 
 import { ME_APPS } from "@constants/meApps";
+import { LEAVE_GROUPS, groupHasAnyTab } from "../leaveTabs";
 import { LEAVE_PRIVILEGE } from "./leaveTypes";
 import { useLeaveUserInfo } from "./useLeaveData";
 
@@ -30,9 +31,10 @@ import { useLeaveUserInfo } from "./useLeaveData";
 // the same treatment — see useFinanceGate.
 //
 // The source enforces this at the ROUTE, building its router from a role table
-// so an ineligible user gets a 404 (route.ts:129-149, AppHandler.tsx:46). We
-// keep the route registered and gate the rail and the page from one place, so
-// the menu and the screen can no longer disagree.
+// so an ineligible user gets a 404 (route.ts:129-149, AppHandler.tsx:46). We do
+// the same: `canSee` gates the rail entry, the tab in the bar, AND the tab's
+// route, from this one mapping — so the menu, the tab bar and the screen cannot
+// disagree, and a tab that is hidden cannot be reached by typing its URL.
 
 /** Item ids that declare a restriction and must therefore fail closed. */
 const RESTRICTED_IDS = new Set(
@@ -69,15 +71,19 @@ export function useLeaveGate(enabled = true): LeaveGate {
       // route.ts:94,101 — LEAD only. People Ops cannot approve.
       case "leave-approve":
         return isLead;
+      // route.ts:57 — EMPLOYEE, INTERN, LEAD and PEOPLE_OPS_TEAM all apply for
+      // their own leave, so this is the one screen open to everybody.
+      case "leave-apply":
+        return true;
       // route.ts:77-78 and :124-125 — `allowRoles: [EMPLOYEE, LEAD]` with
       // `denyRoles: [INTERN]`, on both the apply and history routes. Interns
       // cannot take a sabbatical, and a People-Ops-only user holds neither
       // allowed role, so neither sees it.
       //
-      // Named explicitly rather than left to RESTRICTED_IDS: the registry entry
-      // carries no `requires`, because the people-app capabilities that field is
-      // resolved against have no word for "intern".
-      case "leave-sabbatical":
+      // Named explicitly rather than left to RESTRICTED_IDS, which is derived
+      // from `requires`, and the people-app capabilities that field is resolved
+      // against have no word for "intern".
+      case "leave-sabbatical-own":
         return (isEmployee || isLead) && !isIntern;
       // route.ts:110 — `allowRoles: [EMPLOYEE, INTERN, LEAD]`. PEOPLE_OPS_TEAM
       // is deliberately absent: My History is the signed-in user's own leave,
@@ -85,10 +91,19 @@ export function useLeaveGate(enabled = true): LeaveGate {
       // list them, so only history is narrowed.
       case "leave-history":
         return isEmployee || isIntern || isLead;
+      // The two rail entries. A group is offered whenever it holds a tab this
+      // person may open — NOT when they may take that kind of leave. A
+      // People-Ops-only account cannot hold a sabbatical but does get the
+      // sabbatical Report, and gating the entry on the sabbatical permission
+      // would hide a screen they are entitled to.
+      case "leave-general":
+      case "leave-sabbatical": {
+        const group = LEAVE_GROUPS.find((g) => g.id === itemId);
+        return group ? groupHasAnyTab(group, canSee) : false;
+      }
       default:
-        // Apply is per-user and stays open. Anything else that declares a
-        // restriction and is not named above fails closed, so the menu cannot
-        // drift ahead of this mapping.
+        // Anything that declares a restriction and is not named above fails
+        // closed, so the menu cannot drift ahead of this mapping.
         return !RESTRICTED_IDS.has(itemId);
     }
   };

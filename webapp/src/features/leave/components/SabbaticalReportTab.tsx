@@ -35,6 +35,7 @@ import { useLeaveEmployees, useLeaveUserInfo, useLeaves } from "../api/useLeaveD
 import { employeeDisplayName } from "../util/employeeName";
 import { REPORT_VALIDATION_MESSAGE } from "../util/leaveCopy";
 import { startOfYearIso, todayIso } from "../util/leaveDates";
+import { useLeaveGate } from "../api/useLeaveGate";
 
 // Sabbatical report — AdminSabbaticalTab.tsx.
 //
@@ -42,7 +43,11 @@ import { startOfYearIso, todayIso } from "../util/leaveDates";
 // four statuses rather than approved only, and no employee-status filter (the
 // source never passes onEmployeeStatusesChange here, so Toolbar.tsx:265 hides
 // that control).
-export default function SabbaticalReportTab({ isPeopleOps }: { isPeopleOps: boolean }) {
+// `isPeopleOps` was passed down while this was a tab of one page. It is now a
+// route of its own, so it reads the gate directly — one less thing a caller can
+// wire up wrongly, and the same source of truth the route is guarded by.
+export default function SabbaticalReportTab() {
+  const { isPeopleOps } = useLeaveGate();
   const userInfo = useLeaveUserInfo();
   const employees = useLeaveEmployees(isPeopleOps);
   const { showError } = useNotifications();

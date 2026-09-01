@@ -40,7 +40,6 @@ import VirtualizedListbox from "@components/virtualized-listbox/VirtualizedListb
 import { EmployeeOption } from "../components/EmployeeOption";
 import { employeeDisplayName } from "../util/employeeName";
 import EmployeeAvatar from "@features/my/my-team/components/EmployeeAvatar";
-import LeaveShell from "../components/LeaveShell";
 import LeaveBalanceSummary from "../components/LeaveBalanceSummary";
 import LeaveDateField from "../components/LeaveDateField";
 import {
@@ -76,15 +75,10 @@ import {
 
 type Portion = "full" | "first" | "second";
 
-export default function LeaveApplyPage() {
-  return (
-    <LeaveShell
-      title="Apply for leave"
-      subtitle="Request general leave — pick your dates, the leave type and portion, and who to notify. Working days are validated against the holiday calendar before you submit."
-    >
-      <ApplyForm />
-    </LeaveShell>
-  );
+// The General tab of Apply (route.ts:65-70). The page frame and the tab bar
+// are LeaveGroupPage's; this is only the form.
+export default function GeneralApplyTab() {
+  return <ApplyForm />;
 }
 
 function ApplyForm() {

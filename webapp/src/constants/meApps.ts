@@ -29,12 +29,16 @@ export const ME_APPS: readonly MenuApp[] = [
     icon: TreePalmIcon,
     purpose: "Apply for and track leave; leads and people-ops approve and report.",
     items: [
-      { id: "leave-apply", label: "Apply", desc: "Request general leave.", path: "/me/leave/apply" },
-      { id: "leave-history", label: "My History", desc: "Your past and upcoming leave.", path: "/me/leave/history" },
-      { id: "leave-reports", label: "Reports", desc: "Leave usage reports across the org.", requires: ["lead", "admin"], path: "/me/leave/reports" },
-      // Sabbatical use cases (apply/approve/report) are on hold this
-      // iteration — placeholder links out to the Leave app instead.
-      { id: "leave-sabbatical", label: "Sabbatical", desc: "Apply for a long, planned break.", path: "/me/leave/sabbatical" },
+      // Two entries by kind of leave, each opening on tabs for everything you
+      // can do with that kind. General is the everyday path; a sabbatical is a
+      // once-in-years thing, so it gets its own entry rather than a tab in
+      // every group.
+      //
+      // Roles are decided by features/leave/api/useLeaveGate, not by `requires`,
+      // because the leave backend has its own privilege vocabulary. An entry
+      // appears when any tab inside it does.
+      { id: "leave-general", label: "Leave", desc: "Apply for leave, track your own, and report on your team.", path: "/me/leave/general" },
+      { id: "leave-sabbatical", label: "Sabbatical", desc: "Apply for a long, planned break, and approve or report on them.", path: "/me/leave/sabbatical" },
     ],
   },
   // Moved out of its own Workspace perspective, which existed for this one
