@@ -20,11 +20,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 
-const gate = { canApprove: false, isResolving: false };
+// The overview asks the gate per entry, so the mock answers per id rather than
+// for one of them — the previous version said "no" to everything else, which
+// would have hidden a second card without failing anything.
+const gate = { allow: new Set<string>(), isResolving: false };
 
 vi.mock("../api/useFinanceGate", () => ({
   useFinanceGate: () => ({
-    canSee: (id: string) => id === "claim-approval" && gate.canApprove,
+    canSee: (id: string) => gate.allow.has(id),
     isResolving: gate.isResolving,
   }),
 }));
@@ -32,7 +35,9 @@ vi.mock("../api/useFinanceGate", () => ({
 const { default: FinancePage } = await import("./FinancePage");
 
 beforeEach(() => {
-  gate.canApprove = false;
+  // The card app's per-user screens are open to anyone today, so this is the
+  // ordinary case.
+  gate.allow = new Set(["cc-dashboard"]);
   gate.isResolving = false;
 });
 
@@ -48,28 +53,45 @@ const show = () =>
 // it tells someone who cannot use it nothing about why.
 describe("the Finance overview", () => {
   it("does not promise something coming later", () => {
-    gate.canApprove = true;
+    gate.allow.add("claim-approval");
     show();
     expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/being rebuilt/i)).not.toBeInTheDocument();
   });
 
   it("offers the approval queue to an approver", () => {
-    gate.canApprove = true;
+    gate.allow.add("claim-approval");
     show();
     const link = screen.getByRole("link", { name: /Claim approval/ });
     expect(link).toHaveAttribute("href", "/finance/claim-approval");
   });
 
   // A link to a screen that would turn them away is worse than no link.
-  it("offers no link to someone who approves nothing", () => {
+  it("offers no approval link to someone who approves nothing", () => {
     show();
     expect(screen.queryByRole("link", { name: /Claim approval/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/Nothing here for you yet/)).toBeInTheDocument();
   });
 
-  it("says where their own claims are, since that is the likely reason they came", () => {
+  it("offers the card app, which is not an approval screen", () => {
     show();
+    const link = screen.getByRole("link", { name: /Credit Card Expenses/ });
+    expect(link).toHaveAttribute("href", "/finance/cc/dashboard");
+  });
+
+  it("lists both to someone who has both", () => {
+    gate.allow.add("claim-approval");
+    show();
+    expect(screen.getByRole("link", { name: /Claim approval/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Credit Card Expenses/ })).toBeInTheDocument();
+  });
+
+  // Reachable when the card app's own /user-info says no — a data state, not a
+  // shape the code rules out.
+  it("says so plainly when the gate allows nothing at all", () => {
+    gate.allow = new Set();
+    show();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByText(/Nothing here for you yet/)).toBeInTheDocument();
     expect(screen.getByText(/Your own claims are under\s+Me/)).toBeInTheDocument();
   });
 
@@ -77,7 +99,7 @@ describe("the Finance overview", () => {
   // one screen would need rewriting the moment the second one lands, and the
   // sibling perspectives name their domain rather than their contents.
   it("describes the perspective, not the one thing in it today", () => {
-    gate.canApprove = true;
+    gate.allow.add("claim-approval");
     show();
     const subtitle = screen.getByText(/Operations and tools for company finances/);
     expect(subtitle).toBeInTheDocument();
