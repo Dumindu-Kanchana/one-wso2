@@ -213,12 +213,12 @@ export default function App() {
           </Route>
           <Route path="me/claims/expense/new" element={<ExpenseNewClaimPage />} />
           <Route path="me/claims/opd/new" element={<OpdNewClaimPage />} />
-          <Route path="me/cc/dashboard" element={<CcDashboardPage />} />
-          <Route path="me/cc/new" element={<CcNewTransactionsPage />} />
-          <Route path="me/cc/pending" element={<CcPendingPage />} />
-          <Route path="me/cc/approve" element={<CcApprovePage />} />
-          <Route path="me/cc/history" element={<CcHistoryPage />} />
-          <Route path="me/cc/settings" element={<CcSettingsPage />} />
+          <Route path="finance/cc/dashboard" element={<CcDashboardPage />} />
+          <Route path="finance/cc/new" element={<CcNewTransactionsPage />} />
+          <Route path="finance/cc/pending" element={<CcPendingPage />} />
+          <Route path="finance/cc/approve" element={<CcApprovePage />} />
+          <Route path="finance/cc/history" element={<CcHistoryPage />} />
+          <Route path="finance/cc/settings" element={<CcSettingsPage />} />
           <Route path="people-ops" element={<PeopleOpsPage />} />
           {/* People Ops reports. Admin-only, but enforced by the backend and
               explained by PeopleOpsShell — there is no route-level guard, so
@@ -245,7 +245,7 @@ export default function App() {
             element={<EmployeeDetailPage />}
           />
           {/* Finance perspective — skeleton "coming soon" tile; the actual
-              claim apps are the me/opd, me/cc, me/expense routes above. */}
+              claim apps are the me/claims routes above. */}
           <Route path="finance" element={<FinancePage />} />
           {/* Finance → Claim approval. Approving is work you do for other
               people, so it sits here rather than under Me with the things you

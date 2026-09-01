@@ -31,9 +31,9 @@ describe("pinnableRoute", () => {
     // A bare item label is not unique across the rail — "History" is a Credit
     // Card item and "Claims" is an app in its own right — so a pin carries the
     // app it came from.
-    expect(pinnableRoute("/me/cc/history").label).toBe("Credit Card Expenses · History");
+    expect(pinnableRoute("/finance/cc/history").label).toBe("Credit Card Expenses · History");
     expect(pinnableRoute("/me/claims").label).toBe("Claims · Claims");
-    expect(pinnableRoute("/me/cc/history").label).not.toBe(
+    expect(pinnableRoute("/finance/cc/history").label).not.toBe(
       pinnableRoute("/me/claims").label,
     );
   });
@@ -51,7 +51,7 @@ describe("pinnableRoute", () => {
   // pin reads as a bare id with nothing to say where it came from.
   it("qualifies a detail route by the route it sits under", () => {
     expect(pinnableRoute("/me/my-team/E123").label).toBe("My Team · E123");
-    expect(pinnableRoute("/me/cc/history/TXN-9").label).toBe(
+    expect(pinnableRoute("/finance/cc/history/TXN-9").label).toBe(
       "Credit Card Expenses · History · TXN-9",
     );
   });
@@ -84,13 +84,13 @@ describe("pinnableRoute", () => {
   // Without normalizing, the registry lookup missed: the label degraded to a
   // guess and the id/href differed, so the same page pinned twice.
   it("resolves a route with a trailing slash to its canonical entry", () => {
-    expect(pinnableRoute("/me/cc/history/")).toMatchObject({
+    expect(pinnableRoute("/finance/cc/history/")).toMatchObject({
       kind: "page",
-      id: "/me/cc/history",
+      id: "/finance/cc/history",
       label: "Credit Card Expenses · History",
-      href: "/me/cc/history",
+      href: "/finance/cc/history",
     });
-    expect(pinnableRoute("/me/cc/history/")).toEqual(pinnableRoute("/me/cc/history"));
+    expect(pinnableRoute("/finance/cc/history/")).toEqual(pinnableRoute("/finance/cc/history"));
   });
 
   it("keeps the root path intact when normalizing", () => {

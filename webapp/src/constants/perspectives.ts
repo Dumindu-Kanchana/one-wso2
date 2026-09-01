@@ -33,7 +33,7 @@ import {
   type LucideIcon,
 } from "@wso2/oxygen-ui-icons-react";
 import type { Capability, MenuApp } from "@constants/appMenu";
-import { FINANCE_APPS } from "@constants/financeApps";
+import { FINANCE_PERSPECTIVE_APPS, ME_FINANCE_APPS } from "@constants/financeApps";
 import { CLAIM_APPROVAL_PATH } from "@features/finance/approvals/claimApprovalTabs";
 import { MARKETING_OPS_APPS } from "@constants/marketingOpsApps";
 import { ME_APPS } from "@constants/meApps";
@@ -166,7 +166,7 @@ const MARKETING_OPS_SECTIONS: PerspectiveSection[] = [
 const ME_SECTIONS: PerspectiveSection[] = [
   { id: "me-my-team", label: "My Team", icon: UsersRoundIcon, path: "/me/my-team", requires: ["lead"] },
   ...appsToSections(ME_APPS),
-  ...appsToSections(FINANCE_APPS),
+  ...appsToSections(ME_FINANCE_APPS),
 ];
 
 export interface PerspectiveDef {
@@ -226,6 +226,10 @@ export const PERSPECTIVES: readonly PerspectiveDef[] = [
         icon: CheckCheckIcon,
         path: CLAIM_APPROVAL_PATH,
       },
+      // Credit card lives here rather than under Me because a corporate card is
+      // not something everyone has — unlike leave or claims, it is not part of
+      // the set every employee needs.
+      ...appsToSections(FINANCE_PERSPECTIVE_APPS),
     ],
   },
   // A separate application, opened in a new tab. `access` follows the URL being

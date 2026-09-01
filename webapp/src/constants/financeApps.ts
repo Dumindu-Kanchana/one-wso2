@@ -28,9 +28,14 @@
 // capability gates just decide what shows in the rail.
 
 import { CreditCardIcon, ReceiptTextIcon } from "@wso2/oxygen-ui-icons-react";
+import { CC_PATH } from "@features/finance/cc/ccPaths";
 import type { MenuApp } from "@constants/appMenu";
 
-export const FINANCE_APPS: readonly MenuApp[] = [
+/**
+ * Claims — under **Me**. Filing and tracking your own is something every
+ * employee does.
+ */
+export const ME_FINANCE_APPS: readonly MenuApp[] = [
   {
     // Approving moved to Finance → Claim approval: it is work done for other
     // people, and this menu is for what you do for yourself.
@@ -47,26 +52,40 @@ export const FINANCE_APPS: readonly MenuApp[] = [
       { id: "claims", label: "Claims", desc: "Expense and OPD claims you have filed.", path: "/me/claims" },
     ],
   },
-  {
-    key: "cc",
-    name: "Credit Card Expenses",
-    icon: CreditCardIcon,
-    purpose: "Reconcile and submit corporate credit-card transactions for approval.",
-    items: [
-      { id: "cc-dashboard", label: "Dashboard", desc: "Unsubmitted spend, how long it has been sitting, and what has been claimed.", path: "/me/cc/dashboard" },
-      { id: "cc-new", label: "New Transactions", desc: "Unsubmitted card transactions to categorise and submit.", path: "/me/cc/new" },
-      { id: "cc-pending", label: "Pending Submissions", desc: "Submissions awaiting approval.", path: "/me/cc/pending" },
-      { id: "cc-approve", label: "Approve Submissions", desc: "Review and approve your team's submitted card transactions.", requires: ["lead", "admin"], path: "/me/cc/approve" },
-      { id: "cc-history", label: "History", desc: "Your submitted past card transactions.", path: "/me/cc/history" },
-      { id: "cc-settings", label: "Statement ingestion", desc: "Upload and reconcile bank statements (finance).", requires: ["admin"], path: "/me/cc/settings" },
-    ],
-  },
 ];
 
 // Every item id across the three apps — lets the rail dispatch gating to
 // useFinanceGate (each app's OWN backend roles) instead of the coarse
 // people-app capabilities, regardless of which perspective section it's
 // rendered under.
+/**
+ * Credit card — under **Finance**. Unlike claims, a corporate card is not
+ * something everyone has, so the app is not part of the set every employee
+ * needs; it sits with the other finance operations instead.
+ */
+export const FINANCE_PERSPECTIVE_APPS: readonly MenuApp[] = [
+  {
+    key: "cc",
+    name: "Credit Card Expenses",
+    icon: CreditCardIcon,
+    purpose: "Reconcile and submit corporate credit-card transactions for approval.",
+    items: [
+      { id: "cc-dashboard", label: "Dashboard", desc: "Unsubmitted spend, how long it has been sitting, and what has been claimed.", path: `${CC_PATH}/dashboard` },
+      { id: "cc-new", label: "New Transactions", desc: "Unsubmitted card transactions to categorise and submit.", path: `${CC_PATH}/new` },
+      { id: "cc-pending", label: "Pending Submissions", desc: "Submissions awaiting approval.", path: `${CC_PATH}/pending` },
+      { id: "cc-approve", label: "Approve Submissions", desc: "Review and approve your team's submitted card transactions.", requires: ["lead", "admin"], path: `${CC_PATH}/approve` },
+      { id: "cc-history", label: "History", desc: "Your submitted past card transactions.", path: `${CC_PATH}/history` },
+      { id: "cc-settings", label: "Statement ingestion", desc: "Upload and reconcile bank statements (finance).", requires: ["admin"], path: `${CC_PATH}/settings` },
+    ],
+  },
+];
+
+/** Every finance-domain app, wherever it is surfaced. */
+export const FINANCE_APPS: readonly MenuApp[] = [
+  ...ME_FINANCE_APPS,
+  ...FINANCE_PERSPECTIVE_APPS,
+];
+
 export const FINANCE_ITEM_IDS: ReadonlySet<string> = new Set([
   ...FINANCE_APPS.flatMap((app) => app.items.map((it) => it.id)),
   // Claim approval is not an item of any one app — it spans two of them — so it
