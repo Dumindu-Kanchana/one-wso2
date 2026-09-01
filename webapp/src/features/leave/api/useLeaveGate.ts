@@ -110,11 +110,17 @@ export function useLeaveGate(enabled = true): LeaveGate {
 
   return {
     canSee,
-    // A disabled query never fetches, so it stays `pending` for good —
-    // `isLoading` is pending AND fetching, which is what "still waiting"
-    // actually means. Guarded on `enabled` as well, so a caller that
-    // switched this gate off is never told it is mid-flight.
-    isResolving: enabled && userInfo.isLoading,
+    // `isPending`, not `isLoading`. useLeaveUserInfo is also held back until
+    // the Asgardeo sub resolves, so on a cold load the query is disabled and
+    // merely "not fetching" — which `isLoading` reports as a finished check
+    // holding no privileges, hiding rail entries from the people who have
+    // them. The distinction is WHY a query is off: lacking a role is
+    // permanent and reads as not-loading; waiting on identity is a moment and
+    // reads as pending.
+    //
+    // Still guarded on `enabled`, so a caller that switched this gate off is
+    // never told it is mid-flight.
+    isResolving: enabled && userInfo.isPending,
     isPeopleOps,
     isLead,
   };

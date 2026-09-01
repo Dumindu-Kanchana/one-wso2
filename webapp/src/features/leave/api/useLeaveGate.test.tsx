@@ -211,3 +211,23 @@ describe("when the caller switches the gate off", () => {
     expect(gate.isResolving).toBe(false);
   });
 });
+
+
+// The state that made this gate wrong once already. useLeaveUserInfo is held
+// back until the Asgardeo sub resolves, so on a cold load the query is DISABLED
+// and merely not-fetching: pending true, loading false. Read as "loading", that
+// is a finished check holding no privileges — and the rail hides entries from
+// the people who have them.
+//
+// Distinct from a query disabled because the person lacks a role, where nothing
+// is coming and not-loading is the truth. Why it is off is what decides.
+describe("while identity is still resolving", () => {
+  it("reports itself as still resolving, not as a finished denial", () => {
+    userInfo.data = undefined;
+    userInfo.isPending = true;
+    userInfo.isLoading = false; // disabled: never started, so never "loading"
+    const gate = renderHook(() => useLeaveGate()).result.current;
+    expect(gate.isResolving).toBe(true);
+    expect(gate.canSee("leave-reports")).toBe(false);
+  });
+});
