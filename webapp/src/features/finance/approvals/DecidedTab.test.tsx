@@ -57,7 +57,10 @@ vi.mock("../expense/useExpense", () => ({
   }),
   useExpenseClaims: (payload: Record<string, unknown>, enabled = true) => {
     if (enabled) searches.expense.push(payload);
-    const isLead = Array.isArray(payload.status) && payload.status[0] === "PENDING_LEAD";
+    // The lead query is the scoped one — it is the only search that carries a
+    // leadEmail. Keying on the first status broke the moment the lead query's
+    // statuses changed, which is a fragile thing for a mock to depend on.
+    const isLead = Boolean(payload.leadEmail);
     return {
       data: !enabled ? [] : isLead ? data.lead : data.finance,
       // As React Query reports a DISABLED query: it never fetches, so it stays
@@ -201,12 +204,39 @@ describe("what it asks for", () => {
     expect(searches.expense.at(-1)?.status).toContain("PENDING_FINANCE");
   });
 
-  // Holding both, the finance queue already covers everything they settled, so
-  // asking the lead queue too would list the same claims twice.
-  it("asks once, not twice, of someone holding both flags", () => {
+  // Holding both, the finance queue covers what they settled AS FINANCE and
+  // nothing else — so a claim they only forwarded, or turned down as lead, was
+  // in neither query and vanished from Decided. The lead queue still runs for
+  // them, narrowed to the statuses finance does not already cover.
+  it("asks a dual-role approver for both, without overlapping", () => {
     show();
-    expect(searches.expense).toHaveLength(1);
-    expect(searches.expense[0].status).toEqual(["APPROVED", "FINANCE_REJECTED"]);
+    const asked = searches.expense.map((p) => p.status as string[]);
+    expect(asked).toHaveLength(2);
+    const finance = asked.find((st) => st.includes("APPROVED"))!;
+    const lead = asked.find((st) => st.includes("LEAD_REJECTED"))!;
+    expect(finance).toEqual(["APPROVED", "FINANCE_REJECTED"]);
+    // What finance's own list cannot show them.
+    expect(lead).toEqual(["PENDING_FINANCE", "LEAD_REJECTED"]);
+    // No status asked for twice, or the same claim lands in the list twice.
+    expect(finance.filter((st) => lead.includes(st))).toEqual([]);
+  });
+
+  it("keeps a dual-role approver's forwarded claim in the list", () => {
+    data.lead = [
+      expenseClaim({
+        id: "EXP-FORWARDED",
+        statusDetails: {
+          status: "PENDING_FINANCE",
+          leadApprovedDate: iso(2026, 7, 22),
+          financeApproverEmail: null,
+          financeApprovedDate: null,
+          financeRejectedDate: null,
+          leadRejectedDate: null,
+        },
+      }),
+    ];
+    show();
+    expect(screen.getByText("EXP-FORWARDED")).toBeInTheDocument();
   });
 
   it("asks OPD for settled claims only", () => {

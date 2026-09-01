@@ -58,9 +58,20 @@ export default function DecidedTab() {
 
   // A lead's decided queue is the claims they forwarded or turned down, so it is
   // scoped to their reports the same way their pending queue is.
+  //
+  // Someone holding BOTH flags gets a narrowed version rather than none. The
+  // finance list below covers what they settled as finance and nothing else, so
+  // a claim they only forwarded — still PENDING_FINANCE — or turned down as
+  // lead was in neither query and simply vanished from Decided. The two status
+  // lists are kept disjoint, or the same claim would appear twice.
   const leadDecided = useExpenseClaims(
-    { leadEmail: myEmail, status: ["PENDING_FINANCE", "APPROVED", "FINANCE_REJECTED", "LEAD_REJECTED"] },
-    canLead && !canExpenseFinance && Boolean(myEmail),
+    {
+      leadEmail: myEmail,
+      status: canExpenseFinance
+        ? ["PENDING_FINANCE", "LEAD_REJECTED"]
+        : ["PENDING_FINANCE", "APPROVED", "FINANCE_REJECTED", "LEAD_REJECTED"],
+    },
+    canLead && Boolean(myEmail),
   );
   const financeDecided = useExpenseClaims(
     { status: ["APPROVED", "FINANCE_REJECTED"] },
