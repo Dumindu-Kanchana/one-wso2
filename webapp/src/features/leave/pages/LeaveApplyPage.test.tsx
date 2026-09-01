@@ -30,6 +30,8 @@ const appConfigData = {
   },
 };
 
+const state = { employeesLoading: false };
+
 const employeeList = [
   {
     workEmail: "here@wso2.com",
@@ -50,7 +52,15 @@ vi.mock("../api/useLeaveData", () => ({
     data: { workEmail: "me@wso2.com", leadEmail: "lead@wso2.com", location: user.location },
   }),
   useLeaveAppConfig: () => ({ data: appConfigData, isPending: false, isError: false }),
-  useLeaveEmployees: () => ({ data: employeeList, isPending: false, isError: false }),
+  useLeaveEmployees: () => ({
+    data: state.employeesLoading ? undefined : employeeList,
+    // Both flags, as React Query reports them: a fetching query is pending AND
+    // loading; a disabled one is pending but not loading, because it never
+    // fetches.
+    isPending: state.employeesLoading,
+    isLoading: state.employeesLoading,
+    isError: false,
+  }),
   useLeaveEntitlement: () => ({ data: undefined, isPending: false, isError: false }),
 }));
 const submitMutate = vi.fn();
@@ -369,5 +379,32 @@ describe("the notify picker's option rows", () => {
     // The photo-and-name row still lays out as a flex row.
     expect(first.style.display).toBe("flex");
     expect(first.style.alignItems).toBe("center");
+  });
+});
+
+
+// The directory takes a moment. Until it lands the field is unusable — typing
+// into it would say there is no such person — so it says so plainly rather than
+// looking ready and behaving like an empty address book.
+describe("while the people list is still loading", () => {
+  it("greys the picker out rather than letting someone type into nothing", () => {
+    state.employeesLoading = true;
+    show();
+    expect(screen.getByPlaceholderText("Loading people…")).toBeDisabled();
+    state.employeesLoading = false;
+  });
+
+  it("shows a spinner in the field, not only inside an unopened dropdown", () => {
+    state.employeesLoading = true;
+    show();
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    state.employeesLoading = false;
+  });
+
+  it("hands the field over once the list arrives", async () => {
+    show();
+    const field = screen.getByPlaceholderText("Add people to notify (optional)");
+    expect(field).toBeEnabled();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 });

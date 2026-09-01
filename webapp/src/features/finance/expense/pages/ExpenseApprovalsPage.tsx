@@ -39,6 +39,7 @@ import {
   type ApproverView,
   type ExpenseClaim,
 } from "../expenseTypes";
+import { withLoadingAdornment } from "@components/picker-loading/pickerLoading";
 
 // The expense tab of Claim approval. It used to be two menu entries under Me,
 // one per stage; the stage is now a control on one screen, because the two
@@ -146,8 +147,11 @@ function ApprovalsBody({ view }: { view: ApproverView }) {
           value={employee}
           onChange={(_e, v) => setEmployee(v)}
           loading={employees.isLoading}
+                disabled={employees.isLoading}
           sx={{ minWidth: 260 }}
-          renderInput={(params) => <TextField {...params} label="Filter by email" />}
+          renderInput={(params) => (
+                  <TextField {...withLoadingAdornment(params, employees.isLoading)} label="Filter by email" />
+                )}
         />
         <TextField
           size="small"

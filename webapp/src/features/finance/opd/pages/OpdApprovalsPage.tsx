@@ -39,6 +39,7 @@ import { money, formatNice } from "../../util/financeFormat";
 import { useOpdClaims, useOpdEmployees, useOpdUserInfo } from "../useOpd";
 import { OpdClaimDetailsDialog } from "../OpdClaimDetailsDialog";
 import { OPD_ROLE, opdHasRole, opdStatusFilter, type OpdClaim, type OpdClaimStatus } from "../opdTypes";
+import { withLoadingAdornment } from "@components/picker-loading/pickerLoading";
 
 type TabKey = "pending" | "approved" | "rejected";
 const TAB_STATUS: Record<TabKey, OpdClaimStatus[]> = {
@@ -120,8 +121,11 @@ function ApprovalsBody() {
           value={employee}
           onChange={(_e, v) => setEmployee(v)}
           loading={employees.isLoading}
+                disabled={employees.isLoading}
           sx={{ minWidth: 260 }}
-          renderInput={(params) => <TextField {...params} label="Filter by email" />}
+          renderInput={(params) => (
+                  <TextField {...withLoadingAdornment(params, employees.isLoading)} label="Filter by email" />
+                )}
         />
         <TextField
           size="small"

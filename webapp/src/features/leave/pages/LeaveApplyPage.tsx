@@ -72,6 +72,7 @@ import {
   PUBLIC_COMMENT_NOTE,
   SUBMIT_SUCCESS,
 } from "../util/leaveCopy";
+import { withLoadingAdornment } from "@components/picker-loading/pickerLoading";
 
 type Portion = "full" | "first" | "second";
 
@@ -474,6 +475,7 @@ function ApplyForm() {
           value={[...mandatory, ...recipients.filter((r) => !mandatory.includes(r))]}
           onChange={(_e, v) => setRecipients((v as string[]).filter((r) => !mandatory.includes(r)))}
           loading={employees.isLoading}
+          disabled={employees.isLoading}
           loadingText="Loading employees…"
           noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
           disableListWrap
@@ -527,7 +529,10 @@ function ApplyForm() {
             })
           }
           renderInput={(params) => (
-            <TextField {...params} placeholder="Add people to notify (optional)" />
+            <TextField
+              {...withLoadingAdornment(params, employees.isLoading)}
+              placeholder={employees.isLoading ? "Loading people…" : "Add people to notify (optional)"}
+            />
           )}
         />
         <Typography sx={{ fontSize: 11, color: "text.disabled", mt: 0.75 }}>

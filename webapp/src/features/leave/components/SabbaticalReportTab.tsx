@@ -36,6 +36,7 @@ import { employeeDisplayName } from "../util/employeeName";
 import { REPORT_VALIDATION_MESSAGE } from "../util/leaveCopy";
 import { startOfYearIso, todayIso } from "../util/leaveDates";
 import { useLeaveGate } from "../api/useLeaveGate";
+import { withLoadingAdornment } from "@components/picker-loading/pickerLoading";
 
 // Sabbatical report — AdminSabbaticalTab.tsx.
 //
@@ -147,6 +148,7 @@ export default function SabbaticalReportTab() {
                 value={employee}
                 onChange={(_e, v) => setEmployee(v)}
                 loading={employees.isLoading}
+                disabled={employees.isLoading}
                 getOptionLabel={(option) => {
                   const person = byEmail.get(option);
                   return person ? employeeDisplayName(person) : option;
@@ -161,7 +163,9 @@ export default function SabbaticalReportTab() {
                     </li>
                   );
                 }}
-                renderInput={(params) => <TextField {...params} placeholder="All employees" />}
+                renderInput={(params) => (
+                  <TextField {...withLoadingAdornment(params, employees.isLoading)} placeholder="All employees" />
+                )}
               />
             </Box>
           </Box>

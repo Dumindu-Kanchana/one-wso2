@@ -42,6 +42,7 @@ import { REPORT_VALIDATION_MESSAGE } from "../util/leaveCopy";
 import { useLeaveEmployees, useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
 import { useLeaveGate } from "../api/useLeaveGate";
 import { formatNice, startOfYearIso, todayIso } from "../util/leaveDates";
+import { withLoadingAdornment } from "@components/picker-loading/pickerLoading";
 
 const PERIOD_LABEL: Record<string, string> = {
   multiple: "Multiple days",
@@ -199,6 +200,7 @@ function ReportsBody() {
                 value={employee}
                 onChange={(_e, v) => setEmployee(v as string | null)}
                 loading={employees.isLoading}
+          disabled={employees.isLoading}
                 loadingText="Loading employees…"
                 noOptionsText={employees.isError ? "Couldn't load employees" : "No employees found"}
                 disableListWrap
@@ -279,7 +281,9 @@ function ReportsBody() {
                 options={EMPLOYEE_STATUS_OPTIONS}
                 value={employeeStatuses}
                 onChange={(_e, v) => setEmployeeStatuses(v as EmployeeStatus[])}
-                renderInput={(params) => <TextField {...params} label="Employee status" />}
+                renderInput={(params) => (
+                  <TextField {...withLoadingAdornment(params, employees.isLoading)} label="Employee status" />
+                )}
               />
             </Box>
           </Box>
