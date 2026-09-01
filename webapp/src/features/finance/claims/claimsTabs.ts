@@ -46,24 +46,26 @@ export interface ClaimTypeDef {
 
 export const CLAIM_TYPES: readonly ClaimTypeDef[] = [
   {
-    segment: "expense",
-    label: "Expense claims",
-    menuLabel: "Expense claim",
-    menuDescription: "Money you spent out of pocket. Any currency, converted to yours.",
-    newClaimPath: `${CLAIMS_PATH}/expense/new`,
-  },
-  {
     segment: "opd",
     label: "OPD claims",
     menuLabel: "OPD claim",
     menuDescription: "Medical bills, against this year's allowance.",
     newClaimPath: `${CLAIMS_PATH}/opd/new`,
   },
+  {
+    segment: "expense",
+    label: "Expense claims",
+    menuLabel: "Expense claim",
+    menuDescription: "Money you spent out of pocket. Any currency, converted to yours.",
+    newClaimPath: `${CLAIMS_PATH}/expense/new`,
+  },
 ] as const;
 
 /**
- * The tab to open on. Expense claims are filed more often, so the screen opens
- * there rather than remembering the last tab — two people describing this
- * screen to each other should be looking at the same thing.
+ * The tab to open on — the first one, so the default and the tab order cannot
+ * disagree. A default sitting second reads as a bug rather than a choice.
+ *
+ * Deliberately not "the tab you used last": two people describing this screen
+ * to each other should be looking at the same thing.
  */
 export const DEFAULT_CLAIM_TAB = CLAIM_TYPES[0];

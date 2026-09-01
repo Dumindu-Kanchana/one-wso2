@@ -46,7 +46,11 @@ import { CLAIM_TYPES, CLAIMS_PATH, DEFAULT_CLAIM_TAB } from "./claimsTabs";
 export default function ClaimsPage() {
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
+      {/* Centred against the title block, not level with the eyebrow: the
+          header is three lines tall and a button pinned to the top of it reads
+          as unanchored. Stays on the right, where every primary action in the
+          app lives, so the page still reads title → tabs → list. */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Chip
             icon={<ReceiptTextIcon size={14} />}
@@ -89,7 +93,7 @@ function AddClaimButton() {
     <>
       <Button
         variant="contained"
-        size="small"
+        size="medium"
         onClick={(e) => setAnchor(e.currentTarget)}
         endIcon={<ChevronDownIcon size={15} />}
         aria-haspopup="menu"

@@ -54,12 +54,19 @@ function show(initial = "/me/claims") {
 }
 
 describe("landing on Claims", () => {
-  // Expense claims are filed more often. Deliberately not "the last tab you
-  // used": two people describing this screen to each other should be looking at
-  // the same thing.
-  it("opens on expense claims", async () => {
+  // Deliberately not "the last tab you used": two people describing this screen
+  // to each other should be looking at the same thing.
+  it("opens on OPD claims", async () => {
     show();
-    expect(await screen.findByTestId("url")).toHaveTextContent("/me/claims/expense");
+    expect(await screen.findByTestId("url")).toHaveTextContent("/me/claims/opd");
+  });
+
+  // The default and the tab order have to agree, or the opening tab looks like
+  // a bug rather than a choice.
+  it("puts the tab it opens on first", async () => {
+    show();
+    const tabs = (await screen.findAllByRole("tab")).map((t) => t.textContent);
+    expect(tabs[0]).toBe("OPD claims");
   });
 
   it("offers a tab for each type", async () => {

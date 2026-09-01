@@ -30,8 +30,9 @@ There is no single form that could take both, so the type is chosen before a for
 
 ### 2.1 Claims — `/me/claims`
 
-Opens on **Expense claims**, which are filed more often. Deliberately not "the tab you used
-last": two people describing this screen to each other should be looking at the same thing.
+Opens on **OPD claims**, which also leads the tab order — a default sitting second reads as a
+bug rather than a choice. Deliberately not "the tab you used last": two people describing this
+screen to each other should be looking at the same thing.
 
 Each tab is a route, so a tab can be linked and survives a refresh, and each reports its own
 backend's connectivity — the screen spans two, and either may be missing.
@@ -39,7 +40,9 @@ backend's connectivity — the screen spans two, and either may be missing.
 ### 2.2 Add claim
 
 One button, in the same place on both tabs, whose menu names the two types with a line each
-saying what they are for.
+saying what they are for. It sits beside the title, centred against that block rather than
+level with the eyebrow — the header is three lines tall and a button pinned to its top reads
+as unanchored — so the page still reads title, then tabs, then list.
 
 **Not a split button whose primary action follows the open tab.** That would save a click,
 and cost a button whose label and meaning shift underneath you as you move between tabs. The
