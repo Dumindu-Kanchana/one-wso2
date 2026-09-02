@@ -46,10 +46,11 @@ function overlapArea(a: Rect, b: Rect): number {
  * with any panel the step opened, so "below" means below the whole panel rather
  * than below the button that opens it.
  *
- * No overlap test: every candidate is placed strictly outside `avoid`'s bounds,
- * and a candidate needing to be pulled back inside the viewport is rejected
- * rather than clamped onto the target. Adding one here was tried twice and
- * proved unreachable both times.
+ * A candidate is taken only if it is both on screen and clear of `avoid`. The
+ * adjacent candidates can only be one or the other, but `centre` and the corners
+ * are fixed to the viewport and know nothing about the target, so they can fit
+ * and still cover it — which is how an overlapping centre came to be preferred
+ * over a clear corner.
  */
 export function placeCard(
   avoid: Rect,
@@ -91,13 +92,26 @@ export function placeCard(
     { left: G, top: G, ...size },
   ];
 
-  const fits = (c: Rect) =>
+  const onScreen = (c: Rect) =>
     c.left >= G && c.top >= G && c.left + card.w <= vw - G && c.top + card.h <= vh - G;
 
-  const chosen = spots.find(fits);
+  // Both conditions, and the overlap half is genuinely load-bearing.
+  //
+  // I twice claimed an overlap test here was unreachable, on the grounds that
+  // every candidate is derived from `avoid`. That stopped being true when
+  // `centre` and the corners were added: those are fixed to the viewport and
+  // know nothing about the target, so they can sit right on top of it. With
+  // viewport 1024x640, card 320x190 and a target at 334,180 340x300, every
+  // adjacent candidate falls off-screen, `centre` fits and covers the target —
+  // and a corner that is both on-screen and clear gets skipped.
+  const chosen = spots.find((c) => onScreen(c) && overlapArea(c, avoid) === 0);
   if (chosen) return chosen;
 
-  return spots.reduce((best, c) =>
+  // Nothing both fits and is clear. Prefer staying on screen over being clear,
+  // then take the least-covered of those.
+  const visible = spots.filter(onScreen);
+  const pool = visible.length > 0 ? visible : spots;
+  return pool.reduce((best, c) =>
     overlapArea(c, avoid) < overlapArea(best, avoid) ? c : best,
   );
 }

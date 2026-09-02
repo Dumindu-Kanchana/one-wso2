@@ -184,6 +184,27 @@ describe("tour card placement", () => {
     }
   });
 
+  /**
+   * The reviewer's counterexample, kept verbatim.
+   *
+   * Every adjacent candidate falls off-screen here, so selection reaches
+   * `centre` — which is fixed to the viewport and knows nothing about the
+   * target. It fits, and it covers the target by 60,800px², while two corners
+   * are both on-screen and clear. Choosing on "fits" alone took the overlapping
+   * one.
+   */
+  it("prefers a clear corner over a centre that would cover the target", () => {
+    const vp = { width: 1024, height: 640 };
+    const target: Rect = { top: 180, left: 334, width: 340, height: 300 };
+    const card = placeCard(target, CARD, vp);
+    expect(overlaps(card, target), "took an overlapping spot").toBe(false);
+    expect(inside(card, vp)).toBe(true);
+    // Specifically not the centre, which is what the old rule returned.
+    const centreLeft = Math.round((vp.width - CARD.w) / 2);
+    const centreTop = Math.round((vp.height - CARD.h) / 2);
+    expect(card.left === centreLeft && card.top === centreTop).toBe(false);
+  });
+
   /** Nothing highlighted means nothing to lean away from. */
   it("centres a step that has no target", () => {
     const vp = { width: 1440, height: 820 };
