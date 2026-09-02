@@ -35,6 +35,7 @@ interface AppsGridIconProps {
 
 const CELLS = [3.4, 9.7, 16.0];
 
+/** Nine cells on a 24-unit grid, filled with the current text colour. */
 export default function AppsGridIcon({ size = 24 }: AppsGridIconProps) {
   return (
     <svg

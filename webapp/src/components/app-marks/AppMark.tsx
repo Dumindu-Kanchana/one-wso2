@@ -45,6 +45,11 @@ export interface MarkProps {
   size?: number;
 }
 
+/**
+ * Shared wrapper: fixes the 48-unit coordinate space every mark is drawn in, and
+ * hides the graphic from assistive tech because the tile around it is already
+ * labelled with the app's name.
+ */
 function Svg({ size = 48, children }: MarkProps & { children: React.ReactNode }) {
   return (
     <svg

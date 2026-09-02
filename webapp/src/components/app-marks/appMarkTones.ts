@@ -63,6 +63,10 @@ export const APP_MARK_TONES: Record<string, AppMarkTones> = {
   csm: { field: "#CFB1F0", lead: "#9B5DE0", detail: "#7F4CB8" },
 };
 
+/**
+ * Tones for a perspective's mark, or undefined for a key with no entry. Own
+ * properties only, so an inherited name like "toString" resolves to nothing.
+ */
 export function appMarkTones(key: string): AppMarkTones | undefined {
   return Object.prototype.hasOwnProperty.call(APP_MARK_TONES, key)
     ? APP_MARK_TONES[key]
