@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import type { ReactElement } from "react";
 import {
   CsmMark,
   FinanceMark,
@@ -29,7 +30,7 @@ import {
  * Keyed by `PerspectiveDef.key`. Undefined for a perspective without a mark —
  * the launcher then falls back to its line glyph on the wash.
  */
-const APP_MARKS: Record<string, (p: MarkProps) => React.ReactElement> = {
+const APP_MARKS: Record<string, (p: MarkProps) => ReactElement> = {
   me: MeMark,
   people: PeopleMark,
   finance: FinanceMark,
@@ -37,6 +38,10 @@ const APP_MARKS: Record<string, (p: MarkProps) => React.ReactElement> = {
   csm: CsmMark,
 };
 
-export function appMark(key: string): ((p: MarkProps) => React.ReactElement) | undefined {
+/**
+ * The mark for a perspective, or undefined when none is registered — the caller
+ * is expected to fall back to that perspective's line glyph.
+ */
+export function appMark(key: string): ((p: MarkProps) => ReactElement) | undefined {
   return Object.prototype.hasOwnProperty.call(APP_MARKS, key) ? APP_MARKS[key] : undefined;
 }
