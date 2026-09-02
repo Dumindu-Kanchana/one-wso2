@@ -15,7 +15,8 @@
 // under the License.
 
 import { UserMenu } from "@wso2/oxygen-ui";
-import { LogOutIcon, UserRoundIcon } from "@wso2/oxygen-ui-icons-react";
+import { CompassIcon, LogOutIcon, UserRoundIcon } from "@wso2/oxygen-ui-icons-react";
+import { useTour } from "@features/tour/tourContext";
 import { useAsgardeo } from "@asgardeo/react";
 import { useUserInfo } from "@api/useUserInfo";
 import { authConfig } from "@config/authConfig";
@@ -42,6 +43,7 @@ export default function UserProfileMenu() {
   const secureSignOut = useSecureSignOut();
   const user = useAsgardeoUser();
   const userInfo = useUserInfo();
+  const tour = useTour();
 
   if (!isSignedIn) return null;
 
@@ -70,9 +72,14 @@ export default function UserProfileMenu() {
     : "";
   const initials = backendInitials || user.initials || (user.ready ? "?" : "");
 
+
   const handleProfile = () => {
     window.open(authConfig.myAccountUrl, "_blank", "noopener,noreferrer");
   };
+  const handleTour = () => {
+    tour.start();
+  };
+
   const handleLogout = () => {
     secureSignOut();
   };
@@ -83,6 +90,16 @@ export default function UserProfileMenu() {
       <UserMenu.Header name={name || "—"} email={email || " "} avatar={avatarUrl} />
       <UserMenu.Divider />
       <UserMenu.Item icon={<UserRoundIcon size={18} />} label="Profile" onClick={handleProfile} />
+      {/* The tour is offered once, on a first visit, and lives here afterwards —
+          so someone who declined it, or who wants it again, has somewhere to go.
+
+          UserMenu.Item appends a trailing chevron that cannot be turned off (its
+          props are icon/label/badge/onClick, and it drops className). A plain
+          MenuItem avoids the chevron but does not inherit Oxygen's item styling,
+          so the row read as foreign next to Profile and Log out. The chevron is
+          the smaller of the two problems; worth asking Oxygen for a way to
+          suppress it rather than hand-rolling the row. */}
+      <UserMenu.Item icon={<CompassIcon size={18} />} label="Take the tour" onClick={handleTour} />
       <UserMenu.Logout icon={<LogOutIcon size={18} />} label="Log out" onClick={handleLogout} />
     </UserMenu>
   );
