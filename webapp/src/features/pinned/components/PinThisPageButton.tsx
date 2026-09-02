@@ -54,6 +54,7 @@ export default function PinThisPageButton(): JSX.Element | null {
   return (
     <Tooltip title={isPinned ? "Unpin this page" : "Pin this page to the top bar"}>
       <IconButton
+        data-tour="pin"
         size="small"
         aria-label={isPinned ? "Unpin this page" : "Pin this page to the top bar"}
         aria-pressed={isPinned}
