@@ -253,6 +253,7 @@ export default function TopBar({
             onClick={(e) => onToggleWaffle(e.currentTarget)}
             size="small"
             aria-label="Switch app"
+            data-tour="app-menu"
             aria-haspopup="dialog"
             aria-expanded={waffleOpen}
           >
@@ -261,10 +262,13 @@ export default function TopBar({
         </Tooltip>
         <PinThisPageButton />
         {/* Palette, then light/dark within it — two separate choices, both
-            persisted, deliberately adjacent. */}
-        <ThemeSelect />
-        {/* Oxygen's own 3-state cycle: light → dark → system. */}
-        <ColorSchemeToggle size="small" />
+            persisted, deliberately adjacent. The tour treats them as one thing,
+            so the marker sits on a wrapper rather than on either control. */}
+        <Box sx={{ display: "flex", alignItems: "center" }} data-tour="theme">
+          <ThemeSelect />
+          {/* Oxygen's own 3-state cycle: light → dark → system. */}
+          <ColorSchemeToggle size="small" />
+        </Box>
         <UserProfileMenu />
       </Header.Actions>
     </Header>

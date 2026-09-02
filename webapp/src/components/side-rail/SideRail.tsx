@@ -303,7 +303,12 @@ export default function SideRail({ collapsed }: SideRailProps): JSX.Element {
           <Sidebar.ItemIcon>
             <SettingsIcon />
           </Sidebar.ItemIcon>
-          <Sidebar.ItemLabel>Settings</Sidebar.ItemLabel>
+          {/* The tour points here. The marker is on a span of our own because
+              Sidebar.Item drops unknown props, so data-* put on it never reaches
+              the DOM. */}
+          <Sidebar.ItemLabel>
+            <span data-tour="settings">Settings</span>
+          </Sidebar.ItemLabel>
         </Sidebar.Item>
       </Sidebar.Footer>
     </Sidebar>

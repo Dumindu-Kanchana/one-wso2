@@ -396,6 +396,10 @@ function WaffleGroup({
                 starred ? `Remove ${p.label} from favourites` : `Add ${p.label} to favourites`
               }
               aria-pressed={starred}
+              // Only a favourited tile's star is unconditionally visible (see the
+              // opacity rules below), so the tour anchors to one of those. Me is a
+              // default favourite, so there is always at least one.
+              data-tour={starred ? "favourite" : undefined}
               onClick={() => onToggleFavourite(p.key)}
               sx={{
                 position: "absolute",

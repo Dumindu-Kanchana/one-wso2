@@ -22,6 +22,10 @@ import SideRail from "@components/side-rail/SideRail";
 import WaffleOverlay from "@components/waffle/WaffleOverlay";
 import AskNoveraPalette from "@components/ask-novera/AskNoveraPalette";
 import AppFooter from "@components/footer/AppFooter";
+import TourDriver from "@features/tour/TourDriver";
+import TourGuide from "@features/tour/TourGuide";
+import TourPrompt from "@features/tour/TourPrompt";
+import { TourProvider } from "@features/tour/TourProvider";
 import AuthDebugPanel from "@features/debug/AuthDebugPanel";
 import AppShellLayout from "@layouts/AppShellLayout";
 import IdleTimeoutProvider from "@context/idle-timeout/IdleTimeoutProvider";
@@ -57,6 +61,10 @@ export default function AppLayout(): JSX.Element {
   // The launcher's anchor doubles as its open state — it hangs off the button
   // rather than covering the page, so there is no "open with no anchor".
   const [waffleAnchor, setWaffleAnchor] = useState<HTMLElement | null>(null);
+  // The tour renders its card outside the launcher's popper, so clicking Next
+  // reads as a click away and would close a panel the next step points into.
+  // TourDriver raises this while a step needs the launcher open.
+  const tourHoldsLauncher = useRef(false);
   const [askOpen, setAskOpen] = useState(false);
   const location = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
@@ -79,6 +87,7 @@ export default function AppLayout(): JSX.Element {
     // Owns the idle deadline and the "still there?" prompt (ONEWSO2-R1).
     // Wraps the shell rather than sitting inside it so the dialog is a sibling
     // of the layout, not a child of the scrolling content area.
+    <TourProvider>
     <IdleTimeoutProvider>
       {/* Raises the sign-in prompt when @api/authBridge gives up renewing the
           session. Inside AuthGuard on purpose: a signed-out user is already
@@ -125,11 +134,28 @@ export default function AppLayout(): JSX.Element {
         </AppShellLayout>
 
         {waffleAnchor && (
-          <WaffleOverlay anchorEl={waffleAnchor} onClose={() => setWaffleAnchor(null)} />
+          <WaffleOverlay
+            anchorEl={waffleAnchor}
+            onClose={() => {
+              if (tourHoldsLauncher.current) return;
+              setWaffleAnchor(null);
+            }}
+          />
         )}
         {askOpen && <AskNoveraPalette onClose={() => setAskOpen(false)} />}
+        {/* The introductory tour. TourDriver applies what a step needs from the
+            shell; the other two are the offer and the running tour itself. */}
+        <TourDriver
+          sidebarCollapsed={shellState.sidebarCollapsed}
+          toggleSidebar={shellActions.toggleSidebar}
+          setWaffleAnchor={setWaffleAnchor}
+          holdLauncher={tourHoldsLauncher}
+        />
+        <TourPrompt />
+        <TourGuide />
         <AuthDebugPanel />
       </Box>
     </IdleTimeoutProvider>
+    </TourProvider>
   );
 }
