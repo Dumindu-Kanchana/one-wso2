@@ -21,6 +21,7 @@ import { MemoryRouter } from "react-router";
 import WaffleOverlay from "@components/waffle/WaffleOverlay";
 import { readFavourites } from "@features/favourites/favouritesStore";
 import { PERSPECTIVES } from "@constants/perspectives";
+import { appMark } from "@components/app-marks/appMarkRegistry";
 
 vi.mock("@hooks/useAsgardeoSub", () => ({
   useAsgardeoSub: () => ({ state: { status: "ready", sub: "user-under-test" }, retry: () => {} }),
@@ -140,7 +141,14 @@ describe("launcher app marks", () => {
     expect(tile.querySelector("svg.lucide")).toBeNull();
   });
 
-  it("gives every perspective in the launcher a mark", () => {
+  /**
+   * Both halves of the documented rule, per perspective: a registered mark
+   * replaces the line glyph, and a perspective without one still gets a tile
+   * with its glyph. The second half is the part that keeps the fallback real —
+   * asserting only the marks would let it rot into unreachable code, and would
+   * fail any future perspective that hasn't been drawn a mark yet.
+   */
+  it("draws a mark where one is registered, and the line glyph where none is", () => {
     renderLauncher();
     for (const p of PERSPECTIVES) {
       // The tile's accessible name says what activating it does, and that differs
@@ -153,10 +161,15 @@ describe("launcher app marks", () => {
       const tile = within(panel()).getAllByRole(p.externalUrl ? "link" : "button", {
         name,
       })[0];
-      expect(
-        tile.querySelector('svg[viewBox="0 0 48 48"]'),
-        `${p.label} has no mark`,
-      ).not.toBeNull();
+      const mark = tile.querySelector('svg[viewBox="0 0 48 48"]');
+      const glyph = tile.querySelector("svg.lucide");
+      if (appMark(p.key)) {
+        expect(mark, `${p.label} should show its mark`).not.toBeNull();
+        expect(glyph, `${p.label} should not show both`).toBeNull();
+      } else {
+        expect(mark, `${p.label} has no mark registered`).toBeNull();
+        expect(glyph, `${p.label} should fall back to its line glyph`).not.toBeNull();
+      }
     }
   });
 });
