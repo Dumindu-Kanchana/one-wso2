@@ -1,0 +1,70 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/**
+ * Three tones per app mark, derived from the perspective's identity hue.
+ *
+ * The hue itself is not repeated here — it is `PERSPECTIVE_HUES[key].hue` in
+ * @config/perspectiveHues, and `lead` below is that exact value. What this file
+ * adds is the two supporting tones a two-colour mark needs.
+ *
+ *   field   the large ground shape (house body, wallet body, buoy ring)
+ *   lead    the identifying form, at full saturation (roof, flap, spokes)
+ *   detail  the small dark accent (door, clasp, handle)
+ *
+ * Precomputed rather than mixed at runtime, following perspectiveHues.ts: values
+ * that can be read and asserted beat values that can only be observed.
+ *
+ * CONTRAST, and the one place this deliberately does not reach 3:1.
+ *
+ * `lead` and `detail` both clear the WCAG 1.4.11 non-text floor against a white
+ * tile AND against the dark tile (3.02-5.79:1 across all ten pairs; the test
+ * recomputes them). `field` does not: it measures 1.70-1.88:1 on white.
+ *
+ * That is not an oversight and it cannot be fixed by darkening. 1.4.11 applies to
+ * what is *required to identify* the control, which here is the silhouette plus
+ * the saturated `lead` form — both of which pass. `field` is interior modelling.
+ * Darkening it until it passed was tried: every hue needs so much darkening that
+ * `field` and `lead` end up 1.05-1.37:1 apart, which reads as one flat colour and
+ * destroys the two-tone the marks exist for. A two-tone mark on a white ground
+ * cannot have both tones dark; that is a property of the goal, not of the values.
+ *
+ * `detail` is mixed 18% black rather than a deeper 30%: at 30% it dropped to
+ * 2.40-2.98:1 against the tile, and the megaphone's handle is a `detail` shape
+ * that touches the tile ground rather than sitting inside another shape.
+ */
+export interface AppMarkTones {
+  field: string;
+  lead: string;
+  detail: string;
+}
+
+/** Keyed by `PerspectiveDef.key`, same keys as PERSPECTIVE_HUES. */
+export const APP_MARK_TONES: Record<string, AppMarkTones> = {
+  me: { field: "#F8AA95", lead: "#F14E23", detail: "#C6401D" },
+  people: { field: "#9BC9F0", lead: "#2E8FE0", detail: "#2675B8" },
+  finance: { field: "#95D3C1", lead: "#22A37D", detail: "#1C8666" },
+  marketing: { field: "#F0A8C9", lead: "#E04A8F", detail: "#B83D75" },
+  csm: { field: "#CFB1F0", lead: "#9B5DE0", detail: "#7F4CB8" },
+};
+
+export function appMarkTones(key: string): AppMarkTones | undefined {
+  return Object.prototype.hasOwnProperty.call(APP_MARK_TONES, key)
+    ? APP_MARK_TONES[key]
+    : undefined;
+}

@@ -29,6 +29,7 @@ import {
 } from "@constants/perspectives";
 import { useActivePerspective } from "@context/perspective/PerspectiveContext";
 import { perspectiveHue } from "@config/perspectiveHues";
+import { appMark } from "@components/app-marks/appMarkRegistry";
 import { useFavourites } from "@features/favourites/useFavourites";
 
 interface WaffleOverlayProps {
@@ -246,6 +247,10 @@ function WaffleGroup({
         // Undefined for a perspective with no hue yet, which degrades to the
         // neutral treatment rather than breaking the grid.
         const tint = perspectiveHue(p.key);
+        // A filled two-tone mark where one exists; otherwise the line glyph on
+        // the hue wash. Both paths stay live: a new perspective gets a working
+        // tile before anyone draws it a mark.
+        const Mark = appMark(p.key);
         const isExternal = Boolean(p.access && p.externalUrl);
         const tile = (
           <Box
@@ -330,15 +335,21 @@ function WaffleGroup({
                 borderRadius: "30%",
                 display: "grid",
                 placeItems: "center",
-                // The rounded container is what makes a line glyph read as an app
-                // icon rather than a toolbar button — lucide ships no filled set,
-                // so the wash supplies the visual mass instead.
-                bgcolor: tint?.light.bg ?? "action.hover",
-                color: tint?.light.fg ?? "text.primary",
-                ...theme.applyStyles("dark", {
-                  bgcolor: tint?.dark.bg ?? theme.palette.action.hover,
-                  color: tint?.dark.fg ?? theme.palette.text.primary,
-                }),
+                // A mark carries its own colour and silhouette, so it needs no
+                // wash behind it — the wash existed to give a line glyph the mass
+                // a filled icon has on its own. Perspectives without a mark keep
+                // the wash: the rounded container is what makes a line glyph read
+                // as an app icon rather than a toolbar button.
+                ...(Mark
+                  ? { bgcolor: "transparent" }
+                  : {
+                      bgcolor: tint?.light.bg ?? "action.hover",
+                      color: tint?.light.fg ?? "text.primary",
+                      ...theme.applyStyles("dark", {
+                        bgcolor: tint?.dark.bg ?? theme.palette.action.hover,
+                        color: tint?.dark.fg ?? theme.palette.text.primary,
+                      }),
+                    }),
                 // Selection is a neutral ring, never the brand accent: an orange
                 // ring around Me's orange wash measures 3.00:1 and disappears.
                 // Ink against the washes holds at 12.9-14.5:1.
@@ -349,7 +360,7 @@ function WaffleGroup({
                 }),
               })}
             >
-              <p.icon size={24} />
+              {Mark ? <Mark size={48} /> : <p.icon size={24} />}
             </Box>
             <Typography
               variant="caption"

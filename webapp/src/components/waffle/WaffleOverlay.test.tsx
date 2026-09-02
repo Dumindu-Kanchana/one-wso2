@@ -124,3 +124,39 @@ describe("launcher favourites", () => {
     expect(within(panel()).queryByRole("heading", { name: "Favourites" })).toBeNull();
   });
 });
+
+describe("launcher app marks", () => {
+  /**
+   * The launcher is meant to look unlike the rail: filled two-tone marks for
+   * "this is an app", line icons for "this is somewhere to go". Asserting the
+   * mark is present is not enough — a tile rendering BOTH would pass that and
+   * still look wrong, so this also pins the line glyph's absence.
+   */
+  it("draws the filled mark on a tile, not the line glyph", () => {
+    renderLauncher();
+    const tile = within(panel()).getAllByRole("button", { name: "Switch to People Ops" })[0];
+    const mark = tile.querySelector('svg[viewBox="0 0 48 48"]');
+    expect(mark, "no app mark on the People Ops tile").not.toBeNull();
+    expect(tile.querySelector("svg.lucide")).toBeNull();
+  });
+
+  it("gives every perspective in the launcher a mark", () => {
+    renderLauncher();
+    for (const p of PERSPECTIVES) {
+      // The tile's accessible name says what activating it does, and that differs
+      // for an app we host, one we only link to, and one that is not built.
+      const name = p.externalUrl
+        ? `Open ${p.label} in a new tab`
+        : p.access
+          ? `Switch to ${p.label}`
+          : `${p.label} — not available yet`;
+      const tile = within(panel()).getAllByRole(p.externalUrl ? "link" : "button", {
+        name,
+      })[0];
+      expect(
+        tile.querySelector('svg[viewBox="0 0 48 48"]'),
+        `${p.label} has no mark`,
+      ).not.toBeNull();
+    }
+  });
+});
