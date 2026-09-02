@@ -87,7 +87,9 @@ export const TOUR_STEPS: readonly TourStep[] = [
       "actually work in are always first.",
   },
   {
-    selector: "aside nav",
+    // Direct child: Oxygen renders `aside > nav`, and a descendant selector
+    // would also match any nav nested deeper inside an aside.
+    selector: "aside > nav",
     title: "Moving around inside an area",
     body:
       "This list is how you get between screens. It only ever shows what you can actually " +
