@@ -60,7 +60,11 @@ export default function TourGuide() {
     el.scrollIntoView({ block: "nearest", inline: "nearest" });
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) {
+      // Both, like the branches above. Clearing only `rect` left the previous
+      // step's box in `avoid`, so the card positioned itself against a target
+      // that was no longer on screen.
       setRect(null);
+      setAvoid(null);
       return;
     }
     setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
@@ -109,6 +113,51 @@ export default function TourGuide() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [tour]);
+
+  /**
+   * Keep Tab inside the card while the tour is blocking the app.
+   *
+   * The pointer blocker only stops pointer events. Without this, Tab walks
+   * straight out of the card and into controls the reader has been told they
+   * cannot use — and can activate them, since the blocker never sees a
+   * keyboard. The card is the only interactive region during a step, so
+   * containment is a matter of cycling its own focusable children.
+   */
+  useEffect(() => {
+    if (!tour.running) return;
+    const onTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const card = cardRef.current;
+      if (!card) return;
+      const focusable = [
+        ...card.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ),
+      ];
+      if (focusable.length === 0) {
+        // Nothing to move to: hold focus on the card itself.
+        e.preventDefault();
+        card.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      // Wrap at both ends, and pull focus back in if it has already escaped.
+      if (!card.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onTab, true);
+    return () => document.removeEventListener("keydown", onTab, true);
+  }, [tour.running]);
 
   /**
    * Measure the card, then position it by writing to its style directly.
@@ -219,7 +268,10 @@ export default function TourGuide() {
         ref={cardRef}
         tabIndex={-1}
         role="dialog"
-        aria-modal="false"
+        // True, and it has to be: the app underneath is blocked to pointers and
+        // now to Tab as well, so telling assistive technology the background is
+        // still available would be a lie.
+        aria-modal="true"
         aria-label={`Tour: ${tour.step.title}`}
         elevation={12}
         sx={{
