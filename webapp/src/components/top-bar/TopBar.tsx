@@ -24,7 +24,8 @@ import {
   Tooltip,
   Typography,
 } from "@wso2/oxygen-ui";
-import { LayoutGridIcon, SearchIcon } from "@wso2/oxygen-ui-icons-react";
+import { SearchIcon } from "@wso2/oxygen-ui-icons-react";
+import AppsGridIcon from "./AppsGridIcon";
 import { Link as RouterLink } from "react-router";
 import { landingPath } from "@config/landingConfig";
 import PinnedTabs from "@features/pinned/components/PinnedTabs";
@@ -255,7 +256,7 @@ export default function TopBar({
             aria-haspopup="dialog"
             aria-expanded={waffleOpen}
           >
-            <LayoutGridIcon size={20} />
+            <AppsGridIcon size={20} />
           </IconButton>
         </Tooltip>
         <PinThisPageButton />
