@@ -55,18 +55,40 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const { state } = useAsgardeoSub();
   const sub = state.status === "ready" ? state.sub : undefined;
   const [index, setIndex] = useState(-1);
-  // Held in state rather than re-read each render so that answering the offer
-  // takes effect immediately, without waiting for a storage round trip.
-  const [seen, setSeen] = useState<boolean | undefined>(undefined);
-  const resolvedSeen = seen ?? (sub ? hasSeenTour(sub) : true);
+  /**
+   * The answer, cached so it takes effect without a storage round trip — and
+   * tagged with whose answer it was.
+   *
+   * Without the subject, a decision made by one user outlived them: signing in
+   * as someone else without remounting the provider kept `seen === true`, and
+   * the new person was never offered the tour.
+   */
+  const [answered, setAnswered] = useState<{ sub: string; seen: boolean } | undefined>(
+    undefined,
+  );
+  const cached = answered && answered.sub === sub ? answered.seen : undefined;
+  const resolvedSeen = cached ?? (sub ? hasSeenTour(sub) : true);
 
-  const start = useCallback(() => setIndex(nextReachable(0, 1)), []);
+  const record = useCallback(() => {
+    markTourSeen(sub);
+    if (sub) setAnswered({ sub, seen: true });
+  }, [sub]);
+
+  /**
+   * Accepting is an answer, so it is recorded here rather than on finish.
+   * Otherwise someone who accepted and then refreshed mid-tour was offered it
+   * again — which contradicts the one guarantee this flag makes, that the offer
+   * is made once.
+   */
+  const start = useCallback(() => {
+    record();
+    setIndex(nextReachable(0, 1));
+  }, [record]);
 
   const stop = useCallback(() => {
     setIndex(-1);
-    markTourSeen(sub);
-    setSeen(true);
-  }, [sub]);
+    record();
+  }, [record]);
 
   const next = useCallback(() => {
     setIndex((i) => nextReachable(i + 1, 1));

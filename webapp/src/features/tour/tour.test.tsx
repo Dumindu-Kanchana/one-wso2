@@ -273,6 +273,55 @@ describe("demo mode: the app is inert while the tour runs", () => {
   });
 });
 
+describe("what the review found", () => {
+  /**
+   * Accepting the offer is an answer. Before this, only finishing recorded one,
+   * so accepting and then refreshing mid-tour offered it all over again — which
+   * contradicts the single guarantee the flag makes.
+   */
+  it("records the answer as soon as the offer is accepted", async () => {
+    render(<Harness />);
+    await userEvent.click(screen.getByRole("button", { name: "Take the tour" }));
+    expect(
+      hasSeenTour("user-under-test"),
+      "a refresh mid-tour would offer it again",
+    ).toBe(true);
+  });
+
+  /**
+   * Tab must not walk out of the card into an app the reader has been told they
+   * cannot use. The pointer blocker never sees a keyboard.
+   */
+  it("keeps Tab inside the card while the app is blocked", async () => {
+    render(
+      <TourProvider>
+        <button>behind the blocker</button>
+        <Targets />
+        <TourPrompt />
+        <TourGuide />
+      </TourProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Take the tour" }));
+    const card = screen.getByRole("dialog", { name: /^Tour:/ });
+
+    // Enough tabs to have escaped a card with three or four controls.
+    for (let i = 0; i < 8; i++) await userEvent.tab();
+    expect(
+      card.contains(document.activeElement),
+      `focus escaped to <${document.activeElement?.tagName.toLowerCase()}> ` +
+        `"${document.activeElement?.textContent?.trim()}"`,
+    ).toBe(true);
+  });
+
+  it("tells assistive tech the background is unavailable, because it is", async () => {
+    render(<Harness />);
+    await userEvent.click(screen.getByRole("button", { name: "Take the tour" }));
+    expect(
+      screen.getByRole("dialog", { name: /^Tour:/ }).getAttribute("aria-modal"),
+    ).toBe("true");
+  });
+});
+
 describe("replaying it", () => {
   function Replay() {
     const tour = useTour();
