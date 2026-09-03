@@ -13,16 +13,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-import { useState } from "react";
-import { Alert, Box, Button, Chip, Skeleton, Typography } from "@wso2/oxygen-ui";
-import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon } from "@wso2/oxygen-ui-icons-react";
+import { Box, Button, Chip, Skeleton, Typography } from "@wso2/oxygen-ui";
+import { ArrowLeftIcon } from "@wso2/oxygen-ui-icons-react";
 import { Link as RouterLink, useParams } from "react-router";
 import { HttpError } from "@api/http";
-import { describeError } from "@api/errors";
 import FieldGrid, { type FieldDef } from "../../components/FieldGrid";
 import SectionHeader from "../../../people-ops/components/SectionHeader";
-import { display, emergencyContactList, formatDate, fullName, serviceLength } from "../../api/derive";
-import { useTeamMember, useTeamMemberPersonalInfo } from "../api/useTeamSearch";
+import { display, formatDate, fullName, serviceLength } from "../../api/derive";
+import { useTeamMember } from "../api/useTeamSearch";
 import { employeeStatusMeta } from "../util/employeeStatus";
 import EmployeeAvatar from "../components/EmployeeAvatar";
 import ErrorNotice from "@components/error-notice/ErrorNotice";
@@ -34,15 +32,21 @@ import ErrorNotice from "@components/error-notice/ErrorNotice";
 // ask and then handle its answer. A capability check would only duplicate it
 // less accurately.
 //
-// Personal details sit behind a disclosure and are not requested until it is
-// expanded. They ARE permitted for a lead, so this is a deliberate restraint
-// rather than a technical limit: opening someone's record should not pull their
-// NIC, date of birth and home address along with it.
+// This page shows job information ONLY. It deliberately does not show, request,
+// or link to personal details — NIC or passport, date of birth, gender,
+// nationality, personal email or phone, home address, emergency contacts.
+//
+// A lead needs to know who reports to them, their designation and their dates.
+// None of that requires their subordinate's identity documents or home address,
+// and a page that will fetch them on request is a page that eventually does.
+// Anyone with a genuine need has People Ops > Employee detail, which shows
+// personal information behind the admin gate that governs it.
+//
+// `useTeamMemberPersonalInfo` was removed with it rather than left unused: a
+// hook that fetches PII and has no caller is an invitation.
 export default function TeamMemberPage() {
   const { employeeId } = useParams<{ employeeId: string }>();
   const member = useTeamMember(employeeId);
-  const [showPersonal, setShowPersonal] = useState(false);
-  const personal = useTeamMemberPersonalInfo(employeeId, showPersonal);
 
   const back = (
     <Button
@@ -150,73 +154,6 @@ export default function TeamMemberPage() {
       <SectionHeader id="member-job">Job information</SectionHeader>
       <FieldGrid fields={jobFields} />
 
-      <Box sx={{ mt: 4 }}>
-        <Button
-          size="small"
-          onClick={() => setShowPersonal((v) => !v)}
-          endIcon={showPersonal ? <ChevronUpIcon size={15} /> : <ChevronDownIcon size={15} />}
-          sx={{ textTransform: "none", fontWeight: 600 }}
-          aria-expanded={showPersonal}
-        >
-          {showPersonal ? "Hide personal details" : "Show personal details"}
-        </Button>
-
-        {showPersonal && (
-          <Box sx={{ mt: 1.5 }}>
-            {/* `isPending`, not `isLoading`: this query is disabled until the
-                disclosure is expanded AND identity has resolved, and a disabled
-                query reports `isPending` without `isLoading`. Keying on
-                `isLoading` sent the still-resolving case to the success branch
-                below, which drew every field as an em dash. */}
-            {personal.isPending ? (
-              <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 1.5 }} />
-            ) : personal.isError ? (
-              // Degrades this section alone. The job record above has already
-              // rendered successfully and must not be taken down with it.
-              <Alert severity="info">
-                {personal.error instanceof HttpError && personal.error.status === 403
-                  ? "Personal details aren't available to you."
-                  : `Couldn't load personal details. ${describeError(personal.error)}`}
-              </Alert>
-            ) : (
-              <FieldGrid
-                fields={[
-                  { label: "NIC or passport", value: display(personal.data?.nicOrPassport) },
-                  { label: "Date of birth", value: formatDate(personal.data?.dob) },
-                  { label: "Gender", value: display(personal.data?.gender) },
-                  { label: "Nationality", value: display(personal.data?.nationality) },
-                  { label: "Personal email", value: display(personal.data?.personalEmail) },
-                  { label: "Personal phone", value: display(personal.data?.personalPhone) },
-                  {
-                    label: "Address",
-                    span: 2,
-                    value: display(
-                      [
-                        personal.data?.addressLine1,
-                        personal.data?.addressLine2,
-                        personal.data?.city,
-                        personal.data?.stateOrProvince,
-                        personal.data?.country,
-                      ]
-                        .filter(Boolean)
-                        .join(", "),
-                    ),
-                  },
-                  {
-                    label: "Emergency contacts",
-                    span: 2,
-                    value: display(
-                      emergencyContactList(personal.data)
-                        .map((c) => `${c.name} (${c.relationship}) ${c.mobile || c.telephone || ""}`.trim())
-                        .join(" · "),
-                    ),
-                  },
-                ]}
-              />
-            )}
-          </Box>
-        )}
-      </Box>
     </Box>
   );
 }
