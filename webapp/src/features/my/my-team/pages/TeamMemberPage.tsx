@@ -30,14 +30,17 @@ import ErrorNotice from "@components/error-notice/ErrorNotice";
 // One team member's record, read-only.
 //
 // There is no client-side lead check here on purpose: the server's rule is more
-// specific than ours — admin, yourself, or someone in your own subtree — so we
-// ask and then handle its answer. A capability check would only duplicate it
-// less accurately.
+// specific than ours — admin, HR admin, or yourself — so we ask and then handle
+// its answer. A capability check would only duplicate it less accurately.
 //
 // Personal details sit behind a disclosure and are not requested until it is
-// expanded. They ARE permitted for a lead, so this is a deliberate restraint
-// rather than a technical limit: opening someone's record should not pull their
-// NIC, date of birth and home address along with it.
+// expanded. For a lead viewing a subordinate this now always resolves to a 403
+// (personal-info access was narrowed to admin/HR-admin/self at the backend, see
+// people-app service.bal's personal-info endpoint), surfaced below as "Personal
+// details aren't available to you." The disclosure is left in place rather than
+// hidden for a plain lead: an admin-or-HR-admin lead still needs it, and this
+// page has no cheap way to tell the two apart without duplicating the server's
+// own check.
 export default function TeamMemberPage() {
   const { employeeId } = useParams<{ employeeId: string }>();
   const member = useTeamMember(employeeId);

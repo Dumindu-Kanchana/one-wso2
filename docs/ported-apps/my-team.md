@@ -97,6 +97,9 @@ Reached by clicking a name; `← My Team` returns.
 - **Personal details** — hidden behind a **Show personal details** control. Only when expanded does
   the screen request NIC/passport, date of birth, personal email, personal phone, home address and
   emergency contacts. Seeing them is a deliberate act, not a side effect of opening the page.
+  As of 2026-09, the backend also restricts this endpoint to admin, HR admin, or the record's own
+  owner — a plain lead viewing a subordinate now gets a 403 regardless of expansion, shown as
+  "Personal details aren't available to you." rather than data.
 
 ### 2.4 Page states
 
@@ -161,7 +164,7 @@ service reads. Base URL: `ONE_WSO2_PEOPLE_BACKEND_URL`.
 | `GET /user-info` | Profile and privileges | Already used app-wide. Privilege 993 means lead. |
 | `POST /employees/search` | The team list | Body carries filters, pagination, sort and `leadOnly: true`. Limit 1–100. Search max 100 chars. An unaccepted sort field is a 400. |
 | `GET /employees/{id}` | One employee's job record | Permitted for admin, self, or a lead of that employee. |
-| `GET /employees/{id}/personal-info` | Personal details | Same permission rule. Requested **only** when the disclosure is expanded. |
+| `GET /employees/{id}/personal-info` | Personal details | Permitted for admin, HR admin, or self **only** — a plain lead gets a 403, even for their own subordinate. Requested only when the disclosure is expanded. |
 | `GET /business-units`, `/teams`, `/sub-teams`, `/units`, `/career-functions`, `/designations`, `/companies`, `/offices`, `/employment-types` | Filter option lists | Five accept a parent id to narrow. Requested only once the filter dialog has been opened. |
 | `GET /employees/managers` | Manager filter options | **Org-wide, not scoped to your chain** — see §8. |
 
@@ -237,8 +240,9 @@ report and someone who has left.
 - [ ] The rail keeps My Team highlighted while on the detail screen.
 - [ ] Job information renders; personal details are **not** requested until expanded — verify in the
       network tab.
-- [ ] Expanding shows personal details. If refused, only that section shows a notice; the job record
-      stays.
+- [ ] Expanding as a plain lead (no admin/HR-admin privilege) gives "Personal details aren't
+      available to you." in that section only; the job record stays. Expanding as an admin or
+      HR admin shows the actual fields.
 - [ ] Editing an employee id in the URL to someone outside your chain gives the access notice.
 - [ ] A nonexistent id gives the not-found notice.
 
@@ -258,7 +262,7 @@ report and someone who has left.
 | 8 | Option lists load when the dialog is first opened. | The source fetched all ten on page load, always, even for someone who never filters. |
 | 9 | The organisation filters genuinely narrow each other. | The source's hierarchy was decorative — every list was the full set, so you could combine a Team with an unrelated Business Unit and get nothing. |
 | 10 | The whole row is clickable, and the name inside it is a focusable button. | The source's row click was unreachable by keyboard and invisible to a screen reader; a name-only target was too small. This gives a full-width target that is still keyboard-reachable, via one navigation path rather than two. |
-| 11 | Personal details are behind an explicit disclosure. | The source's detail page showed them by default. They are permitted for a lead, but they should be asked for. |
+| 11 | Personal details are behind an explicit disclosure, and (as of 2026-09) restricted server-side to admin/HR-admin/self. | The source's detail page showed them by default to any lead. Originally ported as a UI-only restraint pending a real decision; a data-minimization review concluded a plain lead has no need to see a subordinate's NIC, DOB, address or emergency contacts, so the backend now denies it outright rather than merely discouraging it. |
 | 12 | Fixed 25 per page. | The source's page-size selector is what produced deviation 5. |
 | 13 | No per-cell tooltips. | The source put one on all eight cells of every row. The two that truncate carry a plain title instead. |
 | 14 | Search rejects invalid input with an explanation. | The source silently refused the keystroke with no feedback. |
