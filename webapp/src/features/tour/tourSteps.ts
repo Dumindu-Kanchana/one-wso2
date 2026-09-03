@@ -72,35 +72,36 @@ export const TOUR_STEPS: readonly TourStep[] = [
     selector: '[data-tour="app-menu"]',
     opensLauncher: true,
     prefer: "side",
-    title: "Everything is behind here",
+    title: "This is home base",
     body:
-      "The app menu, top right on every screen. Each tile is an area — your own things, " +
-      "finance, people, marketing — and one sign-in covers all of them.",
+      "Everything opens from here — your personal Me space, plus every functional app " +
+      "you're entitled to, all behind one login. And we're just getting started — more " +
+      "apps are on the way.",
   },
   {
     selector: '[data-tour="favourite"]',
     opensLauncher: true,
     prefer: "side",
-    title: "Keep the ones you use",
+    title: "Star it, keep it close",
     body:
-      "Star an app and it moves to Favourites at the top of this panel, so the areas you " +
-      "actually work in are always first.",
+      "Tap the star on any app to pin it to Favourites. The stuff you use daily stays up " +
+      "top — no digging required.",
   },
   {
     // Direct child: Oxygen renders `aside > nav`, and a descendant selector
     // would also match any nav nested deeper inside an aside.
     selector: "aside > nav",
-    title: "Moving around inside an area",
+    title: "Moving around inside an app",
     body:
-      "This list is how you get between screens. It only ever shows what you can actually " +
-      "use, so what you see here may differ from a colleague's.",
+      "This is the navigation for the app you're currently in. It only shows what applies " +
+      "to you — so it may differ from a colleague's.",
   },
   {
     selector: '[data-tour="pin"]',
-    title: "Keep a page to hand",
+    title: "Keep a page within reach",
     body:
-      "Pin anything you keep coming back to and it joins the strip along the top bar. It " +
-      "keeps your filters too, so a report you have narrowed down comes back narrowed.",
+      "Pin a page and it sits in the top bar for one-tap access. Your filters are saved " +
+      "too, so it's exactly as you left it.",
   },
   {
     selector: '[data-tour="theme"]',
@@ -112,7 +113,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     selector: '[data-tour="settings"]',
     title: "Choose where you start",
-    body: "Settings lets you pick which page One WSO2 opens on when you arrive.",
+    body: "Settings lets you pick which app One WSO2 opens on when you arrive.",
   },
   {
     title: "That's the tour",

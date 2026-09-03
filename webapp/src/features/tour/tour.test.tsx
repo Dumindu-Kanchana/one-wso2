@@ -29,6 +29,7 @@ import TourPrompt from "./TourPrompt";
 import TourGuide from "./TourGuide";
 import { hasSeenTour, markTourSeen } from "./tourStore";
 import { useTour } from "./tourContext";
+import { TOUR_STEPS } from "./tourSteps";
 
 vi.mock("@hooks/useAsgardeoSub", () => ({
   useAsgardeoSub: () => ({ state: { status: "ready", sub: "user-under-test" }, retry: () => {} }),
@@ -169,12 +170,22 @@ describe("running the tour", () => {
   /**
    * The rule that keeps a tour honest on a narrow screen: a step whose control
    * is not on the page is passed over, not anchored to nothing.
+   *
+   * The titles are read FROM the step data rather than written out here. An
+   * earlier version quoted them, and when step 5 was reworded the "was it
+   * skipped" assertion started passing vacuously — it was checking for a title
+   * that no longer existed anywhere, so it would have passed even had the step
+   * been shown.
    */
   it("skips a step whose target is not on the page", async () => {
+    const pinStep = TOUR_STEPS.find((s) => s.selector?.includes("pin"));
+    const nextStep = TOUR_STEPS[TOUR_STEPS.indexOf(pinStep!) + 1];
+    expect(pinStep, "no step targets the pin button any more").toBeDefined();
+
     render(<Harness omit={["pin"]} />);
     await userEvent.click(screen.getByRole("button", { name: "Take the tour" }));
     const seen: string[] = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < TOUR_STEPS.length; i++) {
       const d = screen.queryByRole("dialog", { name: /^Tour:/ });
       if (!d) break;
       seen.push(d.getAttribute("aria-label") ?? "");
@@ -182,9 +193,15 @@ describe("running the tour", () => {
       if (!next) break;
       await userEvent.click(next);
     }
-    expect(seen.some((t) => t.includes("Keep a page to hand"))).toBe(false);
-    // and the step after it is still reached
-    expect(seen.some((t) => t.includes("easier on the eyes"))).toBe(true);
+    expect(
+      seen.some((t) => t.includes(pinStep!.title)),
+      `"${pinStep!.title}" was shown even though its target was absent`,
+    ).toBe(false);
+    // The step after it is still reached, so a skip advances rather than stops.
+    expect(
+      seen.some((t) => t.includes(nextStep.title)),
+      `"${nextStep.title}" was never reached after the skip`,
+    ).toBe(true);
   });
 });
 
