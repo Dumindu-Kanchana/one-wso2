@@ -44,6 +44,7 @@ import {
   LEAVE_TYPE_LABEL,
   STATUS_COLOR,
   STATUS_LABEL,
+  UNCOUNTED_LEAVE_TYPES,
   type DatabaseLeave,
   type LeaveStatus,
   type LeaveType,
@@ -184,7 +185,14 @@ export function HistoryBody({
             }),
       }))
       .sort((a, b) => (rank.get(a.key) ?? Infinity) - (rank.get(b.key) ?? Infinity));
-    return { groups, total: groups.reduce((sum, g) => sum + g.total, 0) };
+    // Lieu is shown but not summed. Grouping by status cannot produce an
+    // uncounted key, so the same filter is a no-op on the Sabbatical tab.
+    const uncounted = new Set<string>(UNCOUNTED_LEAVE_TYPES);
+    return {
+      groups,
+      total: groups.reduce((sum, g) => (uncounted.has(g.key) ? sum : sum + g.total), 0),
+      excluded: groups.filter((g) => uncounted.has(g.key)).map((g) => g.label),
+    };
   }, [leaves.data, leaveCategory, groupBy]);
 
   const years = useMemo(() => {
@@ -216,7 +224,16 @@ export function HistoryBody({
             {/* Only worth showing once there is more than one group to add up:
                 with a single type the total repeats the chip beside it. */}
             {summary.groups.length > 1 && (
-              <Chip label={`Total: ${dayCount(summary.total)}`} size="small" color="primary" variant="outlined" sx={CHIP_SX} />
+              // Says so when it is not simply the chips beside it added up.
+              <Tooltip
+                title={
+                  summary.excluded.length > 0
+                    ? `${summary.excluded.join(" and ")} not counted toward the total`
+                    : ""
+                }
+              >
+                <Chip label={`Total: ${dayCount(summary.total)}`} size="small" color="primary" variant="outlined" sx={CHIP_SX} />
+              </Tooltip>
             )}
           </Box>
         )}

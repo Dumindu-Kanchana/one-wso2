@@ -223,6 +223,17 @@ and Pending, in the status chip's own words and colours (`STATUS_LABEL`/`STATUS_
 can never describe a row differently from the card under it. Grouping sabbaticals by type would give
 one chip that silently merged days already granted with days still waiting on someone.
 
+**Lieu is shown but not totalled.** Time off in lieu is earned back rather than drawn down, so
+counting it as "total leave" overstates what was consumed. This follows the leave microapp
+(`digiops-hr/apps/leave`), which marks lieu `isCounted: false` (`constants.js:62-68`) and enforces
+the same exclusion in its backend when building `totalCount` (`UncountedLeaves = LIEU_LEAVE`,
+`types.bal:182`, `service.bal:169-171`). The lieu chip still shows its own days, and the total's
+tooltip names what was left out, so the arithmetic is never silently wrong. The microapp's other two
+adjustments — folding sick into casual always, and annual into casual for LK employees
+(`utils.js:26-42`) — are deliberately **not** copied: the leave app this port is based on has no
+merging or uncounted concept at all and tracks sick separately in the Spain, India and France
+entitlements.
+
 The totals are a plain sum of the cards rather than a balance, but the year selector makes the
 window the right one: `getLeavePeriodBounds` (`utils.bal:363-379`) uses the calendar year for every
 location and type except France's Congés Payés, which runs June 1 to May 31.
