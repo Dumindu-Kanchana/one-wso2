@@ -15,13 +15,15 @@
 // under the License.
 
 import { Alert, Box, Typography } from "@wso2/oxygen-ui";
+import { useState } from "react";
 import ProfileHero from "../components/ProfileHero";
 import GeneralInfo from "../components/GeneralInfo";
 import PersonalInfo from "../components/PersonalInfo";
 import EmergencyContacts from "../components/EmergencyContacts";
 import ConnectedServices from "../components/ConnectedServices";
 import SectionHeader from "../../people-ops/components/SectionHeader";
-import { isPeopleBackendConfigured, useMeProfile } from "../api/useMeProfile";
+import { isPeopleBackendConfigured, useMeProfile, useMePersonalInfo } from "../api/useMeProfile";
+import CollapsibleSection from "../components/CollapsibleSection";
 import ErrorNotice from "@components/error-notice/ErrorNotice";
 
 // The Me home landing: own profile + the cross-app "More about you"
@@ -32,8 +34,15 @@ export default function MyProfilePage() {
 
   const userInfo = data?.userInfo;
   const employee = data?.employee;
-  const personalInfo = data?.personalInfo;
   const firstName = employee?.firstName ?? userInfo?.firstName ?? "";
+
+  // Personal details and emergency contacts come from one request, and it is
+  // not made until a reader opens one of the two sections that show them.
+  // Either section opening is enough: they read the same payload, so React
+  // Query serves the second from the first one's result.
+  const [wantsPersonal, setWantsPersonal] = useState(false);
+  const personal = useMePersonalInfo(undefined, wantsPersonal);
+  const personalInfo = personal.data;
 
   return (
     <Box>
@@ -65,19 +74,52 @@ export default function MyProfilePage() {
       <SectionHeader>General information</SectionHeader>
       <GeneralInfo employee={employee} isLoading={isLoading} />
 
-      <SectionHeader>Personal information</SectionHeader>
-      <PersonalInfo
-        personalInfo={personalInfo}
-        employeeId={userInfo?.employeeId ?? employee?.employeeId}
-        isLoading={isLoading}
-      />
+      <CollapsibleSection
+        title="Personal information"
+        rememberAs="me-personal"
+        onOpen={() => setWantsPersonal(true)}
+      >
+        {/* The personal request is its own query, so its failure needs its own
+            notice — the profile's ErrorNotice above knows nothing about it, and
+            without this a failed fetch reads as "no personal information". */}
+        {personal.isError ? (
+          <ErrorNotice
+            error={personal.error}
+            onRetry={() => personal.refetch()}
+            retrying={personal.isFetching}
+          >
+            Couldn't load your personal information.
+          </ErrorNotice>
+        ) : (
+          <PersonalInfo
+            personalInfo={personalInfo}
+            employeeId={userInfo?.employeeId ?? employee?.employeeId}
+            isLoading={personal.isPending}
+          />
+        )}
+      </CollapsibleSection>
 
-      <SectionHeader>Emergency contacts</SectionHeader>
-      <EmergencyContacts
-        contacts={personalInfo?.emergencyContacts ?? undefined}
-        employeeId={userInfo?.employeeId ?? employee?.employeeId}
-        isLoading={isLoading}
-      />
+      <CollapsibleSection
+        title="Emergency contacts"
+        rememberAs="me-emergency"
+        onOpen={() => setWantsPersonal(true)}
+      >
+        {personal.isError ? (
+          <ErrorNotice
+            error={personal.error}
+            onRetry={() => personal.refetch()}
+            retrying={personal.isFetching}
+          >
+            Couldn't load your emergency contacts.
+          </ErrorNotice>
+        ) : (
+          <EmergencyContacts
+            contacts={personalInfo?.emergencyContacts ?? undefined}
+            employeeId={userInfo?.employeeId ?? employee?.employeeId}
+            isLoading={personal.isPending}
+          />
+        )}
+      </CollapsibleSection>
 
       {/* Main dropped the dead scroll-anchor ids from these headers; the rail
           never targeted them. Only the label changes here. */}

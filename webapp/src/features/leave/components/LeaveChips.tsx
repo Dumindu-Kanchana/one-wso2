@@ -22,23 +22,11 @@ import {
   LEAVE_TYPE_COLOR_FALLBACK,
   LEAVE_TYPE_ICON_FALLBACK,
   LEAVE_TYPE_LABEL,
+  STATUS_COLOR,
+  STATUS_LABEL,
   type LeaveStatus,
   type LeaveType,
 } from "../api/leaveTypes";
-
-const STATUS_COLOR: Record<LeaveStatus, "success" | "error" | "warning" | "default"> = {
-  APPROVED: "success",
-  REJECTED: "error",
-  PENDING: "warning",
-  CANCELLED: "default",
-};
-
-const STATUS_LABEL: Record<LeaveStatus, string> = {
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
-  PENDING: "Pending",
-  CANCELLED: "Cancelled",
-};
 
 /**
  * `unknownWhenMissing` reproduces ApprovalHistoryTable.tsx:74, where a row with

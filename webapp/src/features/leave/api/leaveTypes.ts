@@ -230,6 +230,34 @@ export const LEAVE_TYPE_LABEL: Record<LeaveType, string> = {
   rtt: "RTT",
 };
 
+// Leave that does not count toward a leave total. Time off in lieu is earned
+// back rather than drawn down, so adding it to "total leave" overstates what was
+// consumed.
+//
+// Not our rule: the leave microapp marks lieu `isCounted: false`
+// (constants.js:62-68) and its backend enforces the same exclusion when it
+// builds `totalCount` (`UncountedLeaves = LIEU_LEAVE`, types.bal:182,
+// service.bal:169-171). Kept identical so the totals here and the ones people
+// already read in the microapp agree.
+export const UNCOUNTED_LEAVE_TYPES: LeaveType[] = ["lieu"];
+
+// How a leave's status is named and coloured, everywhere it is shown — the
+// status chip on a card, and the totals above the history grid. Here rather
+// than in LeaveChips so a non-component module can read them.
+export const STATUS_COLOR: Record<LeaveStatus, "success" | "error" | "warning" | "default"> = {
+  APPROVED: "success",
+  REJECTED: "error",
+  PENDING: "warning",
+  CANCELLED: "default",
+};
+
+export const STATUS_LABEL: Record<LeaveStatus, string> = {
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  PENDING: "Pending",
+  CANCELLED: "Cancelled",
+};
+
 export const LEAVE_TYPE_ICON: Record<LeaveType, LucideIcon> = {
   casual: CloudSunIcon,
   sick: ThermometerIcon,
