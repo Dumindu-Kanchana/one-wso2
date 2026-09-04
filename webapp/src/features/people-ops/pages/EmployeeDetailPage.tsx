@@ -23,6 +23,7 @@ import GeneralInfo from "@features/my/components/GeneralInfo";
 import PersonalInfo from "@features/my/components/PersonalInfo";
 import EmergencyContacts from "@features/my/components/EmergencyContacts";
 import { describeError } from "@api/errors";
+import ErrorNotice from "@components/error-notice/ErrorNotice";
 import PeopleOpsShell from "../components/PeopleOpsShell";
 import { usePeopleOpsGate } from "../api/usePeopleOpsGate";
 import SectionHeader from "../components/SectionHeader";
@@ -51,7 +52,12 @@ export default function EmployeeDetailPage() {
   // allowed to see. Nothing they could not read on My Team, but the request
   // should not have been made.
   const gate = usePeopleOpsGate();
-  const { data, isLoading, isError, error } = useMeProfile(employeeId, gate.isAdmin);
+  // `Boolean(employeeId)` as well as the gate: both hooks fall back to the
+  // viewer's own employee id when none is passed, so an empty :employeeId would
+  // fetch and cache the viewer's own record behind a page that says no employee
+  // was specified.
+  const wanted = gate.isAdmin && Boolean(employeeId);
+  const { data, isLoading, isError, error } = useMeProfile(employeeId, wanted);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -59,7 +65,7 @@ export default function EmployeeDetailPage() {
   // Personal details are their own request now. Fetched up front here, unlike
   // the Me overview: this page exists to review one person's full record, and
   // it is already behind the admin gate that authorises reading it.
-  const personal = useMePersonalInfo(employeeId, gate.isAdmin);
+  const personal = useMePersonalInfo(employeeId, wanted);
   const personalInfo = personal.data;
 
   // Both reports link here, so a fixed path would send someone who arrived
@@ -107,13 +113,26 @@ export default function EmployeeDetailPage() {
           <SectionHeader>General information</SectionHeader>
           <GeneralInfo employee={employee} isLoading={isLoading} />
 
+          {/* Its own request, so its own failure. Without this a failed fetch
+              reads as an employee with no personal details on file. */}
+          {personal.isError && (
+            <ErrorNotice
+              error={personal.error}
+              onRetry={() => personal.refetch()}
+              retrying={personal.isFetching}
+              sx={{ mb: 2 }}
+            >
+              Couldn't load this employee's personal information.
+            </ErrorNotice>
+          )}
+
           <SectionHeader>Personal information</SectionHeader>
           <PersonalInfo personalInfo={personalInfo} isLoading={personal.isPending} viewOnly />
 
           <SectionHeader>Emergency contacts</SectionHeader>
           <EmergencyContacts
             contacts={personalInfo?.emergencyContacts ?? undefined}
-            isLoading={isLoading}
+            isLoading={personal.isPending}
             viewOnly
           />
         </>

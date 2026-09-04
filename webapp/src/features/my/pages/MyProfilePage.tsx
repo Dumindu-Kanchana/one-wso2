@@ -79,11 +79,24 @@ export default function MyProfilePage() {
         rememberAs="me-personal"
         onOpen={() => setWantsPersonal(true)}
       >
-        <PersonalInfo
-          personalInfo={personalInfo}
-          employeeId={userInfo?.employeeId ?? employee?.employeeId}
-          isLoading={personal.isPending}
-        />
+        {/* The personal request is its own query, so its failure needs its own
+            notice — the profile's ErrorNotice above knows nothing about it, and
+            without this a failed fetch reads as "no personal information". */}
+        {personal.isError ? (
+          <ErrorNotice
+            error={personal.error}
+            onRetry={() => personal.refetch()}
+            retrying={personal.isFetching}
+          >
+            Couldn't load your personal information.
+          </ErrorNotice>
+        ) : (
+          <PersonalInfo
+            personalInfo={personalInfo}
+            employeeId={userInfo?.employeeId ?? employee?.employeeId}
+            isLoading={personal.isPending}
+          />
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -91,11 +104,21 @@ export default function MyProfilePage() {
         rememberAs="me-emergency"
         onOpen={() => setWantsPersonal(true)}
       >
-        <EmergencyContacts
-          contacts={personalInfo?.emergencyContacts ?? undefined}
-          employeeId={userInfo?.employeeId ?? employee?.employeeId}
-          isLoading={personal.isPending}
-        />
+        {personal.isError ? (
+          <ErrorNotice
+            error={personal.error}
+            onRetry={() => personal.refetch()}
+            retrying={personal.isFetching}
+          >
+            Couldn't load your emergency contacts.
+          </ErrorNotice>
+        ) : (
+          <EmergencyContacts
+            contacts={personalInfo?.emergencyContacts ?? undefined}
+            employeeId={userInfo?.employeeId ?? employee?.employeeId}
+            isLoading={personal.isPending}
+          />
+        )}
       </CollapsibleSection>
 
       {/* Main dropped the dead scroll-anchor ids from these headers; the rail
