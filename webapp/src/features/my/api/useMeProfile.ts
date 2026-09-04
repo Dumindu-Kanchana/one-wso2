@@ -29,14 +29,14 @@ export { HttpError };
 export interface MeProfile {
   userInfo: UserInfo;
   employee: Employee;
-  personalInfo: EmployeePersonalInfo;
 }
 
 // Two-step fetch that mirrors people-app's own me flow:
 //   1. GET /user-info                 → employeeId (from the JWT identity)
 //   2. GET /employees/{id}            → org / role / employment record
-//      GET /employees/{id}/personal-info → contact + emergency contacts
-// Steps 2 and 3 run in parallel once employeeId is known.
+//
+// Personal details are NOT part of this. They are their own query — see
+// useMePersonalInfo below — so a page can choose not to ask for them.
 //
 // `employeeId` overrides step 1's identity lookup and loads SOMEONE ELSE's
 // profile — the People Ops employee detail page, which is the same read-only
@@ -82,14 +82,11 @@ export function useMeProfile(employeeId?: string, enabled = true) {
         staleTime: 5 * 60 * 1000,
       });
       const targetId = employeeId ?? userInfo.employeeId;
-      const [employee, personalInfo] = await Promise.all([
-        authedGet<Employee>(peopleServiceUrls.employee(targetId), accessToken),
-        authedGet<EmployeePersonalInfo>(
-          peopleServiceUrls.employeePersonalInfo(targetId),
-          accessToken,
-        ),
-      ]);
-      return { userInfo, employee, personalInfo };
+      const employee = await authedGet<Employee>(
+        peopleServiceUrls.employee(targetId),
+        accessToken,
+      );
+      return { userInfo, employee };
     },
     // Profile changes rarely — fetch once per session, don't retry on
     // 4xx (usually a token / role problem, not a transient failure).
@@ -102,6 +99,48 @@ export function useMeProfile(employeeId?: string, enabled = true) {
   // per-user cache scoping — foldIdentityError's synthetic refetch instead
   // re-runs identity resolution; if that then succeeds, `enabled` flips
   // true and the profile query starts naturally.
+  return foldIdentityError(query, subState, retryIdentity);
+}
+
+/**
+ * Someone's personal details — contact information and emergency contacts.
+ *
+ * Separate from the profile query, and off by default, because this is the most
+ * sensitive payload the people backend serves: NIC or passport, date of birth,
+ * home address, next of kin. Loading a profile page should not fetch them; the
+ * request is made when a reader asks to see them and not before.
+ *
+ * It shares the `userSub` + `employeeId` key shape with the profile query, so
+ * two sections of one page reading it issue a single request between them.
+ */
+export function useMePersonalInfo(employeeId?: string, enabled = false) {
+  const { isSignedIn } = useAsgardeo();
+  const getAccessToken = useAccessToken();
+  const { state: subState, retry: retryIdentity } = useAsgardeoSub();
+  const qc = useQueryClient();
+  const userSub = subState.status === "ready" ? subState.sub : undefined;
+
+  const query = useQuery<EmployeePersonalInfo>({
+    queryKey: ["me-personal", userSub, employeeId ?? null],
+    enabled: enabled && isSignedIn && Boolean(peopleBackendUrl) && Boolean(userSub),
+    queryFn: async () => {
+      const accessToken = await getAccessToken();
+      // Reuses the same /user-info cache slot the profile query populates, so
+      // asking for personal details does not re-resolve identity.
+      const userInfo = await qc.fetchQuery<UserInfo>({
+        queryKey: ["user-info", userSub],
+        queryFn: () => authedGet<UserInfo>(peopleServiceUrls.userInfo, accessToken),
+        staleTime: 5 * 60 * 1000,
+      });
+      return authedGet<EmployeePersonalInfo>(
+        peopleServiceUrls.employeePersonalInfo(employeeId ?? userInfo.employeeId),
+        accessToken,
+      );
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: defaultQueryRetry,
+  });
+
   return foldIdentityError(query, subState, retryIdentity);
 }
 

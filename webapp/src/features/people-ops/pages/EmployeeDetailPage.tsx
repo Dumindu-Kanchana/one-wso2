@@ -17,7 +17,7 @@
 import { Alert, Box, Button } from "@wso2/oxygen-ui";
 import { ArrowLeftIcon } from "@wso2/oxygen-ui-icons-react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { useMeProfile } from "@features/my/api/useMeProfile";
+import { useMeProfile, useMePersonalInfo } from "@features/my/api/useMeProfile";
 import ProfileHero from "@features/my/components/ProfileHero";
 import GeneralInfo from "@features/my/components/GeneralInfo";
 import PersonalInfo from "@features/my/components/PersonalInfo";
@@ -56,7 +56,11 @@ export default function EmployeeDetailPage() {
   const location = useLocation();
 
   const employee = data?.employee;
-  const personalInfo = data?.personalInfo;
+  // Personal details are their own request now. Fetched up front here, unlike
+  // the Me overview: this page exists to review one person's full record, and
+  // it is already behind the admin gate that authorises reading it.
+  const personal = useMePersonalInfo(employeeId, gate.isAdmin);
+  const personalInfo = personal.data;
 
   // Both reports link here, so a fixed path would send someone who arrived
   // from Resignations to Active Employees — and either way, a fresh link
@@ -104,7 +108,7 @@ export default function EmployeeDetailPage() {
           <GeneralInfo employee={employee} isLoading={isLoading} />
 
           <SectionHeader>Personal information</SectionHeader>
-          <PersonalInfo personalInfo={personalInfo} isLoading={isLoading} viewOnly />
+          <PersonalInfo personalInfo={personalInfo} isLoading={personal.isPending} viewOnly />
 
           <SectionHeader>Emergency contacts</SectionHeader>
           <EmergencyContacts

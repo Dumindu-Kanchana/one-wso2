@@ -48,6 +48,9 @@ export function useUpdatePersonalInfo(employeeId: string | undefined) {
       // must resolve before the caller thinks the save is "done".
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["me-profile"] }),
+        // Personal details are a separate query since they became load-on-demand;
+        // without this an edit saved but the card kept showing the old values.
+        qc.invalidateQueries({ queryKey: ["me-personal"] }),
         qc.invalidateQueries({ queryKey: ["user-info"] }),
       ]);
     },
