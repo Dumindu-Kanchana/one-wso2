@@ -209,6 +209,24 @@ so a fixed redirect would land them on a refusal. And nothing below the group pa
 `/user-info` resolves, because deciding on an unresolved gate would redirect a lead away from a
 deep link before their privileges arrived, and a redirect is not undone when the answer comes.
 
+**Added — day totals on My History.** The source's history screen shows no totals; `leaves.length`
+appears only in its empty check (`LeaveHistory.tsx:149`). One WSO2 puts day-count chips above the
+cards, with their sum once there is more than one group, using the same wording and chip the lead
+report already uses for its own total (`LeaveReportsPage.tsx:306-311`). Requested deliberately, and
+recorded here so it is not mistaken later for drift.
+
+**Each tab groups by whichever dimension is not constant.** General leave is created `APPROVED`
+(`service.bal:539`), so every row on that tab shares a status and only the leave type varies — the
+chips are per type. Sabbaticals are created `PENDING` (`sabbatical_leave.bal:158`) and stay that way
+until a lead acts, so every row there shares a type and only status varies — the chips are Approved
+and Pending, in the status chip's own words and colours (`STATUS_LABEL`/`STATUS_COLOR`), so a total
+can never describe a row differently from the card under it. Grouping sabbaticals by type would give
+one chip that silently merged days already granted with days still waiting on someone.
+
+The totals are a plain sum of the cards rather than a balance, but the year selector makes the
+window the right one: `getLeavePeriodBounds` (`utils.bal:363-379`) uses the calendar year for every
+location and type except France's Congés Payés, which runs June 1 to May 31.
+
 **General has no Approve tab.** That is the source's own asymmetry (`route.ts:80-103`): its Approve
 route has only sabbatical children, because general leave is approved elsewhere. So Approve and
 Approval history appear under Sabbatical and nowhere else.

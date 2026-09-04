@@ -230,6 +230,23 @@ export const LEAVE_TYPE_LABEL: Record<LeaveType, string> = {
   rtt: "RTT",
 };
 
+// How a leave's status is named and coloured, everywhere it is shown — the
+// status chip on a card, and the totals above the history grid. Here rather
+// than in LeaveChips so a non-component module can read them.
+export const STATUS_COLOR: Record<LeaveStatus, "success" | "error" | "warning" | "default"> = {
+  APPROVED: "success",
+  REJECTED: "error",
+  PENDING: "warning",
+  CANCELLED: "default",
+};
+
+export const STATUS_LABEL: Record<LeaveStatus, string> = {
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  PENDING: "Pending",
+  CANCELLED: "Cancelled",
+};
+
 export const LEAVE_TYPE_ICON: Record<LeaveType, LucideIcon> = {
   casual: CloudSunIcon,
   sick: ThermometerIcon,

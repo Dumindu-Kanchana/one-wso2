@@ -20,6 +20,7 @@ import {
   Box,
   Button,
   Card,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -41,7 +42,10 @@ import {
   LEAVE_TYPE_ICON,
   LEAVE_TYPE_ICON_FALLBACK,
   LEAVE_TYPE_LABEL,
+  STATUS_COLOR,
+  STATUS_LABEL,
   type DatabaseLeave,
+  type LeaveStatus,
   type LeaveType,
 } from "../api/leaveTypes";
 import { useLeaveUserInfo, useLeaves } from "../api/useLeaveData";
@@ -61,22 +65,51 @@ import { CANCEL_CONFIRMATION, SnackMessage, noLeaveHistoryFor } from "../util/le
 // cancelled from here (matches leave-app's allowedDaysToCancelLeave default).
 const CANCEL_WINDOW_DAYS = 30;
 
+// The same wording and the same chip the lead report uses for its own day
+// total (LeaveReportsPage.tsx:306-311), so the two screens agree.
+const dayCount = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
+
+const CHIP_SX = { height: 22, fontSize: 11, fontWeight: 600 } as const;
+
 // The two tabs of My History (route.ts:112-127). Both are the same screen with
 // a different category filter, which is how the source shares one LeaveHistory
 // component between GeneralLeaveHistory and SabbaticalLeaveHistory.
 export default function GeneralHistoryTab() {
-  return <HistoryBody leaveCategory={GENERAL_LEAVE_TYPES} />;
+  return <HistoryBody leaveCategory={GENERAL_LEAVE_TYPES} groupBy="type" />;
 }
 
+/**
+ * Which dimension the chips above the cards group by, per tab.
+ *
+ * Whichever one is not constant. General leave is all one status — the backend
+ * creates it already approved (service.bal:539) — so leave type is the only
+ * thing that varies. Sabbaticals are all one type and are created pending
+ * (sabbatical_leave.bal:158) until a lead acts on them, so there status is what
+ * varies and a single "Sabbatical 30 days" chip would hide the part still
+ * waiting on someone.
+ */
+type HistoryGrouping = "type" | "status";
+
+const SABBATICAL_CATEGORY: LeaveType[] = ["sabbatical"];
+
+// Approved before pending, the order the query asks for them in.
+const STATUS_ORDER: LeaveStatus[] = ["APPROVED", "PENDING"];
+
 export function SabbaticalHistoryTab() {
-  return <HistoryBody leaveCategory={["sabbatical"]} />;
+  return <HistoryBody leaveCategory={SABBATICAL_CATEGORY} groupBy="status" />;
 }
 
 // The body is shared by the general history page and the Sabbatical tab, the
 // way the source shares one LeaveHistory component between GeneralLeaveHistory
 // and SabbaticalLeaveHistory — same year selector, same cards, same 30-day
 // cancel rule, only the category filter differs.
-export function HistoryBody({ leaveCategory }: { leaveCategory: LeaveType[] }) {
+export function HistoryBody({
+  leaveCategory,
+  groupBy,
+}: {
+  leaveCategory: LeaveType[];
+  groupBy: HistoryGrouping;
+}) {
   const userInfo = useLeaveUserInfo();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
@@ -95,6 +128,65 @@ export function HistoryBody({ leaveCategory }: { leaveCategory: LeaveType[] }) {
     Boolean(workEmail),
   );
 
+  // Days per leave type across the cards below, plus their sum.
+  //
+  // The calendar-year window these sum over is the entitlement window too, for
+  // every location and type but one: `getLeavePeriodBounds` (utils.bal:363-379)
+  // returns Jan 1 - Dec 31 for everything except France's Congés Payés, which
+  // runs June 1 of the previous year to May 31. So for a French employee this
+  // chip and the Congés Payés balance on Apply count different spans; for
+  // everyone else the year selector lines them up exactly.
+  //
+  // Still a sum of the cards below rather than a balance: the balance applies
+  // the server's own `policyAdjustedLeave`, which these do not model.
+  //
+  // Only the Sabbatical tab can show a pending row, so only its total can
+  // include one: the backend creates general leave already approved
+  // (service.bal:539) and sabbaticals pending (sabbatical_leave.bal:158), which
+  // is why the source has an Approve screen for sabbaticals and none for
+  // general leave.
+  //
+  // Ordered by `leaveCategory` rather than by arrival, so the chips keep the
+  // same order from one year to the next instead of following whatever order
+  // the server returned.
+  const summary = useMemo(() => {
+    const days = new Map<string, number>();
+    for (const lv of leaves.data?.leaves ?? []) {
+      // A row with no status counts as pending, the same assumption StatusChip
+      // makes on the card itself (LeaveChips.tsx:45-48).
+      const key = groupBy === "status" ? (lv.status ?? "PENDING") : (lv.leaveType ?? "");
+      days.set(key, (days.get(key) ?? 0) + (lv.numberOfDays ?? 0));
+    }
+    const order: string[] = groupBy === "status" ? STATUS_ORDER : leaveCategory;
+    const rank = new Map(order.map((k, i) => [k, i]));
+    const groups = [...days.entries()]
+      .map(([key, total]) => ({
+        key,
+        total,
+        ...(groupBy === "status"
+          ? {
+              // Same words and same colours as the status chip on each card, so
+              // the summary and the cards cannot describe a row differently.
+              label: Object.hasOwn(STATUS_LABEL, key)
+                ? STATUS_LABEL[key as LeaveStatus]
+                : key,
+              color: Object.hasOwn(STATUS_COLOR, key)
+                ? STATUS_COLOR[key as LeaveStatus]
+                : ("default" as const),
+            }
+          : {
+              // The card's own fallback: a type the app does not know is shown
+              // under the server's name rather than dropped.
+              label: Object.hasOwn(LEAVE_TYPE_LABEL, key)
+                ? LEAVE_TYPE_LABEL[key as LeaveType]
+                : key || "Leave",
+              color: undefined,
+            }),
+      }))
+      .sort((a, b) => (rank.get(a.key) ?? Infinity) - (rank.get(b.key) ?? Infinity));
+    return { groups, total: groups.reduce((sum, g) => sum + g.total, 0) };
+  }, [leaves.data, leaveCategory, groupBy]);
+
   const years = useMemo(() => {
     const startYear = parseIso(userInfo.data?.employmentStartDate)?.getFullYear() ?? currentYear;
     const out: number[] = [];
@@ -104,7 +196,7 @@ export function HistoryBody({ leaveCategory }: { leaveCategory: LeaveType[] }) {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 2 }}>
         <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>Year</Typography>
         <FormControl size="small">
           <Select value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 110 }}>
@@ -115,7 +207,20 @@ export function HistoryBody({ leaveCategory }: { leaveCategory: LeaveType[] }) {
             ))}
           </Select>
         </FormControl>
-      </Stack>
+
+        {summary.groups.length > 0 && (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, ml: { sm: "auto" } }}>
+            {summary.groups.map((g) => (
+              <Chip key={g.key} label={`${g.label} ${dayCount(g.total)}`} color={g.color} size="small" variant="outlined" sx={CHIP_SX} />
+            ))}
+            {/* Only worth showing once there is more than one group to add up:
+                with a single type the total repeats the chip beside it. */}
+            {summary.groups.length > 1 && (
+              <Chip label={`Total: ${dayCount(summary.total)}`} size="small" color="primary" variant="outlined" sx={CHIP_SX} />
+            )}
+          </Box>
+        )}
+      </Box>
 
       {userInfo.isLoading || leaves.isLoading ? (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" }, gap: 1.5 }}>
