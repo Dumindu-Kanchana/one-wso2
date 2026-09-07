@@ -35,7 +35,9 @@ import { describeError } from "../../util/financeError";
 import { money, formatNice } from "../../util/financeFormat";
 import { CardMenu } from "../components/CardMenu";
 import { CcEditDialog } from "../CcEditDialog";
-import { useCcCardLabel, useCcEmployeeSubmit } from "../useCcMutations";
+import { useCcCardLabel, useCcEmployeeSubmit, useCcSaveDraft } from "../useCcMutations";
+import { useDraftAutosave } from "../../util/useDraftAutosave";
+import { DraftStatusChip } from "../../components/DraftStatusChip";
 import { useCcTransactions, useCcUserInfo, useCreditCards } from "../useCc";
 import { ccTxnComplete, type CcTransaction } from "../ccTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
@@ -84,6 +86,24 @@ function NewTxnBody() {
   }, [txns.data, activeCard, edits]);
 
   const completeChecked = rows.filter((t) => checked.has(t.id) && ccTxnComplete(t));
+
+  // Keep a part-finished categorisation on the server, as EditPane.tsx:444-467
+  // does. Without it, closing the tab after categorising a batch threw the lot
+  // away: `edits` above is component state and nothing posted until Submit.
+  //
+  // Five seconds, the source's own autoSaveDelay (EditPane.tsx:150), rather
+  // than the util's 1s default — this posts whole transaction rows, not
+  // keystrokes.
+  const draft = useCcSaveDraft();
+  const edited = useMemo(() => Object.values(edits), [edits]);
+  const draftState = useDraftAutosave(
+    JSON.stringify(edited),
+    txns.isSuccess,
+    async () => {
+      if (edited.length > 0) await draft.mutateAsync(edited);
+    },
+    5000,
+  );
 
   const toggle = (id: number) =>
     setChecked((prev) => {
@@ -201,7 +221,10 @@ function NewTxnBody() {
 
       {submit.isError && <Alert severity="error" sx={{ mt: 2 }}>{describeError(submit.error)}</Alert>}
 
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+      {/* EditPane.tsx:1523-1532 shows the autosave state in the action row, so
+          the reader can see their part-finished work is being kept. */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1.5, mt: 2 }}>
+        {edited.length > 0 && <DraftStatusChip state={draftState} />}
         <Button
           variant="contained"
           onClick={handleSubmit}

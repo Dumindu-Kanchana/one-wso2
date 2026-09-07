@@ -42,6 +42,26 @@ export function useCcEmployeeSubmit() {
   });
 }
 
+// POST /transactions/save-draft — keep a part-finished categorisation.
+//
+// transaction.ts:29 maps UpdateType.tempSave to this path. The endpoint was
+// already in apiConfig and nothing called it, so a reader who categorised a
+// batch and left the page lost all of it: the port held the edits in component
+// state and posted nothing until Submit. EditPane.tsx:444-467 saves five
+// seconds after the last change instead.
+//
+// Deliberately no cache invalidation: a draft save must not refetch the list
+// mid-edit and replace the rows being worked on.
+export function useCcSaveDraft() {
+  const getAccessToken = useAccessToken();
+  return useMutation<void, Error, CcTransaction[]>({
+    mutationFn: async (transactions) => {
+      const accessToken = await getAccessToken();
+      await authedPost<unknown>(ccServiceUrls.saveDraft, accessToken, transactions);
+    },
+  });
+}
+
 // POST /transactions/save-edit — edit categorisation while still pending.
 export function useCcSaveEdit() {
   const getAccessToken = useAccessToken();
