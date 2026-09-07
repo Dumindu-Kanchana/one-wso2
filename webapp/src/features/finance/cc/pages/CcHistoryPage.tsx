@@ -18,6 +18,8 @@ import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
+  DataGrid,
   FormControl,
   InputLabel,
   MenuItem,
@@ -29,15 +31,43 @@ import {
 import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
-import { daysAgoIso } from "../../util/financeFormat";
-import { CcTxnTable } from "../CcTxnTable";
+import { daysAgoIso, formatNice, money } from "../../util/financeFormat";
 import { CcTxnDetailsDialog } from "../CcTxnDetailsDialog";
-import { useCcTransactions, useCcUserInfo } from "../useCc";
-import { type CcTransaction, ccHasAccess, type CcTxnStatus } from "../ccTypes";
+import { ReceiptViewer } from "../../components/ReceiptViewer";
+import { StatusChip, ccStatusMeta } from "../../components/FinanceChips";
+import { fetchBase64Attachment, type ReceiptSource } from "../../util/financeReceipts";
+import { ccServiceUrls } from "@config/apiConfig";
+import { useAccessToken } from "@hooks/useAccessToken";
+import { useCcTransactions, useCcUserInfo, useCreditCards } from "../useCc";
+import { type CcAttachmentType, type CcTransaction, ccHasAccess, type CcTxnStatus } from "../ccTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 // FILTER_ALL in submission-history/index.tsx.
 const ALL = "all";
+
+// submission-history/index.tsx uses three distinct placeholders and they are
+// not interchangeable: an approver who has not been assigned is a different
+// state from a field nobody filled in, and a date that has not happened yet is
+// a third. The port had collapsed all of it to "(not provided)".
+const NOT_ASSIGNED = "(Not assigned)";   // :281, :289 — approver columns
+const NOT_AVAILABLE = "(Not Available)"; // :297 onward — category, units, region
+const NO_DATE = "N/A";                   // :348, :357, :366 — the three dates
+
+// :559-571 — ten columns off at the start. `employeeEmail` is not in here: the
+// source gates it on the viewer being a lead or finance (:560), so it is set
+// per render below.
+const HIDDEN_BY_DEFAULT: Record<string, boolean> = {
+  financeApproverEmail: false,
+  financeApprovedDate: false,
+  expenseCategoryLabel: false,
+  expenseTypeLabel: false,
+  productUnit: false,
+  businessUnit: false,
+  travelJobNumber: false,
+  subRegion: false,
+  leadEmail: false,
+  leadApprovedDate: false,
+};
 
 const PERIODS = [
   { days: 7, label: "Last 7 days" },
@@ -102,6 +132,154 @@ function HistoryBody() {
     [all],
   );
 
+  const getAccessToken = useAccessToken();
+  // A loader, not a loaded source: ReceiptViewer fetches when it opens, and
+  // setState needs the extra arrow or it would treat the thunk as an updater.
+  const [load, setLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
+  // Cards including closed ones, so a transaction on a closed card can say so.
+  const cards_all = useCreditCards(true);
+  const cardStatus = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of cards_all.data ?? []) m.set(c.ccNumber, c.status ?? "");
+    return m;
+  }, [cards_all.data]);
+
+  const columns = useMemo<DataGrid.GridColDef<CcTransaction>[]>(() => {
+    // A loader, not a loaded source: ReceiptViewer fetches when it opens, and
+    // setState needs the extra arrow or it would treat the thunk as an updater.
+    const view = (id: number, attachmentType: CcAttachmentType) => {
+      setLoad(() => async () =>
+        fetchBase64Attachment(ccServiceUrls.attachment(id, attachmentType), await getAccessToken()),
+      );
+    };
+    const dateCol = (field: string, headerName: string): DataGrid.GridColDef<CcTransaction> => ({
+      field,
+      headerName,
+      flex: 0.05,
+      align: "center",
+      headerAlign: "center",
+      minWidth: 130,
+      // :348 — a date that has not happened reads N/A, not blank.
+      renderCell: (p) => (p.value ? formatNice(p.value as string) : NO_DATE),
+    });
+    const orNotAvailable = (field: string, headerName: string): DataGrid.GridColDef<CcTransaction> => ({
+      field,
+      headerName,
+      flex: 0.05,
+      minWidth: 130,
+      renderCell: (p) => (p.value as string | null) ?? NOT_AVAILABLE,
+    });
+
+    return [
+      { field: "id", headerName: "ID", flex: 0.05, minWidth: 70 },
+      // :231 — not sortable in the source either.
+      { field: "reportSequenceNumber", headerName: "NetSuite Report No.", flex: 0.1, minWidth: 150, sortable: false },
+      { field: "txnDescription", headerName: "Description", flex: 0.1, minWidth: 180 },
+      dateCol("txnDate", "Date"),
+      {
+        field: "txnAmount",
+        headerName: "Amount($)",
+        type: "number",
+        flex: 0.05,
+        minWidth: 110,
+        renderCell: (p) => money(p.value as number, "USD"),
+      },
+      {
+        field: "ccNumber",
+        headerName: "CC Number",
+        flex: 0.05,
+        minWidth: 130,
+        align: "center",
+        headerAlign: "center",
+        // :262-269 — a transaction on a closed card says so on the row. The
+        // port only marked it in the card picker, so history gave no sign.
+        renderCell: (p) => {
+          const status = cardStatus.get(p.value as string);
+          return `${p.value}${status && status !== "Active" ? " (Inactive)" : ""}`;
+        },
+      },
+      { field: "employeeEmail", headerName: "Submitted User", flex: 0.05, minWidth: 180 },
+      {
+        field: "leadEmail",
+        headerName: "Lead Approver",
+        flex: 0.05,
+        minWidth: 180,
+        renderCell: (p) => (p.value as string | null) ?? NOT_ASSIGNED,
+      },
+      {
+        field: "financeApproverEmail",
+        headerName: "Finance Approver",
+        flex: 0.05,
+        minWidth: 180,
+        renderCell: (p) => (p.value as string | null) ?? NOT_ASSIGNED,
+      },
+      orNotAvailable("expenseCategoryLabel", "Expense Category"),
+      orNotAvailable("expenseTypeLabel", "Expense Type"),
+      orNotAvailable("productUnit", "Product Unit"),
+      orNotAvailable("businessUnit", "Business Unit"),
+      orNotAvailable("travelJobNumber", "Job Number"),
+      orNotAvailable("subRegion", "Sub Region"),
+      dateCol("empPostedDate", "Submitted Date"),
+      dateCol("leadApprovedDate", "Lead Approved Date"),
+      dateCol("financeApprovedDate", "Finance Approved Date"),
+      {
+        field: "attachments",
+        headerName: "Attachments",
+        width: 150,
+        align: "center",
+        headerAlign: "center",
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => {
+          const t = p.row;
+          if (!t.receiptFileName && !t.contractFileName) {
+            return <Box component="span" sx={{ color: "text.disabled" }}>—</Box>;
+          }
+          return (
+            <Stack direction="row" spacing={0.5} justifyContent="center">
+              {t.receiptFileName && (
+                <Button size="small" variant="text" onClick={() => view(t.id, "receipt")} sx={{ textTransform: "none", minWidth: 0, px: 0.5 }}>
+                  Receipt
+                </Button>
+              )}
+              {t.contractFileName && (
+                <Button size="small" variant="text" onClick={() => view(t.id, "contract")} sx={{ textTransform: "none", minWidth: 0, px: 0.5 }}>
+                  Contract
+                </Button>
+              )}
+            </Stack>
+          );
+        },
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        flex: 0.05,
+        minWidth: 140,
+        align: "center",
+        headerAlign: "center",
+        renderCell: (p) => {
+          const meta = ccStatusMeta(p.row.status);
+          return <StatusChip label={meta.label} color={meta.color} />;
+        },
+      },
+      {
+        // :410 — the source's own details column, which is what the dialog is.
+        field: "details",
+        headerName: "View Details",
+        flex: 0.05,
+        minWidth: 120,
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => (
+          <Button size="small" variant="text" onClick={() => setSelected(p.row)} sx={{ textTransform: "none", fontWeight: 600 }}>
+            Details
+          </Button>
+        ),
+      },
+    ];
+  }, [cardStatus, getAccessToken]);
+
   const rows = useMemo(() => {
     let list = all;
     if (!canSeeOthers) list = list.filter((t) => t.employeeEmail === email);
@@ -158,10 +336,43 @@ function HistoryBody() {
           No transactions match this filter.
         </Typography>
       ) : (
-        <CcTxnTable txns={rows} showCard showUser={canSeeOthers} onOpen={setSelected} />
+        <Box sx={{ height: 620, width: "100%" }}>
+          {/*
+            The source's own grid, column for column (submission-history
+            /index.tsx:221-415). It defines twenty-one and hides ten by
+            default (:557-572), so the reader opens on a short table and
+            reaches the rest through the column picker.
+
+            `showToolbar` is v8's one-prop toolbar: column picker, filter
+            panel, density, CSV and print export, and a quick-filter search
+            box. The source assembles the same set by hand from the v6-era
+            GridToolbar* components; those still ship, but the composed
+            toolbar is what this version of the grid wants.
+          */}
+          <DataGrid.DataGrid
+            rows={rows}
+            columns={columns}
+            showToolbar
+            density="compact"
+            disableRowSelectionOnClick
+            initialState={{
+              columns: {
+                // :560 — Submitted User only for someone who can see other
+                // people's spend. For everyone else the list is their own
+                // already, so the column would repeat the same address on
+                // every row.
+                columnVisibilityModel: { ...HIDDEN_BY_DEFAULT, employeeEmail: canSeeOthers },
+              },
+              pagination: { paginationModel: { pageSize: 20, page: 0 } },
+            }}
+            pageSizeOptions={[5, 10, 20, 25, 50]}
+            sx={{ "& .MuiDataGrid-cell": { fontSize: 12.5 } }}
+          />
+        </Box>
       )}
 
       <CcTxnDetailsDialog txn={selected} onClose={() => setSelected(null)} />
+      <ReceiptViewer title="Attachment" load={load} onClose={() => setLoad(null)} />
     </Box>
   );
 }

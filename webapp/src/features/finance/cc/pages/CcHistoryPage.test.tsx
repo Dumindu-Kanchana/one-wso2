@@ -61,7 +61,7 @@ const rows = [
   },
 ];
 
-const state = { access: ["lead"] as string[] };
+const state = { access: ["lead"] as string[], rows: null as typeof rows | null };
 
 vi.mock("../useCc", () => ({
   useCcUserInfo: () => ({
@@ -69,7 +69,17 @@ vi.mock("../useCc", () => ({
     isLoading: false,
     isError: false,
   }),
-  useCcTransactions: () => ({ data: rows, isLoading: false, isError: false }),
+  useCcTransactions: () => ({ data: state.rows ?? rows, isLoading: false, isError: false }),
+  // Cards including closed ones — the CC Number cell marks a transaction whose
+  // card has since been closed, as submission-history/index.tsx:262-269 does.
+  useCreditCards: () => ({
+    data: [
+      { id: 1, ccNumber: "1111", label: "Mine", status: "Active" },
+      { id: 2, ccNumber: "2222", label: "Old", status: "Inactive" },
+    ],
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 vi.mock("../ccTypes", async () => {
@@ -86,6 +96,7 @@ const { NotificationsProvider } = await import("@context/notifications/Notificat
 
 beforeEach(() => {
   state.access = ["lead"];
+  state.rows = null;
 });
 
 function show() {
@@ -196,5 +207,92 @@ describe("the approval trail names one lead", () => {
     expect(screen.getByText("Lead approver").parentElement).toHaveTextContent(
       "(not provided)",
     );
+  });
+});
+
+// The grid is the source's own (submission-history/index.tsx:221-415), and its
+// wording is what drifted: every header had been renamed or dropped and no test
+// held any of them. These do.
+describe("the history grid says what the source says", () => {
+  beforeEach(() => {
+    state.access = ["finance"];
+  });
+
+  it("shows the columns the source shows by default", async () => {
+    show();
+    for (const header of [
+      "ID",
+      "NetSuite Report No.",
+      "Description",
+      "Date",
+      "Amount($)",
+      "CC Number",
+      "Submitted User",
+      "Submitted Date",
+      "Attachments",
+      "Status",
+      "View Details",
+    ]) {
+      expect(await screen.findByRole("columnheader", { name: header })).toBeInTheDocument();
+    }
+  });
+
+  it("holds the other ten back until asked for", async () => {
+    show();
+    await screen.findByRole("columnheader", { name: "ID" });
+    // :559-571 — defined, but off at the start.
+    for (const header of [
+      "Lead Approver",
+      "Finance Approver",
+      "Expense Category",
+      "Expense Type",
+      "Product Unit",
+      "Business Unit",
+      "Job Number",
+      "Sub Region",
+      "Lead Approved Date",
+      "Finance Approved Date",
+    ]) {
+      expect(screen.queryByRole("columnheader", { name: header })).toBeNull();
+    }
+  });
+
+  it("marks a transaction whose card has been closed", async () => {
+    show();
+    // :262-269 — row 2 sits on card 2222, which is Inactive.
+    expect(await screen.findByText("2222 (Inactive)")).toBeInTheDocument();
+    expect(screen.queryByText("1111 (Inactive)")).toBeNull();
+  });
+
+  it("says N/A for a date that has not happened", async () => {
+    // Submitted Date is the only nullable date shown by default, so the row
+    // has to be one that never got submitted for the placeholder to surface.
+    // Cast: the fixture array's inferred element union pins empPostedDate to a
+    // string, and this row is precisely the case where it is not one.
+    state.rows = [
+      { ...rows[2], id: 9, empPostedDate: null },
+    ] as unknown as typeof rows;
+    show();
+    await screen.findByRole("columnheader", { name: "Submitted Date" });
+    expect(screen.getByText("N/A")).toBeInTheDocument();
+  });
+
+  it("offers the toolbar the source offers, export included", async () => {
+    show();
+    await screen.findByRole("columnheader", { name: "ID" });
+    // What v8's composed toolbar gives us for free, and what the source built
+    // by hand from GridToolbarColumnsButton / Export / QuickFilter.
+    for (const name of ["Columns", "Filters", "Export", "Search"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+});
+
+describe("Submitted User is gated on seeing other people", () => {
+  it("is hidden from a plain employee, whose list is their own", async () => {
+    state.access = [];
+    show();
+    await screen.findByRole("columnheader", { name: "ID" });
+    expect(screen.queryByRole("columnheader", { name: "Submitted User" })).toBeNull();
   });
 });
