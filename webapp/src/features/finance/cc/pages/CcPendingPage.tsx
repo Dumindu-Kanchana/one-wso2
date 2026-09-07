@@ -31,7 +31,7 @@ export default function CcPendingPage() {
   return (
     <FinanceShell
       eyebrow={FINANCE_EYEBROW.cc}
-      title="Pending submissions"
+      title="Pending Approvals"
       subtitle="Your card transactions awaiting lead or finance approval."
       configured={isCcBackendConfigured()}
       configKey="ONE_WSO2_CC_EXPENSES_BACKEND_URL"

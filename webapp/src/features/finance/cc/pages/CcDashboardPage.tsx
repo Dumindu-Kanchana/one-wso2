@@ -76,7 +76,7 @@ export default function CcDashboardPage() {
   return (
     <FinanceShell
       eyebrow={FINANCE_EYEBROW.cc}
-      title="Card spend dashboard"
+      title="Card Submitter Dashboard"
       subtitle="What is still unsubmitted, how long it has been sitting there, and what has been claimed by category."
       configured={isCcBackendConfigured()}
       configKey="ONE_WSO2_CC_EXPENSES_BACKEND_URL"

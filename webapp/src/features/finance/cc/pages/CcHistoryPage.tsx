@@ -58,7 +58,7 @@ export default function CcHistoryPage() {
   return (
     <FinanceShell
       eyebrow={FINANCE_EYEBROW.cc}
-      title="Card transaction history"
+      title="Expense Submissions History"
       subtitle="Your past card submissions, filterable by status and period."
       configured={isCcBackendConfigured()}
       configKey="ONE_WSO2_CC_EXPENSES_BACKEND_URL"

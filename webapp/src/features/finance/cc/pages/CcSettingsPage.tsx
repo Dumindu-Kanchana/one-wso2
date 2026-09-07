@@ -48,7 +48,7 @@ export default function CcSettingsPage() {
   return (
     <FinanceShell
       eyebrow={FINANCE_EYEBROW.cc}
-      title="Statement ingestion"
+      title="Bank Statement Upload"
       subtitle="Finance-only. Upload a bank statement CSV; the system parses it into new, duplicate and invalid transactions for review, then saves the new ones as pending submissions."
       configured={isCcBackendConfigured()}
       configKey="ONE_WSO2_CC_EXPENSES_BACKEND_URL"

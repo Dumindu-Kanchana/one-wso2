@@ -44,7 +44,7 @@ export default function CcNewTransactionsPage() {
   return (
     <FinanceShell
       eyebrow={FINANCE_EYEBROW.cc}
-      title="New card transactions"
+      title="Pending Submissions"
       subtitle="Categorise your unsubmitted card transactions — expense type, comment and the unit or job number — then submit the completed ones for lead approval."
       configured={isCcBackendConfigured()}
       configKey="ONE_WSO2_CC_EXPENSES_BACKEND_URL"
