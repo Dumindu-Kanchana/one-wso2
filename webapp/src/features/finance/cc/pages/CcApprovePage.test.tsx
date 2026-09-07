@@ -80,8 +80,16 @@ vi.mock("../ccTypes", async () => {
 
 const saveEdit = vi.fn();
 const mutations = { savePending: false };
+// Records which stage was approved, so a test can prove the mode picked the
+// endpoint rather than merely that something was called.
+const approveCalls: { stage: string; ids: number[] }[] = [];
 vi.mock("../useCcMutations", () => ({
-  useCcApprove: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCcApprove: (stage: string) => ({
+    mutateAsync: async (ids: number[]) => {
+      approveCalls.push({ stage, ids });
+    },
+    isPending: false,
+  }),
   useCcSaveEdit: () => ({ mutate: saveEdit, isPending: mutations.savePending }),
   useCcAttachment: () => ({
     upload: { mutateAsync: vi.fn(), isPending: false },
@@ -100,6 +108,7 @@ beforeEach(() => {
   state.access = ["finance"];
   mutations.savePending = false;
   saveEdit.mockClear();
+  approveCalls.length = 0;
 });
 
 function show() {
@@ -167,5 +176,65 @@ describe("an edit still in flight", () => {
     show();
     await userEvent.click(screen.getAllByRole("checkbox")[1]);
     expect(screen.getByRole("button", { name: /^Approve/ })).toBeEnabled();
+  });
+});
+
+// index.tsx:83-87 derives one mode with finance winning, :198 offers the
+// switcher only to someone holding both roles, and :116-127 makes the mode
+// decide the queue. None of this was covered: both suites above hold a single
+// role, which is exactly the case the mode leaves unchanged.
+describe("someone who is both a lead and a finance approver", () => {
+  beforeEach(() => {
+    state.access = ["lead", "finance"];
+  });
+
+  it("starts in finance mode, because finance wins", async () => {
+    show();
+    await waitFor(() => expect(screen.getAllByRole("checkbox").length).toBeGreaterThan(0));
+    // Finance's queue spans both stages.
+    expect(screen.getAllByRole("row")).toHaveLength(3); // header + 2
+    expect(screen.getByLabelText("Approve Role")).toHaveTextContent("Approve as Finance");
+  });
+
+  it("switching to lead narrows the queue to its own first-stage rows", async () => {
+    show();
+    const user = userEvent.setup();
+    await screen.findByLabelText("Approve Role");
+    await user.click(screen.getByLabelText("Approve Role"));
+    await user.click(await screen.findByRole("option", { name: "Approve as Lead" }));
+
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2)); // header + 1
+    // And the row it kept is the one it can act on.
+    expect((await screen.findAllByRole("checkbox"))[0]).toBeEnabled();
+  });
+
+  it("approves as the selected role, not both at once", async () => {
+    show();
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("Approve Role"));
+    await user.click(await screen.findByRole("option", { name: "Approve as Lead" }));
+
+    await user.click((await screen.findAllByRole("checkbox"))[0]);
+    await user.click(screen.getByRole("button", { name: /Approve/ }));
+
+    await waitFor(() => expect(approveCalls).toHaveLength(1));
+    expect(approveCalls[0].stage).toBe("lead");
+    expect(approveCalls[0].ids).toEqual([1]);
+  });
+});
+
+describe("the approve-role switcher", () => {
+  it("is not offered to a lead who is not also finance", async () => {
+    state.access = ["lead"];
+    show();
+    await screen.findAllByRole("checkbox");
+    expect(screen.queryByLabelText("Approve Role")).toBeNull();
+  });
+
+  it("is not offered to finance alone", async () => {
+    state.access = ["finance"];
+    show();
+    await screen.findAllByRole("checkbox");
+    expect(screen.queryByLabelText("Approve Role")).toBeNull();
   });
 });

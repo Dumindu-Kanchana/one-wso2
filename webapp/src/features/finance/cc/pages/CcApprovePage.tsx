@@ -15,7 +15,7 @@
 // under the License.
 
 import { useMemo, useState } from "react";
-import { Alert, Box, Button, Skeleton, Stack, Typography } from "@wso2/oxygen-ui";
+import { Alert, Box, Button, MenuItem, Skeleton, Stack, TextField, Typography } from "@wso2/oxygen-ui";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
@@ -27,72 +27,121 @@ import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcTransaction } from "../ccTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
+type ApproveRole = "lead" | "finance";
+
+// approve-submissions/index.tsx:192-194 capitalises the role for the heading.
+const ROLE_TITLE: Record<ApproveRole, string> = { lead: "Lead", finance: "Finance" };
+
+/**
+ * Approving is a mode, not a per-row decision.
+ *
+ * The source derives one `approveRole` from the user's own roles with finance
+ * winning (index.tsx:83-87), names it in the heading, and offers a switcher
+ * only to someone who holds both (index.tsx:198). The mode decides what the
+ * queue contains, so the heading has to say which mode is in force — a merged
+ * list under a role-named heading would claim a filter it had not applied.
+ *
+ * Derived-with-override rather than the source's effect: `approveRole` is null
+ * until someone picks, and the default is computed. Same behaviour, without a
+ * state write on first render.
+ */
 export default function CcApprovePage() {
+  const userInfo = useCcUserInfo();
+  const isFinance = ccHasAccess(userInfo.data, "finance");
+  const isLead = ccHasAccess(userInfo.data, "lead");
+  const [picked, setPicked] = useState<ApproveRole | null>(null);
+  const role: ApproveRole | null =
+    picked ?? (isFinance ? "finance" : isLead ? "lead" : null);
+
   return (
     <FinanceShell
       eyebrow={FINANCE_EYEBROW.cc}
-      title="Approve submissions"
+      // No suffix until the roles have loaded — the source renders no heading
+      // at all until then, so there is nothing to be faithful to mid-flight.
+      title={
+        role
+          ? `Approve Expense Submissions (${ROLE_TITLE[role]})`
+          : "Approve Expense Submissions"
+      }
       subtitle="Review and approve card transactions submitted by your team. Leads approve pending-lead items; finance gives the final approval."
       configured={isCcBackendConfigured()}
       configKey="ONE_WSO2_CC_EXPENSES_BACKEND_URL"
     >
-      <ApproveBody />
+      <ApproveBody
+        userInfo={userInfo}
+        isLead={isLead}
+        isFinance={isFinance}
+        role={role}
+        onPickRole={setPicked}
+      />
     </FinanceShell>
   );
 }
 
-function ApproveBody() {
-  const userInfo = useCcUserInfo();
+function ApproveBody({
+  userInfo,
+  isLead,
+  isFinance,
+  role,
+  onPickRole,
+}: {
+  userInfo: ReturnType<typeof useCcUserInfo>;
+  isLead: boolean;
+  isFinance: boolean;
+  role: ApproveRole | null;
+  onPickRole: (r: ApproveRole) => void;
+}) {
   const txns = useCcTransactions();
   const { showSuccess, showError } = useNotifications();
   const [checked, setChecked] = useState<Set<number>>(new Set());
 
-  const isFinance = ccHasAccess(userInfo.data, "finance");
-  const isLead = ccHasAccess(userInfo.data, "lead");
   const email = userInfo.data?.workEmail;
-  // Instantiate both stages so a user who holds BOTH roles can lead-approve
-  // AND finance-approve — the previous single pinned stage left dual-role
-  // users unable to action pending_lead rows at all. The stage per row is
-  // derived from its status at submit time.
   const [editing, setEditing] = useState<CcTransaction | null>(null);
   const saveEdit = useCcSaveEdit();
   const leadApprove = useCcApprove("lead");
   const financeApprove = useCcApprove("finance");
 
-  // A row is actionable if the user is a lead of it (pending_lead) or a
-  // finance approver (pending_finance). Only actionable rows are shown.
   const isUserLeadOf = (t: CcTransaction) => {
     const leads = (t.leadEmail ?? "").split(",").map((s) => s.trim());
     return email != null && leads.includes(email);
   };
-  const isSelectable = (t: CcTransaction) =>
-    (isLead && t.status === "pending_lead" && isUserLeadOf(t)) ||
-    (isFinance && t.status === "pending_finance");
 
-  // approve-submissions/index.tsx:122-126 — finance's queue spans BOTH stages.
-  // A row still with the lead is shown but not actionable (isRowSelectable,
-  // ApproveTransactionsDataGrid.tsx:157-166), so finance can see what is
-  // waiting upstream instead of it being invisible until the lead acts.
+  // ApproveTransactionsDataGrid.tsx:157-166 — actionable is decided by the mode
+  // alone: finance acts on pending_finance, a lead on pending_lead. Nothing is
+  // actionable before the mode is known.
+  const isSelectable = (t: CcTransaction) =>
+    role === "finance"
+      ? t.status === "pending_finance"
+      : role === "lead"
+        ? t.status === "pending_lead"
+        : false;
+
+  // index.tsx:116-127 — what the queue contains, per mode. As a lead you see
+  // only your own reports' first-stage rows; as finance you see both stages,
+  // anyone's, so what is still upstream is visible rather than absent.
   const isVisible = (t: CcTransaction) =>
-    isSelectable(t) || (isFinance && t.status === "pending_lead");
+    role === "finance"
+      ? t.status === "pending_lead" || t.status === "pending_finance"
+      : role === "lead"
+        ? t.status === "pending_lead" && isUserLeadOf(t)
+        : false;
 
   const rows = useMemo(
     () => (txns.data ?? []).filter(isVisible),
-    // isVisible closes over isLead/isFinance/email
+    // isVisible closes over role and email
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [txns.data, isLead, isFinance, email],
+    [txns.data, role, email],
   );
 
-  // Split the checked, still-selectable rows by stage — each goes to its own
-  // approve endpoint.
+  // One stage per mode, so one endpoint — the source approves as the selected
+  // role (handleApproveSelection, ApproveTransactionsDataGrid.tsx:171-180).
   const selected = useMemo(
     () => rows.filter((t) => checked.has(t.id) && isSelectable(t)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, checked, isLead, isFinance, email],
+    [rows, checked, role],
   );
-  const leadIds = selected.filter((t) => t.status === "pending_lead").map((t) => t.id);
-  const financeIds = selected.filter((t) => t.status === "pending_finance").map((t) => t.id);
-  const selectedCount = leadIds.length + financeIds.length;
+  const selectedIds = selected.map((t) => t.id);
+  const selectedCount = selectedIds.length;
   const approving = leadApprove.isPending || financeApprove.isPending;
   // An edit saved from this screen is a separate request. Approving before it
   // lands would book the row as it was before the correction, so the button
@@ -108,11 +157,10 @@ function ApproveBody() {
     });
 
   const handleApprove = () => {
-    if (selectedCount === 0) return;
-    const tasks: Promise<unknown>[] = [];
-    if (leadIds.length) tasks.push(leadApprove.mutateAsync(leadIds));
-    if (financeIds.length) tasks.push(financeApprove.mutateAsync(financeIds));
-    Promise.all(tasks)
+    if (selectedCount === 0 || !role) return;
+    const approve = role === "finance" ? financeApprove : leadApprove;
+    approve
+      .mutateAsync(selectedIds)
       .then(() => {
         showSuccess(`${selectedCount} transaction(s) approved`);
         setChecked(new Set());
@@ -130,14 +178,26 @@ function ApproveBody() {
     return <Alert severity="info">Approvals are limited to leads and finance approvers.</Alert>;
   }
 
-  const roleLabel =
-    isLead && isFinance ? "Lead & Finance approver" : isFinance ? "Finance approver" : "Lead";
-
   return (
     <Box>
-      <Typography sx={{ fontSize: 12, color: "text.secondary", mb: 1.5 }}>
-        Acting as <b>{roleLabel}</b> — approve the transactions awaiting your decision.
-      </Typography>
+      {/* index.tsx:198-210 — offered only to someone who holds both roles;
+          everyone else has one mode and the heading already names it. */}
+      {isLead && isFinance && role && (
+        <Box sx={{ width: 220, mb: 2 }}>
+          <TextField
+            select
+            size="small"
+            fullWidth
+            label="Approve Role"
+            value={role}
+            onChange={(e) => onPickRole(e.target.value as ApproveRole)}
+          >
+            {/* FilterMenu.tsx:51-60 — the source's own option wording. */}
+            <MenuItem value="lead">Approve as Lead</MenuItem>
+            <MenuItem value="finance">Approve as Finance</MenuItem>
+          </TextField>
+        </Box>
+      )}
 
       {txns.isLoading ? (
         <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />
