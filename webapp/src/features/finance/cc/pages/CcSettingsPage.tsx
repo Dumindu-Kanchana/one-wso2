@@ -38,6 +38,7 @@ import { useNotifications } from "@context/notifications/NotificationsContext";
 import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
+import { CC_SNACK } from "../ccCopy";
 import { money, formatNice } from "../../util/financeFormat";
 import { useCcProcessStatement, useCcUploadTransactions } from "../useCcMutations";
 import { useCcUserInfo } from "../useCc";
@@ -93,6 +94,7 @@ function SettingsBody() {
       { bankCode, fileName, file },
       {
         onSuccess: (g) => {
+          showSuccess(CC_SNACK.success.processBankStatement);
           setParsed({ group: g, bankCode, fileName });
           setTab("new");
         },
@@ -108,7 +110,7 @@ function SettingsBody() {
       { bankCode: parsed.bankCode, fileName: parsed.fileName, group: parsed.group },
       {
         onSuccess: () => {
-          showSuccess(`${parsed.group.newItems.length} transaction(s) saved as pending`);
+          showSuccess(CC_SNACK.success.uploadNewTransactions);
           setParsed(null);
         },
         onError: (err) => showError(describeError(err)),

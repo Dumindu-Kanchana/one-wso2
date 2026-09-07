@@ -35,6 +35,7 @@ import { describeError } from "../../util/financeError";
 import { money, formatNice } from "../../util/financeFormat";
 import { CardMenu } from "../components/CardMenu";
 import { CcEditDialog } from "../CcEditDialog";
+import { CC_SNACK } from "../ccCopy";
 import { useCcCardLabel, useCcEmployeeSubmit, useCcSaveDraft } from "../useCcMutations";
 import { useDraftAutosave } from "../../util/useDraftAutosave";
 import { DraftStatusChip } from "../../components/DraftStatusChip";
@@ -118,7 +119,7 @@ function NewTxnBody() {
     const submittedIds = new Set(completeChecked.map((t) => t.id));
     submit.mutate(completeChecked, {
       onSuccess: () => {
-        showSuccess(`${completeChecked.length} transaction(s) submitted for lead approval`);
+        showSuccess(CC_SNACK.success.submitTransaction);
         // Prune only the submitted rows — clearing all of `edits`/`checked`
         // would discard categorisation the user did on rows they didn't tick.
         setChecked((prev) => new Set([...prev].filter((id) => !submittedIds.has(id))));
@@ -157,7 +158,7 @@ function NewTxnBody() {
           renameCard.mutate(
             { id: card.id, label },
             {
-              onSuccess: () => showSuccess("Successfully updated the label"),
+              onSuccess: () => showSuccess(CC_SNACK.success.updateCardLabel),
               onError: (err) => showError(describeError(err)),
             },
           )

@@ -38,6 +38,7 @@ import {
 import { CheckIcon } from "@wso2/oxygen-ui-icons-react";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { describeError } from "../util/financeError";
+import { CC_SNACK } from "./ccCopy";
 import { money, formatNice } from "../util/financeFormat";
 import { CC_ATTACHMENT_ACCEPT, CC_ATTACHMENT_MAX_BYTES, maxSizeLabel } from "../util/financeReceipts";
 import { useCcJobNumberDetails, useCcMenus } from "./useCc";
@@ -75,6 +76,7 @@ function CcEditForm({
   onSave: (patched: CcTransaction) => void;
 }) {
   const menus = useCcMenus();
+  const { showSuccess } = useNotifications();
   const [category, setCategory] = useState(txn.expenseCategoryLabel ?? "");
   const [typeLabel, setTypeLabel] = useState(txn.expenseTypeLabel ?? "");
   const [comment, setComment] = useState(txn.txnComment ?? "");
@@ -297,6 +299,7 @@ function CcEditForm({
               onPick={async (file) => {
                 const name = await attachment.upload.mutateAsync({ id: txn.id, attachmentType: "receipt", file });
                 setReceiptFileName(name || file.name);
+                showSuccess(CC_SNACK.success.uploadAttachment);
               }}
             />
             <AttachmentField
@@ -306,6 +309,7 @@ function CcEditForm({
               onPick={async (file) => {
                 const name = await attachment.upload.mutateAsync({ id: txn.id, attachmentType: "contract", file });
                 setContractFileName(name || file.name);
+                showSuccess(CC_SNACK.success.uploadAttachment);
               }}
             />
           </Box>

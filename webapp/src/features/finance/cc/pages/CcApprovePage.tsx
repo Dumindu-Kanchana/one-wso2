@@ -23,6 +23,7 @@ import { describeError } from "../../util/financeError";
 import { CcTxnTable } from "../CcTxnTable";
 import { useCcApprove, useCcSaveEdit } from "../useCcMutations";
 import { CcEditDialog } from "../CcEditDialog";
+import { CC_SNACK } from "../ccCopy";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcTransaction } from "../ccTypes";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
@@ -162,7 +163,7 @@ function ApproveBody({
     approve
       .mutateAsync(selectedIds)
       .then(() => {
-        showSuccess(`${selectedCount} transaction(s) approved`);
+        showSuccess(CC_SNACK.success.approveSubmission);
         setChecked(new Set());
       })
       .catch((err) => showError(describeError(err)));
@@ -246,7 +247,7 @@ function ApproveBody({
         onSave={(patched) => {
           setEditing(null);
           saveEdit.mutate([patched], {
-            onSuccess: () => showSuccess("Transaction updated"),
+            onSuccess: () => showSuccess(CC_SNACK.success.saveEdit),
             onError: (err) => showError(describeError(err)),
           });
         }}

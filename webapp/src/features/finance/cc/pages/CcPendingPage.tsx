@@ -23,6 +23,7 @@ import { CcTxnTable } from "../CcTxnTable";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { useCcSaveEdit } from "../useCcMutations";
 import { CcEditDialog } from "../CcEditDialog";
+import { CC_SNACK } from "../ccCopy";
 import type { CcTransaction } from "../ccTypes";
 import { useNotifications } from "@context/notifications/NotificationsContext";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
@@ -94,7 +95,7 @@ function PendingBody() {
         onSave={(patched) => {
           setEditing(null);
           saveEdit.mutate([patched], {
-            onSuccess: () => showSuccess("Transaction updated"),
+            onSuccess: () => showSuccess(CC_SNACK.success.saveEdit),
             onError: (err) => showError(describeError(err)),
           });
         }}
