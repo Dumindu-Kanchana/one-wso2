@@ -16,7 +16,8 @@
 
 
 import { useMemo, useState } from "react";
-import { Box, Button, DataGrid, Stack, Tooltip } from "@wso2/oxygen-ui";
+import { Box, Button, DataGrid, Stack } from "@wso2/oxygen-ui";
+import { ToolbarNoExport } from "./ccGridToolbar";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
 import { StatusChip, ccStatusMeta } from "../components/FinanceChips";
@@ -46,26 +47,6 @@ import type { CcAttachmentType, CcTransaction } from "./ccTypes";
  * — so a lead must not be handed a one-click download of their reports'
  * transactions just because the default toolbar has the button.
  */
-/** The default v8 toolbar minus its export buttons. */
-function ToolbarNoExport() {
-  return (
-    <DataGrid.Toolbar>
-      <Tooltip title="Columns">
-        <DataGrid.ColumnsPanelTrigger render={<DataGrid.ToolbarButton aria-label="Columns" />}>
-          <DataGrid.GridColumnIcon fontSize="small" />
-        </DataGrid.ColumnsPanelTrigger>
-      </Tooltip>
-      <Tooltip title="Filters">
-        <DataGrid.FilterPanelTrigger render={<DataGrid.ToolbarButton aria-label="Filters" />}>
-          <DataGrid.GridFilterListIcon fontSize="small" />
-        </DataGrid.FilterPanelTrigger>
-      </Tooltip>
-      <Box sx={{ flex: 1 }} />
-      <DataGrid.GridToolbarQuickFilter />
-    </DataGrid.Toolbar>
-  );
-}
-
 export function CcTxnTable({
   txns,
   showUser,

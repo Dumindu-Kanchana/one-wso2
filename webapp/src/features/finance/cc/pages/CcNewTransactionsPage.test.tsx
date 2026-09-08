@@ -167,3 +167,50 @@ describe("a part-finished categorisation", () => {
     await waitFor(() => expect(screen.getByText("Draft saved")).toBeInTheDocument());
   });
 });
+
+// The screen is on the grid now (NewTransactionsDataGrid.tsx). Hand-built it
+// had no search, sorting or paging; the source gets all three from the
+// component.
+describe("the grid this screen sits on", () => {
+  const rowBoxes = async () =>
+    (await screen.findAllByRole("checkbox")).filter(
+      (b) => b.getAttribute("name") === "select_row",
+    );
+
+  it("offers search, columns and filters", async () => {
+    show();
+    await screen.findByText("Hotel");
+    for (const name of ["Columns", "Filters", "Search"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("offers no export — nothing here has been submitted yet", async () => {
+    show();
+    await screen.findByText("Hotel");
+    expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
+  });
+
+  it("says a row needs details until it has been categorised", async () => {
+    show();
+    expect(await screen.findByText("Needs details")).toBeInTheDocument();
+  });
+
+  it("will not submit a row that is still incomplete", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync });
+    show();
+    await user.click((await rowBoxes())[0]);
+    // Ticked, but nothing has been categorised, so there is nothing to submit.
+    expect(screen.getByRole("button", { name: /Submit/ })).toBeDisabled();
+  });
+
+  it("submits once the ticked row is complete", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync });
+    show();
+    await user.click(await screen.findByRole("button", { name: "Categorise" }));
+    await user.click(await screen.findByRole("button", { name: "finish-categorising" }));
+    await user.click((await rowBoxes())[0]);
+
+    expect(screen.getByRole("button", { name: /Submit/ })).toBeEnabled();
+  });
+});

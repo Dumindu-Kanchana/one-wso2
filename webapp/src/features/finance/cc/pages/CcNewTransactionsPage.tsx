@@ -19,13 +19,8 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
+  DataGrid,
   Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
 } from "@wso2/oxygen-ui";
 import { useNotifications } from "@context/notifications/NotificationsContext";
@@ -35,6 +30,7 @@ import { describeError } from "../../util/financeError";
 import { bareAmount, formatNice } from "../../util/financeFormat";
 import { CardMenu } from "../components/CardMenu";
 import { CcEditDialog } from "../CcEditDialog";
+import { ToolbarNoExport as NewTxnToolbar } from "../ccGridToolbar";
 import { CC_SNACK } from "../ccCopy";
 import { useCcCardLabel, useCcEmployeeSubmit, useCcSaveDraft } from "../useCcMutations";
 import { useDraftAutosave } from "../../util/useDraftAutosave";
@@ -87,6 +83,58 @@ function NewTxnBody() {
   }, [txns.data, activeCard, edits]);
 
   const completeChecked = rows.filter((t) => checked.has(t.id) && ccTxnComplete(t));
+
+  // NewTransactionsDataGrid.tsx:105-139. Its last column is a bare green tick
+  // when the required fields are filled; this one names the categorisation
+  // instead, which says the same thing and also what was chosen.
+  const columns = useMemo<DataGrid.GridColDef<CcTransaction>[]>(
+    () => [
+      { field: "id", headerName: "ID", width: 80 },
+      { field: "txnDescription", headerName: "Description", flex: 1, minWidth: 200 },
+      {
+        field: "txnDate",
+        headerName: "Date",
+        width: 130,
+        renderCell: (p) => formatNice(p.value as string),
+      },
+      {
+        field: "txnAmount",
+        headerName: "Amount($)",
+        type: "number",
+        width: 120,
+        renderCell: (p) => bareAmount(p.value as number),
+      },
+      {
+        field: "category",
+        headerName: "Category",
+        flex: 1,
+        minWidth: 200,
+        sortable: false,
+        valueGetter: (_v, row) =>
+          ccTxnComplete(row) ? `${row.expenseCategoryLabel} · ${row.expenseTypeLabel}` : "Needs details",
+        renderCell: (p) => (
+          <Box component="span" sx={{ color: ccTxnComplete(p.row) ? "success.main" : "text.disabled" }}>
+            {p.value as string}
+          </Box>
+        ),
+      },
+      {
+        field: "actions",
+        headerName: "",
+        width: 130,
+        sortable: false,
+        filterable: false,
+        align: "right",
+        headerAlign: "right",
+        renderCell: (p) => (
+          <Button size="small" variant="outlined" onClick={() => setEditing(p.row)} sx={{ textTransform: "none", fontWeight: 600 }}>
+            {ccTxnComplete(p.row) ? "Edit" : "Categorise"}
+          </Button>
+        ),
+      },
+    ],
+    [],
+  );
 
   // Keep a part-finished categorisation on the server, as EditPane.tsx:444-467
   // does. Without it, closing the tab after categorising a batch threw the lot
@@ -174,52 +222,29 @@ function NewTxnBody() {
           No new transactions on this card.
         </Typography>
       ) : (
-        <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, overflow: "hidden", mt: 2 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ "& th": { fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.04em" } }}>
-                <TableCell padding="checkbox" />
-                {/* NewTransactionsDataGrid.tsx:105-110 leads with ID. */}
-                <TableCell>ID</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell align="right">Amount($)</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell align="right">&nbsp;</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((t) => {
-                const complete = ccTxnComplete(t);
-                return (
-                  <TableRow key={t.id} hover selected={checked.has(t.id)}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        size="small"
-                        checked={checked.has(t.id)}
-                        disabled={!complete}
-                        onChange={() => toggle(t.id)}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{t.id}</TableCell>
-                    <TableCell sx={{ fontSize: 12.5 }}>{t.txnDescription}</TableCell>
-                    <TableCell sx={{ fontSize: 12.5 }}>{formatNice(t.txnDate)}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
-                      {bareAmount(t.txnAmount)}
-                    </TableCell>
-                    <TableCell sx={{ fontSize: 12.5, color: complete ? "success.main" : "text.disabled" }}>
-                      {complete ? `${t.expenseCategoryLabel} · ${t.expenseTypeLabel}` : "Needs details"}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Button size="small" variant="outlined" onClick={() => setEditing(t)} sx={{ textTransform: "none", fontWeight: 600 }}>
-                        {complete ? "Edit" : "Categorise"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+        <Box sx={{ height: 520, width: "100%" }}>
+          {/* NewTransactionsDataGrid.tsx — on the grid, so this screen has the
+              search, sorting and paging the source's has. No export: nothing
+              here is submitted yet, and the source offers it only on history. */}
+          <DataGrid.DataGrid
+            rows={rows}
+            columns={columns}
+            showToolbar
+            slots={{ toolbar: NewTxnToolbar }}
+            density="compact"
+            disableRowSelectionOnClick
+            checkboxSelection
+            rowSelectionModel={{ type: "include", ids: new Set(checked) }}
+            onRowSelectionModelChange={(model) => {
+              const next = model.ids as Set<DataGrid.GridRowId>;
+              for (const t of rows) {
+                if (next.has(t.id) !== checked.has(t.id)) toggle(t.id);
+              }
+            }}
+            initialState={{ pagination: { paginationModel: { pageSize: 20, page: 0 } } }}
+            pageSizeOptions={[5, 10, 20, 25, 50]}
+            sx={{ "& .MuiDataGrid-cell": { fontSize: 12.5 } }}
+          />
         </Box>
       )}
 
