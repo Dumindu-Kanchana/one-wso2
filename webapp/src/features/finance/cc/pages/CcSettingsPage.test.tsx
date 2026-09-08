@@ -193,3 +193,53 @@ describe("the statement grid's toolbar", () => {
     }
   });
 });
+
+// FileUpload.tsx — the source drops a file on a target, or clicks it. The port
+// had only a button, so a drop did nothing and a chosen file could not be
+// taken back.
+describe("the drop zone", () => {
+  const zone = () => screen.getByRole("button", { name: /Drag & drop/ });
+
+  const drop = (name: string) =>
+    fireEvent.drop(zone(), {
+      dataTransfer: { files: [new File(["a,b"], name, { type: "text/csv" })] },
+    });
+
+  it("invites a drop or a click", async () => {
+    show();
+    expect(await screen.findByText("Drag & drop your CSV file here or click")).toBeInTheDocument();
+  });
+
+  it("says so while a file is over it", async () => {
+    show();
+    fireEvent.dragEnter(zone());
+    expect(await screen.findByText("Drop your file here")).toBeInTheDocument();
+  });
+
+  it("takes a dropped CSV", async () => {
+    show();
+    drop("statement.csv");
+    await waitFor(() => expect(processed).toHaveLength(1));
+  });
+
+  it("refuses a dropped non-CSV — accept cannot filter a drop", async () => {
+    show();
+    fireEvent.drop(zone(), {
+      dataTransfer: { files: [new File(["x"], "statement.xlsx", { type: "text/csv" })] },
+    });
+    expect(
+      await screen.findByText("Invalid file type. Please upload a CSV file."),
+    ).toBeInTheDocument();
+    expect(processed).toHaveLength(0);
+  });
+
+  it("shows the chosen file's name and size, and lets it be cleared", async () => {
+    show();
+    drop("statement.csv");
+    expect(await screen.findByText("statement.csv")).toBeInTheDocument();
+    expect(screen.getByText("3 Bytes")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear file" }));
+    expect(await screen.findByText("Drag & drop your CSV file here or click")).toBeInTheDocument();
+  });
+});

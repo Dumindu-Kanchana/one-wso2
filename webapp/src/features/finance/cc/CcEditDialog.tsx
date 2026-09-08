@@ -33,6 +33,7 @@ import {
   TableRow,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@wso2/oxygen-ui";
 import { CheckIcon } from "@wso2/oxygen-ui-icons-react";
@@ -327,9 +328,17 @@ function CcEditForm({
         <Button size="small" onClick={onClose}>
           Cancel
         </Button>
-        <Button size="small" variant="contained" disabled={!valid} onClick={() => onSave(patched)}>
-          Save
-        </Button>
+        {/* EditPane.tsx:370-378 says this when a save is attempted with fields
+            still empty. The port disables Save instead, which stops the
+            pointless round trip but left the reason unsaid — so the source's
+            line goes where it can still be read. */}
+        <Tooltip title={valid ? "" : "Please fill in all required fields."}>
+          <span>
+            <Button size="small" variant="contained" disabled={!valid} onClick={() => onSave(patched)}>
+              Save
+            </Button>
+          </span>
+        </Tooltip>
       </DialogActions>
     </Dialog>
   );

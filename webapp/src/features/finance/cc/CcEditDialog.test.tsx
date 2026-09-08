@@ -241,3 +241,17 @@ describe("removing an attachment", () => {
     expect(await screen.findByText("Successfully removed the attachment")).toBeInTheDocument();
   });
 });
+
+// EditPane.tsx:370-378 says this when a save is attempted with fields still
+// empty. The port disables Save, which is better, but said nothing about why.
+describe("saving with fields still empty", () => {
+  it("says what is holding it up", async () => {
+    show();
+    const save = await screen.findByRole("button", { name: "Save" });
+    expect(save).toBeDisabled();
+    fireEvent.mouseOver(save.parentElement as HTMLElement);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Please fill in all required fields.",
+    );
+  });
+});

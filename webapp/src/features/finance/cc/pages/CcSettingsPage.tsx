@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Box,
@@ -36,6 +36,7 @@ import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { CC_SNACK } from "../ccCopy";
+import { CcStatementDropZone } from "../CcStatementDropZone";
 
 // StatementDataGrid.tsx:43 — the source writes N/A here, not a dash.
 const NOT_AVAILABLE = "N/A";
@@ -74,7 +75,8 @@ function SettingsBody() {
   >(null);
   const group = parsed?.group ?? null;
   const [tab, setTab] = useState<"new" | "duplicate" | "invalid">("new");
-  const fileInput = useRef<HTMLInputElement>(null);
+  // The file as chosen, so the zone can show its name and size.
+  const [chosen, setChosen] = useState<File | null>(null);
 
   const isFinance = ccHasAccess(userInfo.data, "finance");
 
@@ -85,18 +87,10 @@ function SettingsBody() {
     return <Alert severity="info">Statement ingestion is limited to finance approvers.</Alert>;
   }
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    // FileUpload.tsx:89-94,111-119 — the extension is checked, not trusted.
-    // `accept` on the input only filters the picker's default view; "All
-    // files" still lets anything through, and the parse then fails with
-    // whatever the backend says instead of naming the actual problem.
-    if (file.name.toLowerCase().split(".").pop() !== "csv") {
-      showError("Invalid file type. Please upload a CSV file.");
-      if (fileInput.current) fileInput.current.value = "";
-      return;
-    }
+  // The drop zone has already checked the extension and shown its own
+  // message if it was wrong, so by here the file is a CSV.
+  const handlePicked = (file: File) => {
+    setChosen(file);
     const bankCode = bank;
     const fileName = file.name;
     process.mutate(
@@ -110,7 +104,6 @@ function SettingsBody() {
         onError: (err) => showError(describeError(err)),
       },
     );
-    if (fileInput.current) fileInput.current.value = "";
   };
 
   const handleSave = () => {
@@ -175,25 +168,34 @@ function SettingsBody() {
   return (
     <Box>
       <Card variant="outlined" sx={{ p: 2, mb: 2 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
-          <FormControl size="small">
-            <Select value={bank} onChange={(e) => setBank(e.target.value as CcBankCode)} sx={{ minWidth: 120 }}>
-              <MenuItem value="svb">SVB</MenuItem>
-              <MenuItem value="amex">Amex</MenuItem>
-            </Select>
-          </FormControl>
-          <input ref={fileInput} type="file" accept=".csv,text/csv" onChange={handleFile} style={{ display: "none" }} />
-          <Button
-            variant="outlined"
-            onClick={() => fileInput.current?.click()}
+        <Stack spacing={1.5}>
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+            <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>Select a Bank</Typography>
+            <FormControl size="small">
+              <Select
+                value={bank}
+                inputProps={{ "aria-label": "Select a Bank" }}
+                onChange={(e) => setBank(e.target.value as CcBankCode)}
+                sx={{ minWidth: 120 }}
+              >
+                <MenuItem value="svb">SVB</MenuItem>
+                <MenuItem value="amex">Amex</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+          {/* FileUpload.tsx — the source drops a file here, or clicks. */}
+          <CcStatementDropZone
+            file={chosen}
             disabled={process.isPending}
-            sx={{ textTransform: "none", fontWeight: 600 }}
-          >
-            {process.isPending ? "Parsing…" : "Upload statement CSV"}
-          </Button>
-          <Typography sx={{ fontSize: 12, color: "text.disabled" }}>
-            {parsed ? parsed.fileName : "Select a bank, then choose the statement file."}
-          </Typography>
+            onPick={handlePicked}
+            onClear={() => {
+              setChosen(null);
+              setParsed(null);
+            }}
+          />
+          {process.isPending && (
+            <Typography sx={{ fontSize: 12, color: "text.secondary" }}>Parsing…</Typography>
+          )}
         </Stack>
       </Card>
 
