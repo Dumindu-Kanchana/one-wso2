@@ -14,18 +14,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { useState } from "react";
-import {
-  Box,
-  Button,
-  Checkbox,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-} from "@wso2/oxygen-ui";
+
+import { useMemo, useState } from "react";
+import { Box, Button, DataGrid, Stack, Tooltip } from "@wso2/oxygen-ui";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
 import { StatusChip, ccStatusMeta } from "../components/FinanceChips";
@@ -34,8 +25,47 @@ import { bareAmount, formatNice } from "../util/financeFormat";
 import { fetchBase64Attachment, type ReceiptSource } from "../util/financeReceipts";
 import type { CcAttachmentType, CcTransaction } from "./ccTypes";
 
-// Shared read-only / selectable transaction table used by Pending, Approve
-// and History. Columns flex on the show* flags.
+/**
+ * The transaction table Pending and Approve share.
+ *
+ * On the grid, like the source's (PendingTransactionsDataGrid /
+ * ApproveTransactionsDataGrid). Hand-built, it had no search, no sorting, no
+ * paging and no column control — everything the source gets from the component
+ * itself. `showToolbar` is v8's composed toolbar; export is deliberately not
+ * added here, because both these screens show other people's spend and the
+ * source offers export only on history.
+ *
+ * Selection stays a controlled `Set<number>` owned by the caller rather than
+ * the grid's own model: the caller decides what is actionable from the approve
+ * role, and it needs the ids to post. `isRowSelectable` reuses that same
+ * predicate so a row the mode cannot action cannot be ticked.
+ *
+ * The toolbar is composed here rather than taken from `showToolbar`, which
+ * includes CSV and print export. Both these screens show other people's card
+ * spend, and of the source's five grids only submission-history offers export
+ * — so a lead must not be handed a one-click download of their reports'
+ * transactions just because the default toolbar has the button.
+ */
+/** The default v8 toolbar minus its export buttons. */
+function ToolbarNoExport() {
+  return (
+    <DataGrid.Toolbar>
+      <Tooltip title="Columns">
+        <DataGrid.ColumnsPanelTrigger render={<DataGrid.ToolbarButton aria-label="Columns" />}>
+          <DataGrid.GridColumnIcon fontSize="small" />
+        </DataGrid.ColumnsPanelTrigger>
+      </Tooltip>
+      <Tooltip title="Filters">
+        <DataGrid.FilterPanelTrigger render={<DataGrid.ToolbarButton aria-label="Filters" />}>
+          <DataGrid.GridFilterListIcon fontSize="small" />
+        </DataGrid.FilterPanelTrigger>
+      </Tooltip>
+      <Box sx={{ flex: 1 }} />
+      <DataGrid.GridToolbarQuickFilter />
+    </DataGrid.Toolbar>
+  );
+}
+
 export function CcTxnTable({
   txns,
   showUser,
@@ -64,118 +94,138 @@ export function CcTxnTable({
   const getAccessToken = useAccessToken();
   const [load, setLoad] = useState<(() => Promise<ReceiptSource>) | null>(null);
 
-  const th = {
-    fontSize: 11,
-    fontWeight: 700,
-    color: "text.secondary",
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-  } as const;
+  const columns = useMemo<DataGrid.GridColDef<CcTransaction>[]>(() => {
+    const view = (id: number, attachmentType: CcAttachmentType) => {
+      setLoad(() => async () => {
+        const accessToken = await getAccessToken();
+        return fetchBase64Attachment(ccServiceUrls.attachment(id, attachmentType), accessToken);
+      });
+    };
 
-  const view = (id: number, attachmentType: CcAttachmentType) => {
-    setLoad(() => async () => {
-      const accessToken = await getAccessToken();
-      return fetchBase64Attachment(ccServiceUrls.attachment(id, attachmentType), accessToken);
-    });
-  };
+    const cols: DataGrid.GridColDef<CcTransaction>[] = [
+      { field: "id", headerName: "ID", width: 80 },
+      { field: "txnDescription", headerName: "Description", flex: 1, minWidth: 180 },
+    ];
+    if (showUser) {
+      cols.push({ field: "employeeEmail", headerName: "User", flex: 0.8, minWidth: 180 });
+    }
+    if (showCard) {
+      cols.push({ field: "ccNumber", headerName: "Card", width: 120 });
+    }
+    cols.push(
+      {
+        field: "txnDate",
+        headerName: "Date",
+        width: 130,
+        renderCell: (p) => formatNice(p.value as string),
+      },
+      {
+        // Bare, because the header carries the currency — utils.ts:44-49.
+        field: "txnAmount",
+        headerName: "Amount($)",
+        type: "number",
+        width: 120,
+        renderCell: (p) => bareAmount(p.value as number),
+      },
+      {
+        field: "attachments",
+        headerName: "Files",
+        width: 150,
+        sortable: false,
+        filterable: false,
+        renderCell: (p) => {
+          const t = p.row;
+          if (!t.receiptFileName && !t.contractFileName) {
+            return <Box component="span" sx={{ color: "text.disabled" }}>—</Box>;
+          }
+          return (
+            <Stack direction="row" spacing={0.5}>
+              {t.receiptFileName && (
+                <Button size="small" variant="text" onClick={() => view(t.id, "receipt")} sx={{ textTransform: "none", minWidth: 0, px: 0.5 }}>
+                  Receipt
+                </Button>
+              )}
+              {t.contractFileName && (
+                <Button size="small" variant="text" onClick={() => view(t.id, "contract")} sx={{ textTransform: "none", minWidth: 0, px: 0.5 }}>
+                  Contract
+                </Button>
+              )}
+            </Stack>
+          );
+        },
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 150,
+        renderCell: (p) => {
+          const meta = ccStatusMeta(p.row.status);
+          return <StatusChip label={meta.label} color={meta.color} />;
+        },
+      },
+    );
+    if (edit || onOpen) {
+      cols.push({
+        field: "actions",
+        headerName: "",
+        width: 150,
+        sortable: false,
+        filterable: false,
+        align: "right",
+        headerAlign: "right",
+        renderCell: (p) => (
+          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+            {onOpen && (
+              <Button size="small" variant="text" onClick={() => onOpen(p.row)} sx={{ textTransform: "none", fontWeight: 600 }}>
+                Details
+              </Button>
+            )}
+            {edit?.canEdit(p.row) && (
+              <Button size="small" variant="outlined" onClick={() => edit.onEdit(p.row)} sx={{ textTransform: "none", fontWeight: 600 }}>
+                Edit
+              </Button>
+            )}
+          </Stack>
+        ),
+      });
+    }
+    return cols;
+  }, [showUser, showCard, edit, onOpen, getAccessToken]);
 
   return (
     <>
-    <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>
-      <Table size="small">
-        <TableHead>
-          <TableRow sx={{ "& th": th }}>
-            {selection && <TableCell padding="checkbox" />}
-            {/* PendingTransactionsDataGrid.tsx and ApproveTransactionsDataGrid.tsx
-                both lead with ID — it is how a row gets referred to when someone
-                asks finance about one. */}
-            <TableCell>ID</TableCell>
-            <TableCell>Description</TableCell>
-            {showUser && <TableCell>User</TableCell>}
-            {showCard && <TableCell>Card</TableCell>}
-            <TableCell>Date</TableCell>
-            <TableCell align="right">Amount($)</TableCell>
-            <TableCell>Files</TableCell>
-            <TableCell>Status</TableCell>
-            {(edit || onOpen) && <TableCell align="right" />}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {txns.map((t) => {
-            const meta = ccStatusMeta(t.status);
-            return (
-              <TableRow key={t.id} hover selected={selection?.checked.has(t.id)}>
-                {selection && (
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={selection.checked.has(t.id)}
-                      disabled={!selection.isSelectable(t)}
-                      onChange={() => selection.onToggle(t.id)}
-                    />
-                  </TableCell>
-                )}
-                <TableCell sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{t.id}</TableCell>
-                <TableCell sx={{ fontSize: 12.5 }}>{t.txnDescription}</TableCell>
-                {showUser && <TableCell sx={{ fontSize: 12.5 }}>{t.employeeEmail}</TableCell>}
-                {showCard && (
-                  <TableCell sx={{ fontSize: 12.5, fontFamily: "monospace" }}>•••• {t.ccNumber.slice(-4)}</TableCell>
-                )}
-                <TableCell sx={{ fontSize: 12.5 }}>{formatNice(t.txnDate)}</TableCell>
-                <TableCell align="right" sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
-                  {bareAmount(t.txnAmount)}
-                </TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={0.5}>
-                    {t.receiptFileName && (
-                      <Button size="small" variant="text" onClick={() => view(t.id, "receipt")} sx={{ textTransform: "none", minWidth: 0, px: 0.75 }}>
-                        Receipt
-                      </Button>
-                    )}
-                    {t.contractFileName && (
-                      <Button size="small" variant="text" onClick={() => view(t.id, "contract")} sx={{ textTransform: "none", minWidth: 0, px: 0.75 }}>
-                        Contract
-                      </Button>
-                    )}
-                    {!t.receiptFileName && !t.contractFileName && (
-                      <Box component="span" sx={{ fontSize: 12, color: "text.disabled" }}>—</Box>
-                    )}
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <StatusChip label={meta.label} color={meta.color} />
-                </TableCell>
-              {(edit || onOpen) && (
-                <TableCell align="right">
-                  {onOpen && (
-                    <Button
-                      size="small"
-                      variant="text"
-                      onClick={() => onOpen(t)}
-                      sx={{ textTransform: "none", fontWeight: 600 }}
-                    >
-                      Details
-                    </Button>
-                  )}
-                  {edit?.canEdit(t) && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => edit.onEdit(t)}
-                      sx={{ textTransform: "none", fontWeight: 600 }}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                </TableCell>
-              )}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </Box>
-    <ReceiptViewer title="Attachment" load={load} onClose={() => setLoad(null)} />
+      <Box sx={{ height: 560, width: "100%" }}>
+        <DataGrid.DataGrid
+          rows={txns}
+          columns={columns}
+          showToolbar
+          slots={{ toolbar: ToolbarNoExport }}
+          density="compact"
+          disableRowSelectionOnClick
+          checkboxSelection={Boolean(selection)}
+          isRowSelectable={(p) => (selection ? selection.isSelectable(p.row) : true)}
+          rowSelectionModel={
+            selection
+              ? { type: "include", ids: new Set(selection.checked) }
+              : undefined
+          }
+          onRowSelectionModelChange={(model) => {
+            if (!selection) return;
+            // The grid hands back the whole selection; turn it into the
+            // per-id toggles the caller's Set expects, so one click does not
+            // silently drop the rest.
+            const next = model.ids as Set<DataGrid.GridRowId>;
+            for (const t of txns) {
+              const nowOn = next.has(t.id);
+              if (nowOn !== selection.checked.has(t.id)) selection.onToggle(t.id);
+            }
+          }}
+          initialState={{ pagination: { paginationModel: { pageSize: 20, page: 0 } } }}
+          pageSizeOptions={[5, 10, 20, 25, 50]}
+          sx={{ "& .MuiDataGrid-cell": { fontSize: 12.5 } }}
+        />
+      </Box>
+      <ReceiptViewer title="Attachment" load={load} onClose={() => setLoad(null)} />
     </>
   );
 }

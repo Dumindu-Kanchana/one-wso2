@@ -111,6 +111,12 @@ beforeEach(() => {
   approveCalls.length = 0;
 });
 
+/** The per-row checkboxes only — the grid's header has a select-all. */
+const rowBoxes = async () =>
+  (await screen.findAllByRole("checkbox")).filter(
+    (b) => b.getAttribute("name") === "select_row",
+  );
+
 function show() {
   return render(
     <QueryClientProvider client={new QueryClient()}>
@@ -135,7 +141,7 @@ describe("what a finance approver sees", () => {
 
   it("cannot select the row still with the lead", async () => {
     show();
-    const boxes = await screen.findAllByRole("checkbox");
+    const boxes = await rowBoxes();
     // Row order follows the data: pending_lead first.
     expect(boxes[0]).toBeDisabled();
     expect(boxes[1]).toBeEnabled();
@@ -155,7 +161,7 @@ describe("what a lead sees", () => {
 
   it("can select it", async () => {
     show();
-    const boxes = await screen.findAllByRole("checkbox");
+    const boxes = await rowBoxes();
     expect(boxes[0]).toBeEnabled();
   });
 });
@@ -168,13 +174,13 @@ describe("an edit still in flight", () => {
   it("holds the approve button until the save lands", async () => {
     mutations.savePending = true;
     show();
-    await userEvent.click(screen.getAllByRole("checkbox")[1]);
+    await userEvent.click((await rowBoxes())[1]);
     expect(screen.getByRole("button", { name: /^Approve/ })).toBeDisabled();
   });
 
   it("allows approval once nothing is in flight", async () => {
     show();
-    await userEvent.click(screen.getAllByRole("checkbox")[1]);
+    await userEvent.click((await rowBoxes())[1]);
     expect(screen.getByRole("button", { name: /^Approve/ })).toBeEnabled();
   });
 });
@@ -205,7 +211,7 @@ describe("someone who is both a lead and a finance approver", () => {
 
     await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2)); // header + 1
     // And the row it kept is the one it can act on.
-    expect((await screen.findAllByRole("checkbox"))[0]).toBeEnabled();
+    expect((await rowBoxes())[0]).toBeEnabled();
   });
 
   it("approves as the selected role, not both at once", async () => {
@@ -214,7 +220,7 @@ describe("someone who is both a lead and a finance approver", () => {
     await user.click(screen.getByLabelText("Approve Role"));
     await user.click(await screen.findByRole("option", { name: "Approve as Lead" }));
 
-    await user.click((await screen.findAllByRole("checkbox"))[0]);
+    await user.click((await rowBoxes())[0]);
     await user.click(screen.getByRole("button", { name: /Approve/ }));
 
     await waitFor(() => expect(approveCalls).toHaveLength(1));
@@ -247,8 +253,11 @@ describe("the shared transaction table", () => {
     show();
     await screen.findAllByRole("checkbox");
     expect(screen.getByRole("columnheader", { name: "ID" })).toBeInTheDocument();
-    const first = screen.getAllByRole("row")[1];
-    expect(first.querySelectorAll("td")[1]).toHaveTextContent("1");
+    // The grid's own cells carry the field name, which is sturdier than
+    // counting columns that the show* flags can add or drop.
+    const idCells = document.querySelectorAll('[data-field="id"][role="gridcell"]');
+    expect(idCells.length).toBeGreaterThan(0);
+    expect(idCells[0]).toHaveTextContent("1");
   });
 
   it("puts the currency in the header, not the cell", async () => {
@@ -257,5 +266,35 @@ describe("the shared transaction table", () => {
     expect(screen.getByRole("columnheader", { name: "Amount($)" })).toBeInTheDocument();
     expect(screen.getAllByText("500.00").length).toBeGreaterThan(0);
     expect(screen.queryByText("$500.00")).toBeNull();
+  });
+});
+
+// The point of putting these two screens on the grid: the hand-built table had
+// none of this, and the source gets all of it from the component.
+describe("what the grid brings to the approve queue", () => {
+  it("offers search, columns and paging", async () => {
+    show();
+    await screen.findAllByRole("checkbox");
+    for (const name of ["Columns", "Filters", "Search"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("does not offer export, which the source keeps to history", async () => {
+    // These screens show other people's spend; submission-history/index.tsx is
+    // the only one of the five with GridToolbarExport.
+    show();
+    await screen.findAllByRole("checkbox");
+    expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
+  });
+
+  it("still refuses to tick a row the mode cannot action", async () => {
+    // The grid's own isRowSelectable is wired to the same predicate the
+    // approve button uses, so the two cannot disagree.
+    state.access = ["lead"];
+    show();
+    const boxes = await rowBoxes();
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0]).toBeEnabled();
   });
 });
