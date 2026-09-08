@@ -20,6 +20,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import type { CcTransaction } from "./ccTypes";
+
 vi.mock("@hooks/useAccessToken", () => ({ useAccessToken: () => async () => "token" }));
 vi.mock("@asgardeo/react", () => ({ useAsgardeo: () => ({ isSignedIn: true }) }));
 
@@ -63,10 +65,12 @@ vi.mock("./useCc", () => ({
   },
 }));
 
+// Records the DELETEs, so a test can prove which slot was cleared.
+const removed = vi.fn(async () => undefined);
 vi.mock("./useCcMutations", () => ({
   useCcAttachment: () => ({
     upload: { mutateAsync: vi.fn(), isPending: false },
-    remove: { mutateAsync: vi.fn(), isPending: false },
+    remove: { mutateAsync: removed, isPending: false },
   }),
 }));
 
@@ -97,7 +101,7 @@ const txn = {
   leadApprovedDate: null,
   financeApprovedDate: null,
   reportSequenceNumber: null,
-} as never;
+} as unknown as CcTransaction;
 
 const onSave = vi.fn();
 
@@ -107,11 +111,11 @@ beforeEach(() => {
   state.jobQueries.length = 0;
 });
 
-function show() {
+function show(t = txn) {
   return render(
     <QueryClientProvider client={new QueryClient()}>
       <NotificationsProvider>
-        <CcEditDialog txn={txn} onClose={vi.fn()} onSave={onSave} />
+        <CcEditDialog txn={t} onClose={vi.fn()} onSave={onSave} />
       </NotificationsProvider>
     </QueryClientProvider>,
   );
@@ -209,5 +213,31 @@ describe("marketing sub-categories still need a sub-region", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     await pick("Sub region", "South Asia");
     await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeEnabled());
+  });
+});
+
+// AttachmentButton.tsx:466-477 offers Remove; the port had the DELETE mutation
+// built and never called it, so a receipt attached by mistake could only be
+// replaced by another file, never taken off.
+describe("removing an attachment", () => {
+  it("is not offered when nothing is attached", async () => {
+    show({ ...txn, receiptFileName: null, contractFileName: null });
+    await screen.findByText("Receipt");
+    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+  });
+
+  it("is offered once something is", async () => {
+    show({ ...txn, receiptFileName: "r.pdf" });
+    expect(await screen.findByRole("button", { name: "Remove" })).toBeInTheDocument();
+  });
+
+  it("deletes the slot it belongs to, and says so", async () => {
+    removed.mockClear();
+    show({ ...txn, receiptFileName: "r.pdf" });
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+
+    await waitFor(() => expect(removed).toHaveBeenCalledTimes(1));
+    expect(removed).toHaveBeenCalledWith({ id: txn.id, attachmentType: "receipt" });
+    expect(await screen.findByText("Successfully removed the attachment")).toBeInTheDocument();
   });
 });
