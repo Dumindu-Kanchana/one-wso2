@@ -15,7 +15,7 @@
 // under the License.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { authedDelete, authedPatch, authedPost, fetchWithReauth, HttpError } from "@api/http";
+import { authedDelete, authedPatchText, authedPostText, fetchWithReauth, HttpError } from "@api/http";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
 import { fileExtension, putBinaryFile } from "../util/financeReceipts";
@@ -28,6 +28,19 @@ function invalidate(qc: ReturnType<typeof useQueryClient>) {
   ]);
 }
 
+// Every write below reads its response as TEXT, not JSON.
+//
+// The backend declares these successes as `record {| *http:Ok; string body; |}`
+// (types.bal:91-93, :129-131), where `body` is the HTTP payload — so a 200
+// carries a bare sentence like "Successfully submitted 3 credit card
+// transaction(s) for lead approval." `authedPost` runs that through JSON.parse
+// and throws, which reported every successful submit, save, approve and rename
+// to the reader as a failure after the work had already been done.
+//
+// The same misreading of Ballerina's `string body` cost us the attachment
+// upload (see putBinaryFile). It comes from porting against the backend's type
+// instead of the running app, which just resolves response.data.
+
 // POST /transactions/employee-submit — a CC owner submits categorised `new`
 // transactions for lead approval.
 export function useCcEmployeeSubmit() {
@@ -36,7 +49,7 @@ export function useCcEmployeeSubmit() {
   return useMutation<void, Error, CcTransaction[]>({
     mutationFn: async (transactions) => {
       const accessToken = await getAccessToken();
-      await authedPost<unknown>(ccServiceUrls.employeeSubmit, accessToken, transactions);
+      await authedPostText(ccServiceUrls.employeeSubmit, accessToken, transactions);
     },
     onSuccess: () => invalidate(qc),
   });
@@ -57,7 +70,7 @@ export function useCcSaveDraft() {
   return useMutation<void, Error, CcTransaction[]>({
     mutationFn: async (transactions) => {
       const accessToken = await getAccessToken();
-      await authedPost<unknown>(ccServiceUrls.saveDraft, accessToken, transactions);
+      await authedPostText(ccServiceUrls.saveDraft, accessToken, transactions);
     },
   });
 }
@@ -69,7 +82,7 @@ export function useCcSaveEdit() {
   return useMutation<void, Error, CcTransaction[]>({
     mutationFn: async (transactions) => {
       const accessToken = await getAccessToken();
-      await authedPost<unknown>(ccServiceUrls.saveEdit, accessToken, transactions);
+      await authedPostText(ccServiceUrls.saveEdit, accessToken, transactions);
     },
     onSuccess: () => invalidate(qc),
   });
@@ -84,7 +97,7 @@ export function useCcApprove(stage: "lead" | "finance") {
     mutationFn: async (ids) => {
       const accessToken = await getAccessToken();
       const url = stage === "lead" ? ccServiceUrls.leadApprove : ccServiceUrls.financeApprove;
-      await authedPost<unknown>(url, accessToken, ids);
+      await authedPostText(url, accessToken, ids);
     },
     onSuccess: () => invalidate(qc),
   });
@@ -104,7 +117,7 @@ export function useCcCardLabel() {
       const accessToken = await getAccessToken();
       // The label rides in the query string, as the source sends it; there is
       // no body.
-      await authedPatch<unknown>(ccServiceUrls.creditCardLabel(id, label), accessToken, {});
+      await authedPatchText(ccServiceUrls.creditCardLabel(id, label), accessToken, {});
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["cc-cards"] });
@@ -163,7 +176,7 @@ export function useCcUploadTransactions() {
   return useMutation<void, Error, { bankCode: string; fileName: string; group: CcTransactionUploadGroup }>({
     mutationFn: async ({ bankCode, fileName, group }) => {
       const accessToken = await getAccessToken();
-      await authedPost<unknown>(ccServiceUrls.uploadTransactions(bankCode, fileName), accessToken, group);
+      await authedPostText(ccServiceUrls.uploadTransactions(bankCode, fileName), accessToken, group);
     },
     onSuccess: () => invalidate(qc),
   });

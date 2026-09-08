@@ -257,6 +257,25 @@ export async function authedPostText(
   return res.text();
 }
 
+// Authed PATCH whose RESPONSE is plain text, not JSON. Same reason
+// authedPostText exists: some Ballerina services declare their success as
+// `record {| *http:Ok; string body; |}`, where `body` IS the payload — so a
+// 200 carries a bare sentence and JSON.parse would reject it.
+export async function authedPatchText(
+  url: string,
+  accessToken: string,
+  body: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<string> {
+  const res = await fetchWithReauth(
+    url,
+    { method: "PATCH", headers: buildHeaders(extraHeaders, true), body: JSON.stringify(body) },
+    accessToken,
+  );
+  if (!res.ok) await throwFromError(url, res, "authedPatchText");
+  return res.text();
+}
+
 // Authed PATCH with a JSON body. Returns parsed JSON when the response has
 // a body, or null on 204. Same error semantics as authedPost.
 export async function authedPatch<T>(

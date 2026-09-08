@@ -134,8 +134,9 @@ export async function fetchBase64Attachment(url: string, accessToken: string): P
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
   }
-  const json = parseJsonOrThrow(await res.text(), url, res.status) as { body?: unknown };
-  const raw = typeof json.body === "string" ? json.body : "";
+  // Plain text for cc, wrapped for the others — see payloadString. Reading
+  // this as JSON threw on every successful download, since base64 is not JSON.
+  const raw = payloadString((await res.text()).trim());
   if (!raw) throw new HttpError(url, res.status, "empty attachment");
   // Accept either a bare base64 string or an already-formed data URL. Coerce
   // any non-previewable/mislabeled type to octet-stream (download, no inline
@@ -154,7 +155,17 @@ export async function fetchBase64Attachment(url: string, accessToken: string): P
 }
 
 // PUT raw file bytes to an attachment endpoint (cc-expenses). Returns the
-// server-stored file name from `{ body: fileName }`.
+// server-stored file name.
+//
+// The name arrives as the response body itself, in plain text. The backend
+// declares `record {| *http:Created; string body; |}` (types.bal:107-110),
+// where `body` is the HTTP payload — so a successful upload is a 201 whose
+// body is `receipt_123.pdf`, not `{"body":"receipt_123.pdf"}`. Reading it as
+// JSON took that field for an envelope and threw on every successful upload:
+// a 201 was reported to the user as a failure.
+//
+// JSON is still accepted first, because the expense and OPD backends do wrap
+// the name, and this helper is shared.
 //
 // Routed through fetchWithReauth — same refresh-but-don't-replay policy as
 // uploadReceipt above (PUT isn't auto-replayed either).
@@ -164,13 +175,40 @@ export async function putBinaryFile(url: string, accessToken: string, file: File
     const body = await res.text().catch(() => "");
     throw new HttpError(url, res.status, body);
   }
-  const text = await res.text();
-  const parsed = parseJsonOrThrow(text, url, res.status) as { body?: unknown; fileName?: unknown };
-  const name = typeof parsed.body === "string" ? parsed.body : typeof parsed.fileName === "string" ? parsed.fileName : "";
-  // Fail the same way uploadReceipt does — never return "" so a caller can't
-  // store an empty attachment name.
+  const text = (await res.text()).trim();
+  const name = payloadString(text);
+  // Never return "" — a caller storing an empty attachment name would record
+  // an upload that cannot be fetched back.
   if (!name) throw new HttpError(url, res.status, text);
   return name;
+}
+
+/**
+ * The payload string, however the backend chose to send it: a wrapped
+ * `{body}`/`{fileName}`, a bare JSON string, or plain text.
+ *
+ * The cc backend sends plain text for both of the things this file reads — the
+ * stored file name after an upload, and the base64 of an attachment being
+ * fetched back. Both declare `record {| *http:Ok|Created; string body; |}`
+ * (types.bal:99-101, :107-110), where `body` is the HTTP payload rather than a
+ * field inside it. The expense and OPD backends do wrap, and this helper is
+ * shared, so both shapes are accepted.
+ */
+function payloadString(text: string): string {
+  if (!text) return "";
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed === "string") return parsed;
+    if (parsed && typeof parsed === "object") {
+      const o = parsed as { body?: unknown; fileName?: unknown };
+      if (typeof o.body === "string") return o.body;
+      if (typeof o.fileName === "string") return o.fileName;
+    }
+    return "";
+  } catch {
+    // Not JSON, so the body is the name — which is what cc-expenses sends.
+    return text;
+  }
 }
 
 // PDF/PNG/JPEG have stable base64 prefixes; default to octet-stream.
