@@ -32,6 +32,7 @@ import {
   TableHead,
   TableRow,
   Tabs,
+  Tooltip,
   Typography,
 } from "@wso2/oxygen-ui";
 import { useNotifications } from "@context/notifications/NotificationsContext";
@@ -39,6 +40,9 @@ import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { CC_SNACK } from "../ccCopy";
+
+// StatementDataGrid.tsx:43 — the source writes N/A here, not a dash.
+const NOT_AVAILABLE = "N/A";
 import { money, formatNice } from "../../util/financeFormat";
 import { useCcProcessStatement, useCcUploadTransactions } from "../useCcMutations";
 import { useCcUserInfo } from "../useCc";
@@ -88,6 +92,15 @@ function SettingsBody() {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // FileUpload.tsx:89-94,111-119 — the extension is checked, not trusted.
+    // `accept` on the input only filters the picker's default view; "All
+    // files" still lets anything through, and the parse then fails with
+    // whatever the backend says instead of naming the actual problem.
+    if (file.name.toLowerCase().split(".").pop() !== "csv") {
+      showError("Invalid file type. Please upload a CSV file.");
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
     const bankCode = bank;
     const fileName = file.name;
     process.mutate(
@@ -151,6 +164,17 @@ function SettingsBody() {
 
       {process.isError && <Alert severity="error" sx={{ mb: 2 }}>{describeError(process.error)}</Alert>}
 
+      {/* index.tsx:232-236 — say what to do before anything is uploaded,
+          rather than showing an empty frame. */}
+      {!group && !process.isPending && (
+        <Box sx={{ textAlign: "center", py: 6 }}>
+          <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Upload a bank statement</Typography>
+          <Typography sx={{ fontSize: 13, color: "text.secondary", mt: 0.5 }}>
+            Upload a statement to view transactions
+          </Typography>
+        </Box>
+      )}
+
       {group && (
         <Box>
           <Tabs
@@ -170,10 +194,11 @@ function SettingsBody() {
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ "& th": { fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.04em" } }}>
-                    <TableCell>Reference</TableCell>
-                    <TableCell>Card</TableCell>
-                    <TableCell>Owner</TableCell>
-                    <TableCell>Date</TableCell>
+                    <TableCell>Reference No</TableCell>
+                    <TableCell>Card Owner</TableCell>
+                    <TableCell>Card Number</TableCell>
+                    <TableCell>Lead Email</TableCell>
+                    <TableCell>Transaction Date</TableCell>
                     <TableCell>Description</TableCell>
                     <TableCell align="right">Amount</TableCell>
                   </TableRow>
@@ -182,8 +207,9 @@ function SettingsBody() {
                   {tabRows[tab].map((t) => (
                     <TableRow key={t.txnReferenceNo} hover>
                       <TableCell sx={{ fontSize: 12, fontFamily: "monospace" }}>{t.txnReferenceNo}</TableCell>
-                      <TableCell sx={{ fontSize: 12.5, fontFamily: "monospace" }}>•••• {t.ccNumber.slice(-4)}</TableCell>
-                      <TableCell sx={{ fontSize: 12.5 }}>{t.employeeEmail || "—"}</TableCell>
+                      <TableCell sx={{ fontSize: 12.5 }}>{t.employeeEmail || NOT_AVAILABLE}</TableCell>
+                      <TableCell sx={{ fontSize: 12.5, fontFamily: "monospace" }}>{t.ccNumber}</TableCell>
+                      <TableCell sx={{ fontSize: 12.5 }}>{t.leadEmail || NOT_AVAILABLE}</TableCell>
                       <TableCell sx={{ fontSize: 12.5 }}>{formatNice(t.txnDate)}</TableCell>
                       <TableCell sx={{ fontSize: 12.5 }}>{t.txnDescription}</TableCell>
                       <TableCell align="right" sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
@@ -200,14 +226,19 @@ function SettingsBody() {
             <Button onClick={() => setParsed(null)} disabled={upload.isPending}>
               Discard
             </Button>
-            <Button
-              variant="contained"
-              onClick={handleSave}
-              disabled={group.newItems.length === 0 || upload.isPending}
-              sx={{ fontWeight: 600 }}
-            >
-              {upload.isPending ? "Saving…" : `Save ${group.newItems.length} new`}
-            </Button>
+            {/* index.tsx:151-160 — a disabled Save says why it is disabled. */}
+            <Tooltip title={group.newItems.length === 0 ? "No new items to save" : ""}>
+              <span>
+                <Button
+                  variant="contained"
+                  onClick={handleSave}
+                  disabled={group.newItems.length === 0 || upload.isPending}
+                  sx={{ fontWeight: 600 }}
+                >
+                  {upload.isPending ? "Saving…" : `Save ${group.newItems.length} new`}
+                </Button>
+              </span>
+            </Tooltip>
           </Box>
         </Box>
       )}
