@@ -299,3 +299,50 @@ describe("what the grid brings to the approve queue", () => {
     expect(boxes[0]).toBeEnabled();
   });
 });
+
+// ApproveFilterPopover.tsx — the source narrows this queue by user, by card
+// and, for finance only, by stage. The port had none of the three, so finance
+// read both stages mixed together with no way to see just its own.
+describe("narrowing the approve queue", () => {
+  const pick = async (label: string, option: string) => {
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText(label));
+    await user.click(await screen.findByRole("option", { name: option }));
+  };
+
+  it("offers user and card to a lead", async () => {
+    state.access = ["lead"];
+    show();
+    await screen.findAllByRole("checkbox");
+    expect(screen.getByLabelText("User")).toBeInTheDocument();
+    expect(screen.getByLabelText("Card")).toBeInTheDocument();
+  });
+
+  it("keeps the stage filter to finance, whose queue spans two stages", async () => {
+    state.access = ["lead"];
+    show();
+    await screen.findAllByRole("checkbox");
+    // index.tsx:91-95 — a lead's queue is one stage by definition.
+    expect(screen.queryByLabelText("Status")).toBeNull();
+  });
+
+  it("lets finance see just its own stage", async () => {
+    state.access = ["finance"];
+    show();
+    // Both stages to begin with.
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(3));
+
+    await pick("Status", "Pending Finance");
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
+  });
+
+  it("uses the source's words for the stages", async () => {
+    state.access = ["finance"];
+    show();
+    const user = userEvent.setup();
+    await user.click(await screen.findByLabelText("Status"));
+    // FilterMenu.tsx:79-88 — not the raw pending_lead / pending_finance.
+    expect(await screen.findByRole("option", { name: "Pending Lead" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Pending Finance" })).toBeInTheDocument();
+  });
+});

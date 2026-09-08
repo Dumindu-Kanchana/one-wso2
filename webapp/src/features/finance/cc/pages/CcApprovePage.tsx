@@ -23,9 +23,13 @@ import { describeError } from "../../util/financeError";
 import { CcTxnTable } from "../CcTxnTable";
 import { useCcApprove, useCcSaveEdit } from "../useCcMutations";
 import { CcEditDialog } from "../CcEditDialog";
+import { CcPickOne } from "../CcPickOne";
 import { CC_SNACK } from "../ccCopy";
 import { useCcTransactions, useCcUserInfo } from "../useCc";
 import { ccHasAccess, type CcTransaction } from "../ccTypes";
+
+// FILTER_ALL in approve-submissions/index.tsx.
+const ALL = "all";
 import { FINANCE_EYEBROW } from "@constants/financeApps";
 
 type ApproveRole = "lead" | "finance";
@@ -97,6 +101,13 @@ function ApproveBody({
   const [checked, setChecked] = useState<Set<number>>(new Set());
 
   const email = userInfo.data?.workEmail;
+  // ApproveFilterPopover.tsx — the source narrows this queue by user, by card
+  // and, for finance only, by stage. Without the stage filter finance reads a
+  // list of both stages mixed together with no way to see just its own; the
+  // port had none of the three.
+  const [user, setUser] = useState(ALL);
+  const [card, setCard] = useState(ALL);
+  const [stage, setStage] = useState(ALL);
   const [editing, setEditing] = useState<CcTransaction | null>(null);
   const saveEdit = useCcSaveEdit();
   const leadApprove = useCcApprove("lead");
@@ -127,12 +138,27 @@ function ApproveBody({
         ? t.status === "pending_lead" && isUserLeadOf(t)
         : false;
 
-  const rows = useMemo(
+  const inMode = useMemo(
     () => (txns.data ?? []).filter(isVisible),
     // isVisible closes over role and email
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [txns.data, role, email],
   );
+
+  // Built from what the mode already put on screen, so a filter never offers
+  // a person or card with nothing behind it.
+  const users = useMemo(() => [...new Set(inMode.map((t) => t.employeeEmail))].sort(), [inMode]);
+  const cards = useMemo(() => [...new Set(inMode.map((t) => t.ccNumber))].sort(), [inMode]);
+
+  const rows = useMemo(() => {
+    let list = inMode;
+    if (user !== ALL) list = list.filter((t) => t.employeeEmail === user);
+    if (card !== ALL) list = list.filter((t) => t.ccNumber === card);
+    // index.tsx:91-95 resets the stage filter whenever the mode is Lead — a
+    // lead's queue is one stage by definition, so the control is finance-only.
+    if (role === "finance" && stage !== ALL) list = list.filter((t) => t.status === stage);
+    return list;
+  }, [inMode, user, card, stage, role]);
 
   // One stage per mode, so one endpoint — the source approves as the selected
   // role (handleApproveSelection, ApproveTransactionsDataGrid.tsx:171-180).
@@ -199,6 +225,21 @@ function ApproveBody({
           </TextField>
         </Box>
       )}
+
+      {/* FilterMenu.tsx:79-88 for the stage labels. */}
+      <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: "wrap" }}>
+        <CcPickOne label="User" value={user} onChange={setUser} options={users} />
+        <CcPickOne label="Card" value={card} onChange={setCard} options={cards} />
+        {role === "finance" && (
+          <CcPickOne
+            label="Status"
+            value={stage}
+            onChange={setStage}
+            options={["pending_lead", "pending_finance"]}
+            optionLabel={(o) => (o === "pending_lead" ? "Pending Lead" : "Pending Finance")}
+          />
+        )}
+      </Stack>
 
       {txns.isLoading ? (
         <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5 }} />

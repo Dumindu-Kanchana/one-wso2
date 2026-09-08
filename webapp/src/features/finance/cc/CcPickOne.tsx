@@ -1,0 +1,67 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { FormControl, InputLabel, MenuItem, Select } from "@wso2/oxygen-ui";
+
+/**
+ * One "All / …" narrowing select, built from what is on screen.
+ *
+ * Shared by History and Approve, whose source screens both narrow by user and
+ * card through the same FilterMenu (HistoryFilterPopover /
+ * ApproveFilterPopover).
+ */
+export function CcPickOne({
+  label,
+  value,
+  onChange,
+  options,
+  optionLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  /**
+   * How to render an option whose stored value is not what a reader should
+   * see — the approve stage filter holds `pending_lead` and shows
+   * "Pending Lead" (FilterMenu.tsx:79-88). Defaults to the value itself,
+   * which is what the user and card filters want.
+   */
+  optionLabel?: (value: string) => string;
+}) {
+  const labelId = `cc-filter-${label.toLowerCase()}`;
+  return (
+    <FormControl size="small">
+      <InputLabel id={labelId}>{label}</InputLabel>
+      <Select
+        labelId={labelId}
+        label={label}
+        value={value}
+        onChange={(e) => onChange(String(e.target.value))}
+        sx={{ minWidth: 170 }}
+      >
+        <MenuItem value="all">All</MenuItem>
+        {options.map((o) => (
+          <MenuItem key={o} value={o}>
+            {optionLabel ? optionLabel(o) : o}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+}
