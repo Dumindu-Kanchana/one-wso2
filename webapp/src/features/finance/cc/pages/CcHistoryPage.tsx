@@ -31,7 +31,7 @@ import {
 import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
-import { daysAgoIso, formatNice, money } from "../../util/financeFormat";
+import { bareAmount, daysAgoIso, formatNice } from "../../util/financeFormat";
 import { CcTxnDetailsDialog } from "../CcTxnDetailsDialog";
 import { ReceiptViewer } from "../../components/ReceiptViewer";
 import { StatusChip, ccStatusMeta } from "../../components/FinanceChips";
@@ -182,7 +182,8 @@ function HistoryBody() {
         type: "number",
         flex: 0.05,
         minWidth: 110,
-        renderCell: (p) => money(p.value as number, "USD"),
+        // Bare, because the header says ($) — as the source does.
+        renderCell: (p) => bareAmount(p.value as number),
       },
       {
         field: "ccNumber",

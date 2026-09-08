@@ -238,3 +238,24 @@ describe("the approve-role switcher", () => {
     expect(screen.queryByLabelText("Approve Role")).toBeNull();
   });
 });
+
+// PendingTransactionsDataGrid.tsx / ApproveTransactionsDataGrid.tsx both lead
+// with ID and head the amount "Amount($)" over a bare number. The port had
+// dropped the column and moved the currency into the cell.
+describe("the shared transaction table", () => {
+  it("leads with the row id", async () => {
+    show();
+    await screen.findAllByRole("checkbox");
+    expect(screen.getByRole("columnheader", { name: "ID" })).toBeInTheDocument();
+    const first = screen.getAllByRole("row")[1];
+    expect(first.querySelectorAll("td")[1]).toHaveTextContent("1");
+  });
+
+  it("puts the currency in the header, not the cell", async () => {
+    show();
+    await screen.findAllByRole("checkbox");
+    expect(screen.getByRole("columnheader", { name: "Amount($)" })).toBeInTheDocument();
+    expect(screen.getAllByText("500.00").length).toBeGreaterThan(0);
+    expect(screen.queryByText("$500.00")).toBeNull();
+  });
+});

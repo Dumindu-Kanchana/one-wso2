@@ -30,7 +30,7 @@ import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
 import { StatusChip, ccStatusMeta } from "../components/FinanceChips";
 import { ReceiptViewer } from "../components/ReceiptViewer";
-import { money, formatNice } from "../util/financeFormat";
+import { bareAmount, formatNice } from "../util/financeFormat";
 import { fetchBase64Attachment, type ReceiptSource } from "../util/financeReceipts";
 import type { CcAttachmentType, CcTransaction } from "./ccTypes";
 
@@ -86,11 +86,15 @@ export function CcTxnTable({
         <TableHead>
           <TableRow sx={{ "& th": th }}>
             {selection && <TableCell padding="checkbox" />}
+            {/* PendingTransactionsDataGrid.tsx and ApproveTransactionsDataGrid.tsx
+                both lead with ID — it is how a row gets referred to when someone
+                asks finance about one. */}
+            <TableCell>ID</TableCell>
             <TableCell>Description</TableCell>
             {showUser && <TableCell>User</TableCell>}
             {showCard && <TableCell>Card</TableCell>}
             <TableCell>Date</TableCell>
-            <TableCell align="right">Amount</TableCell>
+            <TableCell align="right">Amount($)</TableCell>
             <TableCell>Files</TableCell>
             <TableCell>Status</TableCell>
             {(edit || onOpen) && <TableCell align="right" />}
@@ -111,6 +115,7 @@ export function CcTxnTable({
                     />
                   </TableCell>
                 )}
+                <TableCell sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{t.id}</TableCell>
                 <TableCell sx={{ fontSize: 12.5 }}>{t.txnDescription}</TableCell>
                 {showUser && <TableCell sx={{ fontSize: 12.5 }}>{t.employeeEmail}</TableCell>}
                 {showCard && (
@@ -118,7 +123,7 @@ export function CcTxnTable({
                 )}
                 <TableCell sx={{ fontSize: 12.5 }}>{formatNice(t.txnDate)}</TableCell>
                 <TableCell align="right" sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
-                  {money(t.txnAmount, "USD")}
+                  {bareAmount(t.txnAmount)}
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={0.5}>

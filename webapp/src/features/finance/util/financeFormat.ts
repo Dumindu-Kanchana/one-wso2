@@ -38,6 +38,19 @@ export function wholeAmount(amount: number | null | undefined): string {
   )[0];
 }
 
+/**
+ * An amount with no currency marker, two decimals.
+ *
+ * The card screens need this because their column header carries the currency
+ * instead: the source's grids are headed "Amount($)" and render a bare number
+ * through `formatCurrency` (utils.ts:44-49). Passing them through `money`
+ * puts a second "$" in every cell, under a header that already has one.
+ */
+export function bareAmount(amount: number | null | undefined): string {
+  const n = typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function money(amount: number | null | undefined, currency = "LKR"): string {
   const n = typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
   const prefix = CURRENCY_PREFIX[currency] ?? currency;

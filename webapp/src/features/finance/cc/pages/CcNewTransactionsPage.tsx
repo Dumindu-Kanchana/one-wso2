@@ -32,7 +32,7 @@ import { useNotifications } from "@context/notifications/NotificationsContext";
 import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
-import { money, formatNice } from "../../util/financeFormat";
+import { bareAmount, formatNice } from "../../util/financeFormat";
 import { CardMenu } from "../components/CardMenu";
 import { CcEditDialog } from "../CcEditDialog";
 import { CC_SNACK } from "../ccCopy";
@@ -179,9 +179,11 @@ function NewTxnBody() {
             <TableHead>
               <TableRow sx={{ "& th": { fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.04em" } }}>
                 <TableCell padding="checkbox" />
+                {/* NewTransactionsDataGrid.tsx:105-110 leads with ID. */}
+                <TableCell>ID</TableCell>
                 <TableCell>Description</TableCell>
                 <TableCell>Date</TableCell>
-                <TableCell align="right">Amount</TableCell>
+                <TableCell align="right">Amount($)</TableCell>
                 <TableCell>Category</TableCell>
                 <TableCell align="right">&nbsp;</TableCell>
               </TableRow>
@@ -199,10 +201,11 @@ function NewTxnBody() {
                         onChange={() => toggle(t.id)}
                       />
                     </TableCell>
+                    <TableCell sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{t.id}</TableCell>
                     <TableCell sx={{ fontSize: 12.5 }}>{t.txnDescription}</TableCell>
                     <TableCell sx={{ fontSize: 12.5 }}>{formatNice(t.txnDate)}</TableCell>
                     <TableCell align="right" sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
-                      {money(t.txnAmount, "USD")}
+                      {bareAmount(t.txnAmount)}
                     </TableCell>
                     <TableCell sx={{ fontSize: 12.5, color: complete ? "success.main" : "text.disabled" }}>
                       {complete ? `${t.expenseCategoryLabel} · ${t.expenseTypeLabel}` : "Needs details"}
