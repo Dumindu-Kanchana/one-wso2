@@ -21,11 +21,18 @@ import { Box, DataGrid, Tooltip } from "@wso2/oxygen-ui";
 /**
  * Everything v8's `showToolbar` gives, except the export buttons.
  *
- * Of the source's five grids only submission-history offers export
- * (GridToolbarExport, submission-history/index.tsx:53). The other four show
- * either other people's card spend or transactions not yet submitted, and the
- * default toolbar would hand out a one-click CSV of all of it purely because
- * the button ships with the component.
+ * For the three transaction grids. The source gives those a quick filter and
+ * nothing else — each builds its own toolbar containing only
+ * `GridToolbarQuickFilter` (NewTransactions / PendingTransactions /
+ * ApproveTransactions DataGrid.tsx). Export appears on exactly two of its
+ * five grids: submission-history, and the statement screen through the
+ * all-in-one `GridToolbar`.
+ *
+ * So export is withheld here deliberately — these three show either other
+ * people's card spend or transactions nobody has submitted yet, and v8's
+ * default toolbar would hand out a CSV of all of it purely because the button
+ * ships with the component. The column and filter panels are kept, which is
+ * more than the source offers and costs nothing.
  */
 export function ToolbarNoExport() {
   return (

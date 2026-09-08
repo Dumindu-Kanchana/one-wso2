@@ -173,3 +173,23 @@ describe("a statement with nothing new in it", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent("No new items to save");
   });
 });
+
+// StatementDataGrid.tsx:81 uses the all-in-one GridToolbar, so this screen
+// does get export — unlike the three transaction grids, whose toolbars hold
+// only a quick filter. Finance is reconciling a statement it uploaded itself.
+describe("the statement grid's toolbar", () => {
+  it("offers export, which the transaction grids withhold", async () => {
+    show();
+    pick("statement.csv");
+    expect(await screen.findByRole("button", { name: "Export" })).toBeInTheDocument();
+  });
+
+  it("offers search and column control too", async () => {
+    show();
+    pick("statement.csv");
+    await screen.findByText("Reference No");
+    for (const name of ["Columns", "Search"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+});

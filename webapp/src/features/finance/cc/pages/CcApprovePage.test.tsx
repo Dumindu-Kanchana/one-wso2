@@ -281,8 +281,9 @@ describe("what the grid brings to the approve queue", () => {
   });
 
   it("does not offer export, which the source keeps to history", async () => {
-    // These screens show other people's spend; submission-history/index.tsx is
-    // the only one of the five with GridToolbarExport.
+    // These screens show other people's spend. The source's approve and
+    // pending grids build a toolbar holding only GridToolbarQuickFilter;
+    // export appears on history and on the statement screen, not here.
     show();
     await screen.findAllByRole("checkbox");
     expect(screen.queryByRole("button", { name: "Export" })).toBeNull();

@@ -26,11 +26,7 @@ import {
   Skeleton,
   Stack,
   Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
+  DataGrid,
   Tabs,
   Tooltip,
   Typography,
@@ -131,6 +127,45 @@ function SettingsBody() {
     );
   };
 
+  // StatementDataGrid.tsx:38-67, in its order and its wording. Lead Email is
+  // the column that says who each row will go to for approval.
+  const statementColumns: DataGrid.GridColDef<CcNewTransaction>[] = [
+    { field: "txnReferenceNo", headerName: "Reference No", flex: 1, minWidth: 130 },
+    {
+      field: "employeeEmail",
+      headerName: "Card Owner",
+      flex: 1,
+      minWidth: 180,
+      renderCell: (p) => (p.value as string) || NOT_AVAILABLE,
+    },
+    { field: "ccNumber", headerName: "Card Number", flex: 1, minWidth: 130 },
+    {
+      field: "leadEmail",
+      headerName: "Lead Email",
+      flex: 1.5,
+      minWidth: 200,
+      renderCell: (p) => (p.value as string) || NOT_AVAILABLE,
+    },
+    {
+      field: "txnDate",
+      headerName: "Transaction Date",
+      flex: 1,
+      minWidth: 150,
+      renderCell: (p) => formatNice(p.value as string),
+    },
+    { field: "txnDescription", headerName: "Description", flex: 1.5, minWidth: 180 },
+    {
+      field: "txnAmount",
+      headerName: "Amount",
+      flex: 0.8,
+      minWidth: 110,
+      type: "number",
+      // Not bare here: the source's header is "Amount" with no currency, and
+      // a statement row carries its own txnCurrency.
+      renderCell: (p) => money(p.value as number, p.row.txnCurrency),
+    },
+  ];
+
   const tabRows: Record<typeof tab, CcNewTransaction[]> = {
     new: group?.newItems ?? [],
     duplicate: group?.duplicateItems ?? [],
@@ -190,35 +225,23 @@ function SettingsBody() {
           {tabRows[tab].length === 0 ? (
             <Typography sx={{ fontSize: 13, color: "text.secondary", py: 3 }}>None in this group.</Typography>
           ) : (
-            <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ "& th": { fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.04em" } }}>
-                    <TableCell>Reference No</TableCell>
-                    <TableCell>Card Owner</TableCell>
-                    <TableCell>Card Number</TableCell>
-                    <TableCell>Lead Email</TableCell>
-                    <TableCell>Transaction Date</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell align="right">Amount</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {tabRows[tab].map((t) => (
-                    <TableRow key={t.txnReferenceNo} hover>
-                      <TableCell sx={{ fontSize: 12, fontFamily: "monospace" }}>{t.txnReferenceNo}</TableCell>
-                      <TableCell sx={{ fontSize: 12.5 }}>{t.employeeEmail || NOT_AVAILABLE}</TableCell>
-                      <TableCell sx={{ fontSize: 12.5, fontFamily: "monospace" }}>{t.ccNumber}</TableCell>
-                      <TableCell sx={{ fontSize: 12.5 }}>{t.leadEmail || NOT_AVAILABLE}</TableCell>
-                      <TableCell sx={{ fontSize: 12.5 }}>{formatNice(t.txnDate)}</TableCell>
-                      <TableCell sx={{ fontSize: 12.5 }}>{t.txnDescription}</TableCell>
-                      <TableCell align="right" sx={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
-                        {money(t.txnAmount, t.txnCurrency)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <Box sx={{ height: 460, width: "100%" }}>
+              {/* StatementDataGrid.tsx:70-95 — on the grid, with the all-in-one
+                  toolbar it uses: columns, filters, density, quick filter and
+                  export. Export is right here where it is withheld on the
+                  transaction grids — this is finance reconciling a statement they
+                  uploaded themselves, and the source offers it. */}
+              <DataGrid.DataGrid
+                rows={tabRows[tab]}
+                columns={statementColumns}
+                getRowId={(r) => r.txnReferenceNo}
+                showToolbar
+                density="compact"
+                disableRowSelectionOnClick
+                initialState={{ pagination: { paginationModel: { pageSize: 10, page: 0 } } }}
+                pageSizeOptions={[10, 25, 50, 100]}
+                sx={{ "& .MuiDataGrid-cell": { fontSize: 12.5 } }}
+              />
             </Box>
           )}
 
