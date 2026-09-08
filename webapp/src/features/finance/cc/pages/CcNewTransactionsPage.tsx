@@ -32,6 +32,7 @@ import { bareAmount, formatNice } from "../../util/financeFormat";
 import { CardMenu } from "../components/CardMenu";
 import { CcEditDialog } from "../CcEditDialog";
 import { ToolbarNoExport as NewTxnToolbar } from "../ccGridToolbar";
+import { selectedIds } from "../ccSelection";
 import { CC_SNACK } from "../ccCopy";
 import { useCcCardLabel, useCcEmployeeSubmit, useCcSaveDraft } from "../useCcMutations";
 import { useDraftAutosave } from "../../util/useDraftAutosave";
@@ -237,7 +238,10 @@ function NewTxnBody() {
             checkboxSelection
             rowSelectionModel={{ type: "include", ids: new Set(checked) }}
             onRowSelectionModelChange={(model) => {
-              const next = model.ids as Set<DataGrid.GridRowId>;
+              // include/exclude — see selectedIds. Every row here is
+              // selectable, which is exactly when the grid reports select-all
+              // as an empty exclude-set.
+              const next = selectedIds(model, rows);
               for (const t of rows) {
                 if (next.has(t.id) !== checked.has(t.id)) toggle(t.id);
               }

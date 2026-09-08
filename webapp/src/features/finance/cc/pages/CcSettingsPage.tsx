@@ -115,6 +115,9 @@ function SettingsBody() {
         onSuccess: () => {
           showSuccess(CC_SNACK.success.uploadNewTransactions);
           setParsed(null);
+          // And the file itself, or the drop zone keeps showing a statement
+          // that has already been saved as though it were still waiting.
+          setChosen(null);
         },
         onError: (err) => showError(describeError(err)),
       },

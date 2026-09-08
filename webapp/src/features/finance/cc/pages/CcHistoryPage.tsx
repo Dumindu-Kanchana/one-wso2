@@ -197,7 +197,10 @@ function HistoryBody() {
         // port only marked it in the card picker, so history gave no sign.
         renderCell: (p) => {
           const status = cardStatus.get(p.value as string);
-          return `${p.value}${status && status !== "Active" ? " (Inactive)" : ""}`;
+          // Normalised, because useCc.ts:76 decides "active" case-insensitively
+          // and an exact compare here would mark an "ACTIVE" card inactive.
+          const active = (status ?? "").toUpperCase() === "ACTIVE";
+          return `${p.value}${status && !active ? " (Inactive)" : ""}`;
         },
       },
       { field: "employeeEmail", headerName: "Submitted User", flex: 0.05, minWidth: 180 },

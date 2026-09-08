@@ -35,5 +35,8 @@ export const FINANCE_GRID_SX = {
   "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within": {
     outline: "none",
   },
+  // Both, not just cells: a column header is reachable by keyboard for sorting
+  // and its menu, so removing every header ring left that navigation invisible.
   "& .MuiDataGrid-cell:focus-visible": { outline: "auto 1px" },
+  "& .MuiDataGrid-columnHeader:focus-visible": { outline: "auto 1px" },
 } as const;

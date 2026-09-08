@@ -19,6 +19,7 @@ import { useMemo, useState } from "react";
 import { Box, Button, DataGrid, Stack } from "@wso2/oxygen-ui";
 import { FINANCE_GRID_SX } from "../util/financeGridSx";
 import { ToolbarNoExport } from "./ccGridToolbar";
+import { selectedIds } from "./ccSelection";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
 import { StatusChip, ccStatusMeta } from "../components/FinanceChips";
@@ -193,13 +194,12 @@ export function CcTxnTable({
           }
           onRowSelectionModelChange={(model) => {
             if (!selection) return;
-            // The grid hands back the whole selection; turn it into the
-            // per-id toggles the caller's Set expects, so one click does not
-            // silently drop the rest.
-            const next = model.ids as Set<DataGrid.GridRowId>;
+            // Resolve include/exclude first — see selectedIds — then turn the
+            // result into the per-id toggles the caller's Set expects, so one
+            // click does not silently drop the rest.
+            const next = selectedIds(model, txns);
             for (const t of txns) {
-              const nowOn = next.has(t.id);
-              if (nowOn !== selection.checked.has(t.id)) selection.onToggle(t.id);
+              if (next.has(t.id) !== selection.checked.has(t.id)) selection.onToggle(t.id);
             }
           }}
           initialState={{ pagination: { paginationModel: { pageSize: 20, page: 0 } } }}

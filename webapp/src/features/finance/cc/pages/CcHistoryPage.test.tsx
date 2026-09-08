@@ -73,8 +73,10 @@ vi.mock("../useCc", () => ({
   // Cards including closed ones — the CC Number cell marks a transaction whose
   // card has since been closed, as submission-history/index.tsx:262-269 does.
   useCreditCards: () => ({
+    // "ACTIVE" upper-case on purpose: useCc.ts:76 decides active
+    // case-insensitively, so the cell must too.
     data: [
-      { id: 1, ccNumber: "1111", label: "Mine", status: "Active" },
+      { id: 1, ccNumber: "1111", label: "Mine", status: "ACTIVE" },
       { id: 2, ccNumber: "2222", label: "Old", status: "Inactive" },
     ],
     isLoading: false,

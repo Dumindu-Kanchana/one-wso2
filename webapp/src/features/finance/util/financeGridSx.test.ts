@@ -43,6 +43,14 @@ describe("the finance grids do not ring the cell you clicked", () => {
     expect(FINANCE_GRID_SX["& .MuiDataGrid-cell:focus-visible"]).toEqual({ outline: "auto 1px" });
   });
 
+  it("keeps it on column headers too, which are keyboard-reachable", () => {
+    // Removing every header ring left sorting and the column menu invisible to
+    // anyone navigating by keyboard.
+    expect(FINANCE_GRID_SX["& .MuiDataGrid-columnHeader:focus-visible"]).toEqual({
+      outline: "auto 1px",
+    });
+  });
+
   it("is what every card grid actually passes to sx", () => {
     // The constant is worthless if a grid styles itself instead. These are the
     // four DataGrids in the feature.

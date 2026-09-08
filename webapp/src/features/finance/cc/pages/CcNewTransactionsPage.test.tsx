@@ -214,3 +214,20 @@ describe("the grid this screen sits on", () => {
     expect(screen.getByRole("button", { name: /Submit/ })).toBeEnabled();
   });
 });
+
+describe("the header select-all", () => {
+  it("selects the row rather than clearing it", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync });
+    show();
+    // Categorise first, so a selected row is actually submittable.
+    await user.click(await screen.findByRole("button", { name: "Categorise" }));
+    await user.click(await screen.findByRole("button", { name: "finish-categorising" }));
+
+    const all = (await screen.findAllByRole("checkbox")).find(
+      (b) => b.getAttribute("name") === "select_all_rows",
+    );
+    await user.click(all as HTMLElement);
+
+    expect(screen.getByRole("button", { name: /Submit/ })).toBeEnabled();
+  });
+});

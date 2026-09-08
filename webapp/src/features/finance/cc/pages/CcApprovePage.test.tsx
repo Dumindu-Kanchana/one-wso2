@@ -346,3 +346,23 @@ describe("narrowing the approve queue", () => {
     expect(screen.getByRole("option", { name: "Pending Finance" })).toBeInTheDocument();
   });
 });
+
+// The grid's select-all emits {type:"exclude", ids:Set()} — "everything except
+// these" — not an include-set. Reading model.ids without checking the type
+// inverts it: select-all clears the selection instead of making it.
+describe("the header select-all", () => {
+  it("selects every row the mode can action", async () => {
+    state.access = ["finance"];
+    show();
+    const all = (await screen.findAllByRole("checkbox")).find(
+      (b) => b.getAttribute("name") === "select_all_rows",
+    );
+    expect(all).toBeDefined();
+    await userEvent.setup().click(all as HTMLElement);
+
+    // One of the two rows is pending_finance, so exactly one is actionable.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^Approve 1/ })).toBeInTheDocument(),
+    );
+  });
+});
