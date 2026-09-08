@@ -21,18 +21,19 @@ import {
   Button,
   DataGrid,
   FormControl,
-  InputLabel,
   MenuItem,
   Select,
   Skeleton,
   Stack,
   Typography,
 } from "@wso2/oxygen-ui";
+import { FINANCE_GRID_SX } from "../../util/financeGridSx";
 import { isCcBackendConfigured } from "@config/apiConfig";
 import FinanceShell from "../../components/FinanceShell";
 import { describeError } from "../../util/financeError";
 import { bareAmount, daysAgoIso, formatNice } from "../../util/financeFormat";
 import { CcTxnDetailsDialog } from "../CcTxnDetailsDialog";
+import { CcPickOne as PickOne } from "../CcPickOne";
 import { ReceiptViewer } from "../../components/ReceiptViewer";
 import { StatusChip, ccStatusMeta } from "../../components/FinanceChips";
 import { fetchBase64Attachment, type ReceiptSource } from "../../util/financeReceipts";
@@ -367,7 +368,7 @@ function HistoryBody() {
               pagination: { paginationModel: { pageSize: 20, page: 0 } },
             }}
             pageSizeOptions={[5, 10, 20, 25, 50]}
-            sx={{ "& .MuiDataGrid-cell": { fontSize: 12.5 } }}
+            sx={FINANCE_GRID_SX}
           />
         </Box>
       )}
@@ -379,36 +380,4 @@ function HistoryBody() {
 }
 
 /** One "All / …" narrowing select, built from what is on screen. */
-function PickOne({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-}) {
-  const labelId = `cc-history-${label.toLowerCase()}`;
-  return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>{label}</InputLabel>
-      <Select
-        labelId={labelId}
-        label={label}
-        value={value}
-        onChange={(e) => onChange(String(e.target.value))}
-        sx={{ minWidth: 170 }}
-      >
-        <MenuItem value="all">All</MenuItem>
-        {options.map((o) => (
-          <MenuItem key={o} value={o}>
-            {o}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  );
-}
 

@@ -17,6 +17,7 @@
 
 import { useMemo, useState } from "react";
 import { Box, Button, DataGrid, Stack } from "@wso2/oxygen-ui";
+import { FINANCE_GRID_SX } from "../util/financeGridSx";
 import { ToolbarNoExport } from "./ccGridToolbar";
 import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
@@ -203,7 +204,7 @@ export function CcTxnTable({
           }}
           initialState={{ pagination: { paginationModel: { pageSize: 20, page: 0 } } }}
           pageSizeOptions={[5, 10, 20, 25, 50]}
-          sx={{ "& .MuiDataGrid-cell": { fontSize: 12.5 } }}
+          sx={FINANCE_GRID_SX}
         />
       </Box>
       <ReceiptViewer title="Attachment" load={load} onClose={() => setLoad(null)} />
