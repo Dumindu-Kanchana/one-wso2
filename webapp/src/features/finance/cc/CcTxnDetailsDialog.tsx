@@ -32,7 +32,7 @@ import { useAccessToken } from "@hooks/useAccessToken";
 import { ccServiceUrls } from "@config/apiConfig";
 import { StatusChip, ccStatusMeta } from "../components/FinanceChips";
 import { ReceiptViewer } from "../components/ReceiptViewer";
-import { fetchReceiptObjectUrl, type ReceiptSource } from "../util/financeReceipts";
+import { fetchBase64Attachment, type ReceiptSource } from "../util/financeReceipts";
 import { money, formatNice } from "../util/financeFormat";
 import type { CcAttachmentType, CcTransaction } from "./ccTypes";
 
@@ -57,7 +57,14 @@ export function CcTxnDetailsDialog({
 
   const view = (attachmentType: CcAttachmentType) =>
     setLoad(() => async () =>
-      fetchReceiptObjectUrl(ccServiceUrls.attachment(txn.id, attachmentType), await getAccessToken()),
+      // fetchBase64Attachment, not fetchReceiptObjectUrl: this endpoint returns
+      // the file as base64 TEXT (`{body: fileContent.toBase64()}`,
+      // service.bal:592), so reading it as a binary blob produced a "file"
+      // whose contents were the base64 string itself and the preview showed
+      // nothing. The blob reader is for expense and OPD, which stream bytes.
+      // The grid's Files column already used this one — the two surfaces read
+      // the same endpoint two different ways.
+      fetchBase64Attachment(ccServiceUrls.attachment(txn.id, attachmentType), await getAccessToken()),
     );
 
   return (
